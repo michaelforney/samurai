@@ -1,0 +1,18 @@
+cc = cc
+cflags = -Wall -std=c11 -pedantic
+
+rule cc
+  command = $cc -MD -MF $out.d $cflags -c -o $out $in
+  depfile = $out.d
+  deps = gcc
+rule link
+  command = $cc $ldflags -o $out $in
+
+build build.o: cc build.c
+build env.o: cc env.c
+build graph.o: cc graph.c
+build lex.o: cc lex.c
+build parse.o: cc parse.c
+build samurai.o: cc samurai.c
+build util.o: cc util.c
+build samurai: link build.o env.o graph.o lex.o parse.o samurai.o util.o
