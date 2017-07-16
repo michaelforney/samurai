@@ -249,6 +249,47 @@ tokstr(int t)
 	}
 }
 
+static void
+escape(struct stringpart ***end, struct buffer *buf)
+{
+	int c;
+
+	c = fgetc(f);
+	switch (c) {
+	case '$':
+	case ' ':
+	case ':':
+		bufadd(buf, c);
+		break;
+	case '{':
+		if (buf->len > 0)
+			addstringpart(end, false, buf);
+		for (;;) {
+			c = fgetc(f);
+			if (!isvar(c))
+				break;
+		}
+		if (c != '}')
+			errx(1, "'%c' is not allowed in variable name", c);
+		addstringpart(end, true, buf);
+		break;
+	case '\n':
+		whitespace();
+		break;
+	default:
+		if (!issimplevar(c))
+			errx(1, "bad $ escape: %c", c);
+		if (buf->len > 0)
+			addstringpart(end, false, buf);
+		do {
+			bufadd(buf, c);
+			c = fgetc(f);
+		} while (issimplevar(c));
+		ungetc(c, f);
+		addstringpart(end, true, buf);
+	}
+}
+
 struct string *
 readstr(bool path)
 {
@@ -261,30 +302,7 @@ readstr(bool path)
 		c = fgetc(f);
 		switch (c) {
 		case '$':
-			c = fgetc(f);
-			if (issimplevar(c)) {
-				if (buf.len > 0)
-					addstringpart(&end, false, &buf);
-				do {
-					bufadd(&buf, c);
-					c = fgetc(f);
-				} while (issimplevar(c));
-				ungetc(c, f);
-				addstringpart(&end, true, &buf);
-			} else {
-				switch (c) {
-				case '$':
-				case ' ':
-				case ':':
-					bufadd(&buf, c);
-					break;
-				case '\n':
-					continue;
-				default:
-					fprintf(stderr, "bad $ escape: %c\n", c);
-					exit(1);
-				}
-			}
+			escape(&end, &buf);
 			break;
 		case ':':
 		case '|':
