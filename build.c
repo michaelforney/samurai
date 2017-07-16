@@ -221,6 +221,9 @@ nodedone(struct node *n)
 	size_t i, j;
 
 	n->dirty = false;
+	/* if we did not already populate n->use, we do not care about the dependent edges. */
+	if (!n->use)
+		return;
 	for (i = 0; i < n->nuse; ++i) {
 		e = n->use[i];
 		if (!e->want)
