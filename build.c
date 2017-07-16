@@ -104,17 +104,6 @@ computedirty(struct edge *e)
 		e->want = true;
 }
 
-void
-addtargetpath(const char *path)
-{
-	struct node *n;
-
-	n = nodeget((char *)path, false);
-	if (!n)
-		errx(1, "unknown target: '%s'", path);
-	addtarget(n);
-}
-
 static void
 addsubtarget(struct node *n)
 {
