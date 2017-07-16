@@ -12,6 +12,8 @@
 #include "util.h"
 
 extern FILE *f;
+struct node **deftarg;
+size_t ndeftarg;
 
 static void
 parselet(char **var, struct string **val)
@@ -142,6 +144,29 @@ parseinclude(struct environment *env, bool newscope)
 	f = oldf;
 }
 
+static void
+parsedefault(struct environment *env)
+{
+	struct string *targ, *str, **end;
+	char *path;
+	struct node *n;
+	size_t i, ntarg;
+
+	for (targ = NULL, ntarg = 0, end = &targ; (str = readstr(true)); ++ntarg)
+		pushstr(&end, str);
+	deftarg = xrealloc(deftarg, (ndeftarg + ntarg) * sizeof(*deftarg));
+	for (i = 0; targ; targ = str, ++i) {
+		str = targ->next;
+		path = enveval(env, targ);
+		delstr(targ);
+		n = nodeget(path, false);
+		if (!n)
+			errx(1, "unknown target '%s'", path);
+		deftarg[ndeftarg++] = n;
+	}
+	expect(NEWLINE);
+}
+
 void
 parse(struct environment *env)
 {
@@ -167,6 +192,9 @@ parse(struct environment *env)
 			val = enveval(env, str);
 			envaddvar(env, var, val);
 			delstr(str);
+			break;
+		case DEFAULT:
+			parsedefault(env);
 			break;
 		case EOF:
 			return;

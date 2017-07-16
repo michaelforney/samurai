@@ -86,12 +86,17 @@ main(int argc, char *argv[])
 			addtarget(n);
 		}
 	} else {
-		/* by default build all nodes which are not used by any edges */
-		for (e = alledges; e; e = e->next) {
-			for (i = 0; i < e->nout; ++i) {
-				n = e->out[i];
-				if (n->nuse == 0)
-					addtarget(n);
+		if (ndeftarg) {
+			for (i = 0; i < ndeftarg; ++i)
+				addtarget(deftarg[i]);
+		} else {
+			/* by default build all nodes which are not used by any edges */
+			for (e = alledges; e; e = e->next) {
+				for (i = 0; i < e->nout; ++i) {
+					n = e->out[i];
+					if (n->nuse == 0)
+						addtarget(n);
+				}
 			}
 		}
 	}

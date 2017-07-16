@@ -16,6 +16,15 @@ xmalloc(size_t n)
 	return p;
 }
 
+void *xrealloc(void *p, size_t n)
+{
+	p = realloc(p, n);
+	if (!p)
+		err(1, "realloc");
+
+	return p;
+}
+
 char *
 xstrndup(const char *s, size_t n)
 {

@@ -4,7 +4,6 @@ work in progress.
 
 ## TODO
 - Order-only inputs
-- Default targets
 - Pools
 - Clean
 - Path canonicalization
