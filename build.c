@@ -264,10 +264,16 @@ build(int maxjobs)
 		while (work.ready && numjobs < maxjobs) {
 			e = *(struct edge **)work.ready;
 			tdelete(e, &work.ready, ptrcmp);
+			if (e->rule == phonyrule) {
+				edgedone(e);
+				continue;
+			}
 			fds[next].fd = jobstart(&jobs[next], e);
 			next = avail[next];
 			++numjobs;
 		}
+		if (numjobs == 0)
+			break;
 
 		/* wait for job to finish */
 		do {

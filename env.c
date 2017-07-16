@@ -25,6 +25,8 @@ struct environment {
 	void *rules;
 };
 
+struct rule *phonyrule;
+
 static int
 bindingcmp(const void *k1, const void *k2)
 {

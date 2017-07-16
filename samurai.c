@@ -75,6 +75,8 @@ main(int argc, char *argv[])
 	if (!f)
 		err(1, "fopen %s", buildname);
 	env = mkenv(NULL);
+	phonyrule = mkrule("phony");
+	envaddrule(env, phonyrule);
 	parse(env);
 	fclose(f);
 

@@ -16,3 +16,5 @@ struct rule *mkrule(char *);
 void ruleaddvar(struct rule *, char *, struct string *);
 
 char *edgevar(struct edge *, char *);
+
+extern struct rule *phonyrule;
