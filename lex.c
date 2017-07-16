@@ -78,18 +78,30 @@ token(struct buffer *buf)
 	int c;
 
 	c = fgetc(f);
-	if (c == '#') {
+	switch (c) {
+	case '#':  /* comment */
 		do c = fgetc(f);
 		while (c != '\n' && c != EOF);
+		break;
+	case '|':  /* check for || */
+		c = fgetc(f);
+		if (c == '|') {
+			bufadd(buf, c);
+		} else {
+			ungetc(c, f);
+			c = '|';
+		}
+		break;
 	}
-	bufadd(buf, c);
-	if (!isvar(c))
-		goto out;
-	for (c = fgetc(f); isvar(c); c = fgetc(f))
+	if (isvar(c)) {
+		do {
+			bufadd(buf, c);
+			c = fgetc(f);
+		} while (isvar(c));
+		ungetc(c, f);
+	} else {
 		bufadd(buf, c);
-	ungetc(c, f);
-
-out:
+	}
 	bufadd(buf, '\0');
 }
 
