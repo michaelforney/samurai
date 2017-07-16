@@ -99,10 +99,10 @@ parseedge(struct environment *env)
 	}
 
 	e->out = xmalloc(e->nout * sizeof(*n));
-	for (str = out, n = e->out; str; str = out, ++n) {
-		out = str->next;
-		s = enveval(e->env, str);
-		delstr(str);
+	for (n = e->out; out; out = str, ++n) {
+		str = out->next;
+		s = enveval(e->env, out);
+		delstr(out);
 		*n = nodeget(s, true);
 		if ((*n)->gen)
 			errx(1, "multiple rules generate '%s'", s);
@@ -110,10 +110,10 @@ parseedge(struct environment *env)
 	}
 
 	e->in = xmalloc(e->nin * sizeof(*n));
-	for (str = in, n = e->in; str; str = in, ++n) {
-		in = str->next;
-		s = enveval(e->env, str);
-		delstr(str);
+	for (n = e->in; in; in = str, ++n) {
+		str = in->next;
+		s = enveval(e->env, in);
+		delstr(in);
 		*n = nodeget(s, true);
 		++(*n)->nuse;
 	}
