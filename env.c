@@ -19,6 +19,17 @@ struct rulebinding {
 	struct string *val;
 };
 
+struct rule {
+	char *name;
+	void *bindings;
+};
+
+struct environment {
+	struct environment *parent;
+	void *bindings;
+	void *rules;
+};
+
 static int
 bindingcmp(const void *k1, const void *k2)
 {
@@ -159,6 +170,18 @@ pathlist(struct node **nodes, size_t n)
 	*--s = '\0';
 
 	return result;
+}
+
+struct rule *
+mkrule(char *name)
+{
+	struct rule *r;
+
+	r = xmalloc(sizeof(*r));
+	r->name = name;
+	r->bindings = NULL;
+
+	return r;
 }
 
 void

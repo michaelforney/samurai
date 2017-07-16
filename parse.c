@@ -29,11 +29,9 @@ parserule(struct environment *env)
 	char *var;
 	struct string *val;
 
-	r = xmalloc(sizeof(*r));
 	expect(IDENT);
-	r->name = ident;
+	r = mkrule(ident);
 	expect(NEWLINE);
-	r->bindings = NULL;
 	while (peek() == INDENT) {
 		next();
 		expect(IDENT);
