@@ -86,7 +86,7 @@ computedirty(struct edge *e)
 				newest = n;
 		}
 	}
-	if (!dirty) {
+	if (!dirty && newest) {
 		/* all outputs are dirty if any are older than the newest input */
 		for (i = 0; i < e->nout; ++i) {
 			n = e->out[i];
