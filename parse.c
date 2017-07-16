@@ -64,8 +64,8 @@ parseedge(struct environment *env)
 	end = &out;
 	for (; (str = readstr(true)); ++e->nout)
 		pushstr(&end, str);
+	e->outimpidx = e->nout;
 	if (peek() == PIPE) {
-		e->outimpidx = e->nout;
 		for (next(); (str = readstr(true)); ++e->nout)
 			pushstr(&end, str);
 	}
@@ -75,13 +75,13 @@ parseedge(struct environment *env)
 	end = &in;
 	for (; (str = readstr(true)); ++e->nin)
 		pushstr(&end, str);
+	e->inimpidx = e->nin;
 	if (peek() == PIPE) {
-		e->inimpidx = e->nin;
 		for (next(); (str = readstr(true)); ++e->nin)
 			pushstr(&end, str);
 	}
+	e->inorderidx = e->nin;
 	if (peek() == PIPE2) {
-		e->inorderidx = e->nin;
 		for (next(); (str = readstr(true)); ++e->nin)
 			pushstr(&end, str);
 	}

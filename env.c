@@ -190,9 +190,9 @@ edgevar(struct edge *e, char *var)
 	size_t n;
 
 	if (strcmp(var, "in") == 0) {
-		return pathlist(e->in, e->nin);
+		return pathlist(e->in, e->inimpidx);
 	} else if (strcmp(var, "out") == 0) {
-		return pathlist(e->out, e->nout);
+		return pathlist(e->out, e->outimpidx);
 	}
 
 	result = lookupvar(e->env, var);
