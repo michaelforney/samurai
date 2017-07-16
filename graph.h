@@ -40,6 +40,8 @@ struct edge {
 	struct edge *next;
 };
 
+void graphinit(void);
+
 /* update the mtime field of a node */
 void nodestat(struct node *);
 /* lookup a node by name, optionally creating it if it does not exist */

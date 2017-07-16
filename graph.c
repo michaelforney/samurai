@@ -1,14 +1,22 @@
 #define _POSIX_C_SOURCE 200809L
-#include <search.h>
-#include <stddef.h>
-#include <stdbool.h>
 #include <err.h>
 #include <errno.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <string.h>
 #include <sys/stat.h>
 #include "graph.h"
+#include "htab.h"
 #include "util.h"
 
+static struct hashtable *allnodes;
 struct edge *alledges;
+
+void
+graphinit(void)
+{
+	allnodes = mkht(1024, strhash, streq);
+}
 
 static struct node *
 mknode(char *path)
@@ -42,18 +50,15 @@ nodestat(struct node *n)
 struct node *
 nodeget(char *path, bool create)
 {
-	ENTRY *e;
+	void **n;
 
-	e = hsearch((ENTRY){.key = path}, create ? ENTER : FIND);
-	if (!e) {
-		if (create)
-			err(1, "hsearch");
-		return NULL;
-	}
-	if (create && !e->data)
-		e->data = mknode(path);
+	if (!create)
+		return htget(allnodes, path);
+	n = htput(allnodes, path);
+	if (!*n)
+		*n = mknode(path);
 
-	return e->data;
+	return *n;
 }
 
 struct edge *

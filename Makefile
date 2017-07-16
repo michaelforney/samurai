@@ -3,6 +3,7 @@ OBJ=\
 	build.o\
 	env.o\
 	graph.o\
+	htab.o\
 	lex.o\
 	parse.o\
 	samurai.o\

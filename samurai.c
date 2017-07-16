@@ -1,6 +1,5 @@
 #include <stdbool.h>
 #include <stdio.h>
-#include <search.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
@@ -10,8 +9,6 @@
 #include "env.h"
 #include "graph.h"
 #include "parse.h"
-
-#define HTAB_NEL 8192
 
 FILE *f;
 char *argv0;
@@ -69,8 +66,7 @@ main(int argc, char *argv[])
 #endif
 	}
 
-	if (!hcreate(HTAB_NEL))
-		err(1, "hcreate");
+	graphinit();
 	f = fopen(buildname, "r");
 	if (!f)
 		err(1, "fopen %s", buildname);

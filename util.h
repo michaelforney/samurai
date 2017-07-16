@@ -5,4 +5,5 @@ struct buffer {
 
 void *xmalloc(size_t);
 void *xrealloc(void *, size_t);
+void *xcalloc(size_t, size_t);
 char *xstrndup(const char *, size_t);

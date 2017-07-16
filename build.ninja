@@ -11,10 +11,11 @@ rule link
 build build.o: cc build.c
 build env.o: cc env.c
 build graph.o: cc graph.c
+build htab.o: cc htab.c
 build lex.o: cc lex.c
 build parse.o: cc parse.c
 build samurai.o: cc samurai.c
 build util.o: cc util.c
-build samurai: link build.o env.o graph.o lex.o parse.o samurai.o util.o
+build samurai: link build.o env.o graph.o htab.o lex.o parse.o samurai.o util.o
 
 default samurai

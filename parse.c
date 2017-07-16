@@ -1,5 +1,4 @@
 #include <err.h>
-#include <search.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
