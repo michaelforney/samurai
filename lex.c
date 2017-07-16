@@ -275,6 +275,7 @@ readstr(bool path)
 			}
 			break;
 		case ':':
+		case '|':
 		case ' ':
 			if (!path) {
 				bufadd(&buf, c);
