@@ -59,8 +59,7 @@ parseedge(struct environment *env)
 
 	e = mkedge();
 
-	end = &out;
-	for (; (str = readstr(true)); ++e->nout)
+	for (out = NULL, end = &out; (str = readstr(true)); ++e->nout)
 		pushstr(&end, str);
 	e->outimpidx = e->nout;
 	if (peek() == PIPE) {
@@ -70,8 +69,7 @@ parseedge(struct environment *env)
 	expect(COLON);
 	expect(IDENT);
 	e->rule = envrule(env, ident);
-	end = &in;
-	for (; (str = readstr(true)); ++e->nin)
+	for (in = NULL, end = &in; (str = readstr(true)); ++e->nin)
 		pushstr(&end, str);
 	e->inimpidx = e->nin;
 	if (peek() == PIPE) {
