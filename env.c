@@ -19,11 +19,6 @@ struct rulebinding {
 	struct string *val;
 };
 
-struct rule {
-	char *name;
-	void *bindings;
-};
-
 struct environment {
 	struct environment *parent;
 	void *bindings;

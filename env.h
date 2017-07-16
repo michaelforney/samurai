@@ -1,6 +1,11 @@
 struct string;
 struct edge;
 
+struct rule {
+	char *name;
+	void *bindings;
+};
+
 struct environment *mkenv(struct environment *);
 void envaddvar(struct environment *, char *, char *);
 char *enveval(struct environment *, struct string *);

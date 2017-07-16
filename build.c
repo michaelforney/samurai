@@ -149,6 +149,8 @@ jobstart(struct job *j, struct edge *e)
 		err(1, "pipe");
 	j->edge = e;
 	j->cmd = edgevar(e, "command");
+	if (!j->cmd)
+		errx(1, "rule '%s' has no command", e->rule->name);
 	j->fd = fd[0];
 	argv[2] = j->cmd;
 
