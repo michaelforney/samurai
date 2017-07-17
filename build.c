@@ -31,6 +31,8 @@ extern char **environ;
 static bool
 nodenewer(struct node *n1, struct node *n2)
 {
+	if (!n1)
+		return false;
 	if (n1->mtime.tv_sec > n2->mtime.tv_sec)
 		return true;
 	if (n1->mtime.tv_sec < n2->mtime.tv_sec)
@@ -76,7 +78,7 @@ computedirty(struct edge *e)
 			if (n->dirty)
 				dirty = true;
 			/* a node may be missing but not dirty if it a phony target */
-			else if (n->mtime.tv_nsec != MTIME_MISSING && (!newest || nodenewer(n, newest) > 0))
+			else if (n->mtime.tv_nsec != MTIME_MISSING && !nodenewer(newest, n))
 				newest = n;
 		}
 	}
@@ -85,7 +87,7 @@ computedirty(struct edge *e)
 		n = e->out[i];
 		if (e->rule == phonyrule && e->nin > 0)
 			continue;
-		if (n->mtime.tv_nsec == MTIME_MISSING || (e->rule != phonyrule && newest && nodenewer(newest, n)))
+		if (n->mtime.tv_nsec == MTIME_MISSING || (e->rule != phonyrule && nodenewer(newest, n)))
 			dirty = true;
 	}
 	for (i = 0; i < e->nout; ++i) {
