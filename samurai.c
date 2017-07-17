@@ -89,7 +89,7 @@ main(int argc, char *argv[])
 				addtarget(deftarg[i]);
 		} else {
 			/* by default build all nodes which are not used by any edges */
-			for (e = alledges; e; e = e->next) {
+			for (e = alledges; e; e = e->allnext) {
 				for (i = 0; i < e->nout; ++i) {
 					n = e->out[i];
 					if (n->nuse == 0)
