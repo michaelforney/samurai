@@ -151,7 +151,7 @@ envrule(struct environment *env, char *name)
 }
 
 char *
-pathlist(struct node **nodes, size_t n)
+pathlist(struct node **nodes, size_t n, char sep)
 {
 	size_t i, len;
 	char *result, *s;
@@ -162,7 +162,7 @@ pathlist(struct node **nodes, size_t n)
 	s = result;
 	for (i = 0; i < n; ++i) {
 		s = stpcpy(s, nodes[i]->path);
-		*s++ = ' ';
+		*s++ = sep;
 	}
 	*--s = '\0';
 
@@ -210,9 +210,11 @@ edgevar(struct edge *e, char *var)
 	size_t n;
 
 	if (strcmp(var, "in") == 0) {
-		return pathlist(e->in, e->inimpidx);
+		return pathlist(e->in, e->inimpidx, ' ');
+	} else if (strcmp(var, "in_newline") == 0) {
+		return pathlist(e->in, e->inimpidx, '\n');
 	} else if (strcmp(var, "out") == 0) {
-		return pathlist(e->out, e->outimpidx);
+		return pathlist(e->out, e->outimpidx, ' ');
 	}
 
 	result = lookupvar(e->env, var);
