@@ -75,7 +75,8 @@ computedirty(struct edge *e)
 		if (!dirty) {
 			if (n->dirty)
 				dirty = true;
-			else if (!newest || nodenewer(n, newest) > 0)
+			/* a node may be missing but not dirty if it a phony target */
+			else if (n->mtime.tv_nsec != MTIME_MISSING && (!newest || nodenewer(n, newest) > 0))
 				newest = n;
 		}
 	}
@@ -83,7 +84,9 @@ computedirty(struct edge *e)
 		/* all outputs are dirty if any are older than the newest input */
 		for (i = 0; i < e->nout; ++i) {
 			n = e->out[i];
-			if (n->mtime.tv_nsec == MTIME_MISSING || nodenewer(newest, n)) {
+			if (e->rule == phonyrule && e->nin > 0)
+				continue;
+			if (n->mtime.tv_nsec == MTIME_MISSING || (e->rule != phonyrule && nodenewer(newest, n))) {
 				dirty = true;
 				break;
 			}
