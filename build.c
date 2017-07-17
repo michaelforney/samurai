@@ -45,6 +45,9 @@ computedirty(struct edge *e)
 	size_t i;
 	bool dirty;
 
+	if (e->seen > 0)
+		return;
+	++e->seen;
 	dirty = false;
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
@@ -128,6 +131,9 @@ addsubtarget(struct node *n)
 		return;
 	if (!n->gen)
 		errx(1, "file is missing and not created by any action: '%s'", n->path);
+	if (n->gen->seen > 1)
+		return;
+	++n->gen->seen;
 	for (i = 0; i < n->gen->nin; ++i) {
 		if (n->gen->in[i]->dirty)
 			goto notready;

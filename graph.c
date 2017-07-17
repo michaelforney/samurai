@@ -70,6 +70,7 @@ mkedge(void)
 	e->nout = 0;
 	e->nin = 0;
 	e->want = false;
+	e->seen = 0;
 	e->allnext = alledges;
 	alledges = e;
 

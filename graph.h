@@ -28,6 +28,10 @@ struct edge {
 	/* whether or not we need to build this edge */
 	bool want;
 
+	/* how far we are with processing this edge. if 0, we have not seen it
+	 * in computedirty. if 1, we have not seen it in addsubtarget. */
+	int seen;
+
 	/* input and output nodes */
 	struct node **out, **in;
 	size_t nout, nin;
@@ -39,7 +43,6 @@ struct edge {
 
 	/* used to coordinate ready work in build() */
 	struct edge *next, *prev;
-
 	/* used for alledges linked list */
 	struct edge *allnext;
 };
