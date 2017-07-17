@@ -80,17 +80,13 @@ computedirty(struct edge *e)
 				newest = n;
 		}
 	}
-	if (!dirty && newest) {
-		/* all outputs are dirty if any are older than the newest input */
-		for (i = 0; i < e->nout; ++i) {
-			n = e->out[i];
-			if (e->rule == phonyrule && e->nin > 0)
-				continue;
-			if (n->mtime.tv_nsec == MTIME_MISSING || (e->rule != phonyrule && nodenewer(newest, n))) {
-				dirty = true;
-				break;
-			}
-		}
+	/* all outputs are dirty if any are older than the newest input */
+	for (i = 0; i < e->nout && !dirty; ++i) {
+		n = e->out[i];
+		if (e->rule == phonyrule && e->nin > 0)
+			continue;
+		if (n->mtime.tv_nsec == MTIME_MISSING || (e->rule != phonyrule && newest && nodenewer(newest, n)))
+			dirty = true;
 	}
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
