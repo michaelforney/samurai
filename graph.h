@@ -37,7 +37,9 @@ struct edge {
 	/* index of first implicit and order-only input */
 	size_t inimpidx, inorderidx;
 
-	struct edge *next;
+	/* next is first used for alledges, and then next/prev are used to
+	 * coordinate ready work in build() */
+	struct edge *next, *prev;
 };
 
 void graphinit(void);
@@ -49,4 +51,5 @@ struct node *nodeget(char *, bool);
 
 struct edge *mkedge(void);
 
+/* a single linked list of all edges, valid up until build() */
 extern struct edge *alledges;

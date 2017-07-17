@@ -3,7 +3,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
-#include <search.h>
 #include <spawn.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -25,18 +24,8 @@ struct job {
 	struct buffer buf;
 };
 
-static struct {
-	void *ready;
-} work;
+static struct edge *work;
 extern char **environ;
-
-static int
-ptrcmp(const void *p1, const void *p2)
-{
-	if (p1 < p2)
-		return -1;
-	return p1 > p2;
-}
 
 static bool
 nodenewer(struct node *n1, struct node *n2)
@@ -104,6 +93,31 @@ computedirty(struct edge *e)
 		e->want = true;
 }
 
+/* push an edge onto the queue of ready work */
+static void
+pushedge(struct edge *e)
+{
+	e->next = work;
+	e->prev = NULL;
+	if (work)
+		work->prev = e;
+	work = e;
+}
+
+/* take an edge from the queue of ready work, which must be non-empty */
+static struct edge *
+popedge(void)
+{
+	struct edge *e;
+
+	e = work;
+	work = e->next;
+	if (work)
+		work->prev = NULL;
+
+	return e;
+}
+
 static void
 addsubtarget(struct node *n)
 {
@@ -118,8 +132,7 @@ addsubtarget(struct node *n)
 		if (n->gen->in[i]->dirty)
 			goto notready;
 	}
-	if (!tsearch(n->gen, &work.ready, ptrcmp))
-		err(1, "tsearch");
+	pushedge(n->gen);
 notready:
 	for (i = 0; i < n->gen->nin; ++i)
 		addsubtarget(n->gen->in[i]);
@@ -223,8 +236,7 @@ nodedone(struct node *n)
 			if (e->in[j]->dirty)
 				goto notready;
 		}
-		if (!tsearch(e, &work.ready, ptrcmp))
-			err(1, "tsearch");
+		pushedge(e);
 	notready:;
 	}
 }
@@ -256,14 +268,13 @@ build(int maxjobs)
 	}
 	avail[maxjobs - 1] = -1;
 
-	if (!work.ready)
+	if (!work)
 		puts("nothing to do");
 
-	while (work.ready || numjobs > 0) {
+	while (work || numjobs > 0) {
 		/* start ready edges */
-		while (work.ready && numjobs < maxjobs) {
-			e = *(struct edge **)work.ready;
-			tdelete(e, &work.ready, ptrcmp);
+		while (work && numjobs < maxjobs) {
+			e = popedge();
 			if (e->rule == phonyrule) {
 				edgedone(e);
 				continue;
