@@ -1,3 +1,5 @@
+/* Copied from myrddin's util/htab.c, by Ori Bernstein.
+ * See LICENSE file for copyright details. */
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
