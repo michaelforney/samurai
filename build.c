@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
@@ -157,12 +158,39 @@ addtarget(struct node *n)
 	addsubtarget(n);
 }
 
+static void
+writefile(const char *name, const char *buf, size_t len)
+{
+	int fd;
+	const char *p;
+	ssize_t n;
+
+	fd = creat(name, 0666);
+	if (fd < 0)
+		err(1, "creat %s", name);
+	for (p = buf; len > 0; p += n, len -= n) {
+		n = write(fd, p, len);
+		if (n <= 0)
+			err(1, "write");
+	}
+	close(fd);
+}
+
 static int
 jobstart(struct job *j, struct edge *e)
 {
+	char *rspfile, *s;
 	int fd[2];
 	posix_spawn_file_actions_t actions;
 	char *argv[] = {"/bin/sh", "-c", NULL, NULL};
+
+	rspfile = edgevar(e, "rspfile");
+	if (rspfile) {
+		s = edgevar(e, "rspfile_content");
+		writefile(rspfile, s, s ? strlen(s) : 0);
+		free(s);
+		free(rspfile);
+	}
 
 	if (pipe2(fd, O_CLOEXEC) < 0)
 		err(1, "pipe");
@@ -251,9 +279,16 @@ static void
 edgedone(struct edge *e)
 {
 	size_t i;
+	char *rspfile;
 
 	for (i = 0; i < e->nout; ++i)
 		nodedone(e->out[i]);
+	/* XXX: should we save this from jobstart? */
+	rspfile = edgevar(e, "rspfile");
+	if (rspfile) {
+		unlink(rspfile);
+		free(rspfile);
+	}
 }
 
 void
