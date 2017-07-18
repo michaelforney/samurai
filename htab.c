@@ -7,7 +7,7 @@
 #include "htab.h"
 #include "util.h"
 
-#define SEED 2928213749
+#define SEED 0xdecafbaddecafbadULL
 
 /* Creates a new empty hash table, using 'sz' as the initial size, 'hash' as the
  * hash function, and 'eq' to verify that there are no hash collisions. */
@@ -154,39 +154,43 @@ hthas(struct hashtable *ht, void *k)
 	return htidx(ht, k) >= 0;
 }
 
-static unsigned long
-murmurhash2(void *ptr, size_t len)
+static unsigned long long
+murmurhash64a(void *ptr, size_t len)
 {
-	uint32_t m = 0x5bd1e995;
-	uint32_t r = 24;
-	uint32_t h, k, n;
+	uint64_t m = 0xc6a4a7935bd1e995ULL;
+	uint64_t h, k, n;
 	uint8_t *p, *end;
+	int r = 47;
 
-	h = SEED ^ len;
-	n = len & ~0x3ull;
+	h = SEED ^ (len * m);
+	n = len & ~0x7ull;
 	end = ptr;
 	end += n;
-	for (p = ptr; p != end; p += 4) {
-		k = (p[0] << 0) | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+	for (p = ptr; p != end; p += 8) {
+		memcpy(&k, p, sizeof(k));
 
 		k *= m;
 		k ^= k >> r;
 		k *= m;
 
-		h *= m;
 		h ^= k;
+		h *= m;
 	}
 
-	switch (len & 0x3) {
-	case 3: h ^= p[2] << 16;
-	case 2: h ^= p[1] << 8;
-	case 1: h ^= p[0] << 0;
-	};
-	h *= m;
+	switch (len & 0x7) {
+	case 7: h ^= (uint64_t)p[6] << 48;
+	case 6: h ^= (uint64_t)p[5] << 40;
+	case 5: h ^= (uint64_t)p[4] << 32;
+	case 4: h ^= (uint64_t)p[3] << 24;
+	case 3: h ^= (uint64_t)p[2] << 16;
+	case 2: h ^= (uint64_t)p[1] << 8;
+	case 1: h ^= (uint64_t)p[0];
+		h *= m;
+	}
 
-	h ^= h >> 13;
+	h ^= h >> r;
 	h *= m;
-	h ^= h >> 15;
+	h ^= h >> r;
 
 	return h;
 }
@@ -196,7 +200,7 @@ strhash(void *s)
 {
 	if (!s)
 		return SEED;
-	return murmurhash2(s, strlen(s));
+	return murmurhash64a(s, strlen(s));
 }
 
 int
