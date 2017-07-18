@@ -42,7 +42,7 @@ struct edge {
 	size_t inimpidx, inorderidx;
 
 	/* used to coordinate ready work in build() */
-	struct edge *next, *prev;
+	struct edge *worknext;
 	/* used for alledges linked list */
 	struct edge *allnext;
 };

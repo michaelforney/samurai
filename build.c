@@ -98,31 +98,6 @@ computedirty(struct edge *e)
 		e->want = true;
 }
 
-/* push an edge onto the queue of ready work */
-static void
-pushedge(struct edge *e)
-{
-	e->next = work;
-	e->prev = NULL;
-	if (work)
-		work->prev = e;
-	work = e;
-}
-
-/* take an edge from the queue of ready work, which must be non-empty */
-static struct edge *
-popedge(void)
-{
-	struct edge *e;
-
-	e = work;
-	work = e->next;
-	if (work)
-		work->prev = NULL;
-
-	return e;
-}
-
 static void
 addsubtarget(struct node *n)
 {
@@ -140,7 +115,8 @@ addsubtarget(struct node *n)
 		if (n->gen->in[i]->dirty)
 			goto notready;
 	}
-	pushedge(n->gen);
+	n->gen->worknext = work;
+	work = n->gen;
 notready:
 	for (i = 0; i < n->gen->nin; ++i)
 		addsubtarget(n->gen->in[i]);
@@ -271,7 +247,8 @@ nodedone(struct node *n)
 			if (e->in[j]->dirty)
 				goto notready;
 		}
-		pushedge(e);
+		e->worknext = work;
+		work = e;
 	notready:;
 	}
 }
@@ -316,7 +293,8 @@ build(int maxjobs)
 	while (work || numjobs > 0) {
 		/* start ready edges */
 		while (work && numjobs < maxjobs) {
-			e = popedge();
+			e = work;
+			work = work->worknext;
 			if (e->rule == phonyrule) {
 				edgedone(e);
 				continue;
