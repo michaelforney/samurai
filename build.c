@@ -74,7 +74,7 @@ computedirty(struct edge *e)
 			else
 				n->dirty = n->mtime.tv_nsec == MTIME_MISSING;
 		}
-		if (!dirty) {
+		if (!dirty && i < e->inorderidx) {
 			if (n->dirty)
 				dirty = true;
 			/* a node may be missing but not dirty if it a phony target */
