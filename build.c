@@ -168,8 +168,6 @@ jobstart(struct job *j, struct edge *e)
 	if (rspfile) {
 		content = edgevar(e, "rspfile_content");
 		writefile(rspfile->s, content);
-		free(content);
-		free(rspfile);
 	}
 
 	if (pipe2(fd, O_CLOEXEC) < 0)
@@ -228,7 +226,6 @@ jobclose(struct job *j)
 	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
 		errx(1, "job failed: %s", j->cmd->s); // XXX: handle this
 	close(j->fd);
-	free(j->cmd);
 	j->buf.len = 0;
 }
 
@@ -264,12 +261,9 @@ edgedone(struct edge *e)
 
 	for (i = 0; i < e->nout; ++i)
 		nodedone(e->out[i]);
-	/* XXX: should we save this from jobstart? */
 	rspfile = edgevar(e, "rspfile");
-	if (rspfile) {
+	if (rspfile)
 		unlink(rspfile->s);
-		free(rspfile);
-	}
 }
 
 void

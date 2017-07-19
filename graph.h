@@ -56,7 +56,7 @@ struct node *nodeget(char *);
 /* update the mtime field of a node */
 void nodestat(struct node *);
 
-struct edge *mkedge(void);
+struct edge *mkedge(struct environment *parent);
 
 /* a single linked list of all edges, valid up until build() */
 extern struct edge *alledges;

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include "env.h"
 #include "graph.h"
 #include "htab.h"
 #include "util.h"
@@ -61,11 +62,12 @@ nodestat(struct node *n)
 }
 
 struct edge *
-mkedge(void)
+mkedge(struct environment *parent)
 {
 	struct edge *e;
 
 	e = xmalloc(sizeof(*e));
+	e->env = mkenv(parent);
 	e->nout = 0;
 	e->nin = 0;
 	e->want = false;

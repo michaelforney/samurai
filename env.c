@@ -218,36 +218,40 @@ ruleaddvar(struct rule *r, char *var, struct evalstring *val)
 struct string *
 edgevar(struct edge *e, char *var)
 {
-	struct rulebinding key = {var}, **node;
-	struct string *result;
+	struct binding key = {var}, **node;
+	struct rulebinding rulekey = {var}, **rulenode;
+	struct string *val;
 	struct evalstring *str;
 	struct evalstringpart *p;
 	size_t n;
 
+	node = tfind(&key, &e->env->bindings, bindingcmp);
+	if (node && (*node)->val)
+		return (*node)->val;
 	if (strcmp(var, "in") == 0) {
-		return pathlist(e->in, e->inimpidx, ' ');
+		val = pathlist(e->in, e->inimpidx, ' ');
 	} else if (strcmp(var, "in_newline") == 0) {
-		return pathlist(e->in, e->inimpidx, '\n');
+		val = pathlist(e->in, e->inimpidx, '\n');
 	} else if (strcmp(var, "out") == 0) {
-		return pathlist(e->out, e->outimpidx, ' ');
+		val = pathlist(e->out, e->outimpidx, ' ');
+	} else {
+		val = envvar(e->env->parent, var);
+		if (val)
+			return val;
+		rulenode = tfind(&rulekey, &e->rule->bindings, rulebindingcmp);
+		if (!rulenode)
+			return NULL;
+		str = (*rulenode)->val;
+		n = 0;
+		for (p = str ? str->parts : NULL; p; p = p->next) {
+			if (p->var)
+				p->str = edgevar(e, p->var);
+			if (p->str)
+				n += p->str->n;
+		}
+		val = merge(str, n);
 	}
+	envaddvar(e->env, var, val);
 
-	result = envvar(e->env, var);
-	if (result)
-		return result;
-
-	node = tfind(&key, &e->rule->bindings, rulebindingcmp);
-	if (!node)
-		return NULL;
-	str = (*node)->val;
-
-	n = 0;
-	for (p = str ? str->parts : NULL; p; p = p->next) {
-		if (p->var)
-			p->str = edgevar(e, p->var);
-		if (p->str)
-			n += p->str->n;
-	}
-
-	return merge(str, n);
+	return val;
 }

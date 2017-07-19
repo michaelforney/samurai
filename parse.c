@@ -59,7 +59,7 @@ parseedge(struct environment *env)
 	struct string *s;
 	struct node **n;
 
-	e = mkedge();
+	e = mkedge(env);
 
 	for (out = NULL, end = &out; (str = readstr(true)); ++e->nout)
 		pushstr(&end, str);
@@ -84,18 +84,13 @@ parseedge(struct environment *env)
 			pushstr(&end, str);
 	}
 	expect(NEWLINE);
-	if (peek() == INDENT) {
-		e->env = mkenv(env);
-		do {
-			next();
-			expect(IDENT);
-			parselet(&var, &str);
-			s = enveval(env, str);
-			envaddvar(e->env, var, s);
-			delstr(str);
-		} while (peek() == INDENT);
-	} else {
-		e->env = env;
+	while (peek() == INDENT) {
+		next();
+		expect(IDENT);
+		parselet(&var, &str);
+		s = enveval(env, str);
+		envaddvar(e->env, var, s);
+		delstr(str);
 	}
 
 	e->out = xmalloc(e->nout * sizeof(*n));
