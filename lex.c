@@ -139,7 +139,7 @@ addstringpart(struct evalstringpart ***end, bool var, struct buffer *b)
 	p->next = NULL;
 	**end = p;
 	if (var) {
-		p->var = xstrndup(b->data, b->len);
+		p->var = xstrdup(b->data, b->len);
 	} else {
 		p->var = NULL;
 		p->str = mkstr(b->len);
@@ -199,7 +199,7 @@ peek(void)
 		tok = keyword(buf.data);
 		if (tok)
 			goto out;
-		ident = xstrndup(buf.data, buf.len);
+		ident = xstrdup(buf.data, buf.len - 1);
 		tok = IDENT;
 		break;
 	}

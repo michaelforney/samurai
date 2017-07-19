@@ -39,13 +39,13 @@ xcalloc(size_t n, size_t sz)
 }
 
 char *
-xstrndup(const char *s, size_t n)
+xstrdup(const char *s, size_t n)
 {
 	char *r;
 
-	r = strndup(s, n);
-	if (!r)
-		err(1, "strndup");
+	r = xmalloc(n + 1);
+	memcpy(r, s, n);
+	r[n] = '\0';
 
 	return r;
 }
