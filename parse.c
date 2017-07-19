@@ -15,7 +15,7 @@ struct node **deftarg;
 size_t ndeftarg;
 
 static void
-parselet(char **var, struct string **val)
+parselet(char **var, struct evalstring **val)
 {
 	*var = ident;
 	expect(EQUALS);
@@ -28,7 +28,7 @@ parserule(struct environment *env)
 {
 	struct rule *r;
 	char *var;
-	struct string *val;
+	struct evalstring *val;
 
 	expect(IDENT);
 	r = mkrule(ident);
@@ -43,7 +43,7 @@ parserule(struct environment *env)
 }
 
 static void
-pushstr(struct string ***end, struct string *str)
+pushstr(struct evalstring ***end, struct evalstring *str)
 {
 	str->next = NULL;
 	**end = str;
@@ -54,7 +54,7 @@ static void
 parseedge(struct environment *env)
 {
 	struct edge *e;
-	struct string *out, *in, *str, **end;
+	struct evalstring *out, *in, *str, **end;
 	char *var, *val, *s;
 	struct node **n;
 
@@ -122,7 +122,7 @@ static void
 parseinclude(struct environment *env, bool newscope)
 {
 	FILE *oldf = f;
-	struct string *str;
+	struct evalstring *str;
 	char *path;
 
 	str = readstr(true);
@@ -146,7 +146,7 @@ parseinclude(struct environment *env, bool newscope)
 static void
 parsedefault(struct environment *env)
 {
-	struct string *targ, *str, **end;
+	struct evalstring *targ, *str, **end;
 	char *path;
 	struct node *n;
 	size_t i, ntarg;
@@ -171,7 +171,7 @@ parse(struct environment *env)
 {
 	int c;
 	char *var, *val;
-	struct string *str;
+	struct evalstring *str;
 
 	for (;;) {
 		c = next();

@@ -131,10 +131,10 @@ issimplevar(int c)
 }
 
 static void
-addstringpart(struct stringpart ***end, bool var, struct buffer *b)
+addstringpart(struct evalstringpart ***end, bool var, struct buffer *b)
 {
 	char *s;
-	struct stringpart *p;
+	struct evalstringpart *p;
 
 	s = xstrndup(b->data, b->len);
 	p = xmalloc(sizeof(*p));
@@ -250,7 +250,7 @@ tokstr(int t)
 }
 
 static void
-escape(struct stringpart ***end, struct buffer *buf)
+escape(struct evalstringpart ***end, struct buffer *buf)
 {
 	int c;
 
@@ -290,12 +290,12 @@ escape(struct stringpart ***end, struct buffer *buf)
 	}
 }
 
-struct string *
+struct evalstring *
 readstr(bool path)
 {
 	static struct buffer buf;
-	struct string *s;
-	struct stringpart *parts = NULL, **end = &parts;
+	struct evalstring *s;
+	struct evalstringpart *parts = NULL, **end = &parts;
 	int c;
 
 	for (;;) {
@@ -334,9 +334,9 @@ out:
 	return s;
 }
 
-void delstr(struct string *str)
+void delstr(struct evalstring *str)
 {
-	struct stringpart *p, *next;
+	struct evalstringpart *p, *next;
 
 	if (!str)
 		return;

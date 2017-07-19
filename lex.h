@@ -1,15 +1,15 @@
 /* an unevaluated string */
-struct string {
-	struct stringpart *parts;
+struct evalstring {
+	struct evalstringpart *parts;
 	/* used temporarily only in parse.c:parseedge to keep track of
 	 * input/output lists before we allocate the arrays. */
-	struct string *next;
+	struct evalstring *next;
 };
 
-struct stringpart {
+struct evalstringpart {
 	char *var, *str;
 	size_t len;
-	struct stringpart *next;
+	struct evalstringpart *next;
 };
 
 enum token {
@@ -42,6 +42,6 @@ void expect(int);
 const char *tokstr(int);
 
 /* read a string token */
-struct string *readstr(bool ispath);
+struct evalstring *readstr(bool ispath);
 /* delete a string token */
-void delstr(struct string *);
+void delstr(struct evalstring *);

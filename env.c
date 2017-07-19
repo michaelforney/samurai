@@ -16,7 +16,7 @@ struct binding {
 
 struct rulebinding {
 	char *var;
-	struct string *val;
+	struct evalstring *val;
 };
 
 struct environment {
@@ -90,10 +90,10 @@ envaddvar(struct environment *env, char *var, char *val)
 }
 
 char *
-enveval(struct environment *env, struct string *str)
+enveval(struct environment *env, struct evalstring *str)
 {
 	size_t n;
-	struct stringpart *p;
+	struct evalstringpart *p;
 	char *result, *s;
 
 	n = 0;
@@ -182,7 +182,7 @@ mkrule(char *name)
 }
 
 void
-ruleaddvar(struct rule *r, char *var, struct string *val)
+ruleaddvar(struct rule *r, char *var, struct evalstring *val)
 {
 	struct rulebinding *b, **node;
 
@@ -204,8 +204,8 @@ char *
 edgevar(struct edge *e, char *var)
 {
 	struct rulebinding key = {var}, **node;
-	struct string *str;
-	struct stringpart *p;
+	struct evalstring *str;
+	struct evalstringpart *p;
 	char *result, *s;
 	size_t n;
 
