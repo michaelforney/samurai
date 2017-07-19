@@ -166,13 +166,15 @@ envrule(struct environment *env, char *name)
 	return *node;
 }
 
-struct string *
+static struct string *
 pathlist(struct node **nodes, size_t n, char sep)
 {
 	size_t i, len;
 	struct string *path, *result;
 	char *s;
 
+	if (n == 0)
+		return NULL;
 	for (i = 0, len = 0; i < n; ++i)
 		len += nodes[i]->path->n;
 	result = mkstr(len + n - 1);
