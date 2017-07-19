@@ -14,3 +14,5 @@ void *xcalloc(size_t, size_t);
 char *xstrdup(const char *, size_t);
 
 struct string *mkstr(size_t);
+
+void canonpath(struct string *);
