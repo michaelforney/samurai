@@ -99,11 +99,13 @@ merge(struct evalstring *str, size_t n)
 
 	result = mkstr(n);
 	s = result->s;
-	for (p = str ? str->parts : NULL; p; p = p->next) {
-		if (!p->str)
-			continue;
-		memcpy(s, p->str->s, p->str->n);
-		s += p->str->n;
+	if (str) {
+		for (p = str->parts; p; p = p->next) {
+			if (!p->str)
+				continue;
+			memcpy(s, p->str->s, p->str->n);
+			s += p->str->n;
+		}
 	}
 	*s = '\0';
 
@@ -117,11 +119,13 @@ enveval(struct environment *env, struct evalstring *str)
 	struct evalstringpart *p;
 
 	n = 0;
-	for (p = str ? str->parts : NULL; p; p = p->next) {
-		if (p->var)
-			p->str = envvar(env, p->var);
-		if (p->str)
-			n += p->str->n;
+	if (str) {
+		for (p = str->parts; p; p = p->next) {
+			if (p->var)
+				p->str = envvar(env, p->var);
+			if (p->str)
+				n += p->str->n;
+		}
 	}
 
 	return merge(str, n);
@@ -243,11 +247,13 @@ edgevar(struct edge *e, char *var)
 			return NULL;
 		str = (*rulenode)->val;
 		n = 0;
-		for (p = str ? str->parts : NULL; p; p = p->next) {
-			if (p->var)
-				p->str = edgevar(e, p->var);
-			if (p->str)
-				n += p->str->n;
+		if (str) {
+			for (p = str->parts; p; p = p->next) {
+				if (p->var)
+					p->str = edgevar(e, p->var);
+				if (p->str)
+					n += p->str->n;
+			}
 		}
 		val = merge(str, n);
 	}

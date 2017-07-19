@@ -199,9 +199,7 @@ peek(void)
 		tok = keyword(buf.data);
 		if (tok)
 			goto out;
-		ident = strdup(buf.data);
-		if (!ident)
-			err(1, "strdup");
+		ident = xstrndup(buf.data, buf.len);
 		tok = IDENT;
 		break;
 	}
