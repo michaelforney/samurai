@@ -133,19 +133,18 @@ issimplevar(int c)
 static void
 addstringpart(struct evalstringpart ***end, bool var, struct buffer *b)
 {
-	char *s;
 	struct evalstringpart *p;
 
-	s = xstrndup(b->data, b->len);
 	p = xmalloc(sizeof(*p));
 	p->next = NULL;
 	**end = p;
 	if (var) {
-		p->var = s;
+		p->var = xstrndup(b->data, b->len);
 	} else {
 		p->var = NULL;
-		p->str = s;
-		p->len = b->len;
+		p->str = mkstr(b->len);
+		memcpy(p->str->s, b->data, b->len);
+		p->str->s[b->len] = '\0';
 	}
 	*end = &p->next;
 	b->len = 0;
@@ -342,7 +341,10 @@ void delstr(struct evalstring *str)
 		return;
 	for (p = str->parts; p; p = next) {
 		next = p->next;
-		free(p->var ? p->var : p->str);
+		if (p->var)
+			free(p->var);
+		else
+			free(p->str);
 		free(p);
 	}
 	free(str);

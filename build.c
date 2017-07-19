@@ -19,7 +19,7 @@
 
 struct job {
 	pid_t pid;
-	char *cmd;
+	struct string *cmd;
 	int fd;
 	struct edge *edge;
 	struct buffer buf;
@@ -136,19 +136,22 @@ addtarget(struct node *n)
 }
 
 static void
-writefile(const char *name, const char *buf, size_t len)
+writefile(const char *name, struct string *s)
 {
 	int fd;
 	const char *p;
-	ssize_t n;
+	size_t n;
+	ssize_t nw;
 
 	fd = creat(name, 0666);
 	if (fd < 0)
 		err(1, "creat %s", name);
-	for (p = buf; len > 0; p += n, len -= n) {
-		n = write(fd, p, len);
-		if (n <= 0)
-			err(1, "write");
+	if (s) {
+		for (p = s->s, n = s->n; n > 0; p += nw, n -= nw) {
+			nw = write(fd, p, n);
+			if (nw <= 0)
+				err(1, "write");
+		}
 	}
 	close(fd);
 }
@@ -156,16 +159,16 @@ writefile(const char *name, const char *buf, size_t len)
 static int
 jobstart(struct job *j, struct edge *e)
 {
-	char *rspfile, *s;
+	struct string *rspfile, *content;
 	int fd[2];
 	posix_spawn_file_actions_t actions;
 	char *argv[] = {"/bin/sh", "-c", NULL, NULL};
 
 	rspfile = edgevar(e, "rspfile");
 	if (rspfile) {
-		s = edgevar(e, "rspfile_content");
-		writefile(rspfile, s, s ? strlen(s) : 0);
-		free(s);
+		content = edgevar(e, "rspfile_content");
+		writefile(rspfile->s, content);
+		free(content);
 		free(rspfile);
 	}
 
@@ -176,9 +179,9 @@ jobstart(struct job *j, struct edge *e)
 	if (!j->cmd)
 		errx(1, "rule '%s' has no command", e->rule->name);
 	j->fd = fd[0];
-	argv[2] = j->cmd;
+	argv[2] = j->cmd->s;
 
-	puts(j->cmd);
+	puts(j->cmd->s);
 
 	if ((errno = posix_spawn_file_actions_init(&actions)))
 		err(1, "posix_spawn_file_actions_init");
@@ -223,7 +226,7 @@ jobclose(struct job *j)
 	if (waitpid(j->pid, &status, 0) < 0)
 		err(1, "waitpid %d", j->pid); // XXX: handle this
 	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-		errx(1, "job failed: %s", j->cmd); // XXX: handle this
+		errx(1, "job failed: %s", j->cmd->s); // XXX: handle this
 	close(j->fd);
 	free(j->cmd);
 	j->buf.len = 0;
@@ -257,14 +260,14 @@ static void
 edgedone(struct edge *e)
 {
 	size_t i;
-	char *rspfile;
+	struct string *rspfile;
 
 	for (i = 0; i < e->nout; ++i)
 		nodedone(e->out[i]);
 	/* XXX: should we save this from jobstart? */
 	rspfile = edgevar(e, "rspfile");
 	if (rspfile) {
-		unlink(rspfile);
+		unlink(rspfile->s);
 		free(rspfile);
 	}
 }

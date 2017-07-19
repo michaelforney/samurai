@@ -55,7 +55,8 @@ parseedge(struct environment *env)
 {
 	struct edge *e;
 	struct evalstring *out, *in, *str, **end;
-	char *var, *val, *s;
+	char *var;
+	struct string *s;
 	struct node **n;
 
 	e = mkedge();
@@ -89,8 +90,8 @@ parseedge(struct environment *env)
 			next();
 			expect(IDENT);
 			parselet(&var, &str);
-			val = enveval(env, str);
-			envaddvar(e->env, var, val);
+			s = enveval(env, str);
+			envaddvar(e->env, var, s);
 			delstr(str);
 		} while (peek() == INDENT);
 	} else {
@@ -102,9 +103,9 @@ parseedge(struct environment *env)
 		str = out->next;
 		s = enveval(e->env, out);
 		delstr(out);
-		*n = nodeget(s, true);
+		*n = mknode(s);
 		if ((*n)->gen)
-			errx(1, "multiple rules generate '%s'", s);
+			errx(1, "multiple rules generate '%s'", s->s);
 		(*n)->gen = e;
 	}
 
@@ -113,7 +114,7 @@ parseedge(struct environment *env)
 		str = in->next;
 		s = enveval(e->env, in);
 		delstr(in);
-		*n = nodeget(s, true);
+		*n = mknode(s);
 		++(*n)->nuse;
 	}
 }
@@ -123,7 +124,7 @@ parseinclude(struct environment *env, bool newscope)
 {
 	FILE *oldf = f;
 	struct evalstring *str;
-	char *path;
+	struct string *path;
 
 	str = readstr(true);
 	if (!str)
@@ -132,9 +133,9 @@ parseinclude(struct environment *env, bool newscope)
 	path = enveval(env, str);
 	delstr(str);
 
-	f = fopen(path, "r");
+	f = fopen(path->s, "r");
 	if (!f)
-		err(1, "fopen %s", path);
+		err(1, "fopen %s", path->s);
 	if (newscope)
 		env = mkenv(env);
 	parse(env);
@@ -147,7 +148,7 @@ static void
 parsedefault(struct environment *env)
 {
 	struct evalstring *targ, *str, **end;
-	char *path;
+	struct string *path;
 	struct node *n;
 	size_t i, ntarg;
 
@@ -158,9 +159,10 @@ parsedefault(struct environment *env)
 		str = targ->next;
 		path = enveval(env, targ);
 		delstr(targ);
-		n = nodeget(path, false);
+		n = nodeget(path->s);
 		if (!n)
-			errx(1, "unknown target '%s'", path);
+			errx(1, "unknown target '%s'", path->s);
+		free(path);
 		deftarg[ndeftarg++] = n;
 	}
 	expect(NEWLINE);
@@ -170,7 +172,8 @@ void
 parse(struct environment *env)
 {
 	int c;
-	char *var, *val;
+	char *var;
+	struct string *val;
 	struct evalstring *str;
 
 	for (;;) {

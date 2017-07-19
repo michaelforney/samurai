@@ -2,7 +2,7 @@
 #include <err.h>
 #include <errno.h>
 #include <stdbool.h>
-#include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include "graph.h"
@@ -18,19 +18,32 @@ graphinit(void)
 	allnodes = mkht(1024, strhash, streq);
 }
 
-static struct node *
-mknode(char *path)
+struct node *
+mknode(struct string *path)
 {
+	void **v;
 	struct node *n;
 
+	v = htput(allnodes, path->s);
+	if (*v) {
+		free(path);
+		return *v;
+	}
 	n = xmalloc(sizeof(*n));
 	n->path = path;
 	n->gen = NULL;
 	n->use = NULL;
 	n->nuse = 0;
 	n->mtime.tv_nsec = MTIME_UNKNOWN;
+	*v = n;
 
 	return n;
+}
+
+struct node *
+nodeget(char *path)
+{
+	return htget(allnodes, path);
 }
 
 void
@@ -38,27 +51,13 @@ nodestat(struct node *n)
 {
 	struct stat st;
 
-	if (stat(n->path, &st) < 0) {
+	if (stat(n->path->s, &st) < 0) {
 		if (errno != ENOENT)
-			err(1, "stat %s", n->path);
+			err(1, "stat %s", n->path->s);
 		n->mtime.tv_nsec = MTIME_MISSING;
 	} else {
 		n->mtime = st.st_mtim;
 	}
-}
-
-struct node *
-nodeget(char *path, bool create)
-{
-	void **n;
-
-	if (!create)
-		return htget(allnodes, path);
-	n = htput(allnodes, path);
-	if (!*n)
-		*n = mknode(path);
-
-	return *n;
 }
 
 struct edge *

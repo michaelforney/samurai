@@ -11,7 +11,8 @@
 #include "util.h"
 
 struct binding {
-	char *var, *val;
+	char *var;
+	struct string *val;
 };
 
 struct rulebinding {
@@ -56,7 +57,7 @@ mkenv(struct environment *parent)
 	return env;
 }
 
-static char *
+static struct string *
 lookupvar(struct environment *env, char *var)
 {
 	struct binding key = {var}, **node;
@@ -72,7 +73,7 @@ lookupvar(struct environment *env, char *var)
 }
 
 void
-envaddvar(struct environment *env, char *var, char *val)
+envaddvar(struct environment *env, char *var, struct string *val)
 {
 	struct binding *b, **node;
 
@@ -89,30 +90,41 @@ envaddvar(struct environment *env, char *var, char *val)
 	(*node)->val = val;
 }
 
-char *
-enveval(struct environment *env, struct evalstring *str)
+static struct string *
+merge(struct evalstring *str, size_t n)
 {
-	size_t n;
+	struct string *result;
 	struct evalstringpart *p;
-	char *result, *s;
+	char *s;
 
-	n = 0;
+	result = mkstr(n);
+	s = result->s;
 	for (p = str ? str->parts : NULL; p; p = p->next) {
-		if (p->var) {
-			p->str = lookupvar(env, p->var);
-			p->len = p->str ? strlen(p->str) : 0;
-		}
-		n += p->len;
-	}
-	result = xmalloc(n + 1);
-	s = result;
-	for (p = str ? str->parts : NULL; p; p = p->next) {
-		memcpy(s, p->str, p->len);
-		s += p->len;
+		if (!p->str)
+			continue;
+		memcpy(s, p->str->s, p->str->n);
+		s += p->str->n;
 	}
 	*s = '\0';
 
 	return result;
+}
+
+struct string *
+enveval(struct environment *env, struct evalstring *str)
+{
+	size_t n;
+	struct evalstringpart *p;
+
+	n = 0;
+	for (p = str ? str->parts : NULL; p; p = p->next) {
+		if (p->var)
+			p->str = lookupvar(env, p->var);
+		if (p->str)
+			n += p->str->n;
+	}
+
+	return merge(str, n);
 }
 
 static int
@@ -150,18 +162,21 @@ envrule(struct environment *env, char *name)
 	return *node;
 }
 
-char *
+struct string *
 pathlist(struct node **nodes, size_t n, char sep)
 {
 	size_t i, len;
-	char *result, *s;
+	struct string *path, *result;
+	char *s;
 
 	for (i = 0, len = 0; i < n; ++i)
-		len += strlen(nodes[i]->path); // XXX: store length
-	result = xmalloc(len + n);
-	s = result;
+		len += nodes[i]->path->n;
+	result = mkstr(len + n - 1);
+	s = result->s;
 	for (i = 0; i < n; ++i) {
-		s = stpcpy(s, nodes[i]->path);
+		path = nodes[i]->path;
+		memcpy(s, path->s, path->n);
+		s += path->n;
 		*s++ = sep;
 	}
 	*--s = '\0';
@@ -200,13 +215,13 @@ ruleaddvar(struct rule *r, char *var, struct evalstring *val)
 	(*node)->val = val;
 }
 
-char *
+struct string *
 edgevar(struct edge *e, char *var)
 {
 	struct rulebinding key = {var}, **node;
+	struct string *result;
 	struct evalstring *str;
 	struct evalstringpart *p;
-	char *result, *s;
 	size_t n;
 
 	if (strcmp(var, "in") == 0) {
@@ -226,22 +241,13 @@ edgevar(struct edge *e, char *var)
 		return NULL;
 	str = (*node)->val;
 
-	// XXX: reduce duplication with enveval
 	n = 0;
 	for (p = str ? str->parts : NULL; p; p = p->next) {
-		if (p->var) {
+		if (p->var)
 			p->str = edgevar(e, p->var);
-			p->len = p->str ? strlen(p->str) : 0;
-		}
-		n += p->len;
+		if (p->str)
+			n += p->str->n;
 	}
-	result = xmalloc(n + 1);
-	s = result;
-	for (p = str ? str->parts : NULL; p; p = p->next) {
-		memcpy(s, p->str, p->len);
-		s += p->len;
-	}
-	*s = '\0';
 
-	return result;
+	return merge(str, n);
 }

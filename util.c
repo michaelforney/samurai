@@ -49,3 +49,14 @@ xstrndup(const char *s, size_t n)
 
 	return r;
 }
+
+struct string *
+mkstr(size_t n)
+{
+	struct string *str;
+
+	str = xmalloc(sizeof(*str) + n + 1);
+	str->n = n;
+
+	return str;
+}

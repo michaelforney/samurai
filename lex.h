@@ -7,8 +7,8 @@ struct evalstring {
 };
 
 struct evalstringpart {
-	char *var, *str;
-	size_t len;
+	char *var;
+	struct string *str;
 	struct evalstringpart *next;
 };
 

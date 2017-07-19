@@ -78,7 +78,7 @@ main(int argc, char *argv[])
 
 	if (argc) {
 		for (; *argv; ++argv) {
-			n = nodeget(*argv, false);
+			n = nodeget(*argv);
 			if (!n)
 				errx(1, "unknown target: '%s'", *argv);
 			addtarget(n);

@@ -7,7 +7,7 @@ enum {
 };
 
 struct node {
-	char *path;
+	struct string *path;
 	struct timespec mtime;
 
 	/* does the node need to be rebuilt */
@@ -49,10 +49,12 @@ struct edge {
 
 void graphinit(void);
 
+/* create a new node or return existing node */
+struct node *mknode(struct string *);
+/* lookup a node by name; returns NULL if it does not exist */
+struct node *nodeget(char *);
 /* update the mtime field of a node */
 void nodestat(struct node *);
-/* lookup a node by name, optionally creating it if it does not exist */
-struct node *nodeget(char *, bool);
 
 struct edge *mkedge(void);
 
