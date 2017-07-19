@@ -58,7 +58,7 @@ mkenv(struct environment *parent)
 }
 
 static struct string *
-lookupvar(struct environment *env, char *var)
+envvar(struct environment *env, char *var)
 {
 	struct binding key = {var}, **node;
 
@@ -66,7 +66,7 @@ lookupvar(struct environment *env, char *var)
 	if (!node) {
 		if (!env->parent)
 			return NULL;
-		return lookupvar(env->parent, var);
+		return envvar(env->parent, var);
 	}
 
 	return (*node)->val;
@@ -119,7 +119,7 @@ enveval(struct environment *env, struct evalstring *str)
 	n = 0;
 	for (p = str ? str->parts : NULL; p; p = p->next) {
 		if (p->var)
-			p->str = lookupvar(env, p->var);
+			p->str = envvar(env, p->var);
 		if (p->str)
 			n += p->str->n;
 	}
@@ -232,7 +232,7 @@ edgevar(struct edge *e, char *var)
 		return pathlist(e->out, e->outimpidx, ' ');
 	}
 
-	result = lookupvar(e->env, var);
+	result = envvar(e->env, var);
 	if (result)
 		return result;
 
