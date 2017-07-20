@@ -62,14 +62,14 @@ envvar(struct environment *env, char *var)
 {
 	struct binding key = {var}, **node;
 
-	node = tfind(&key, &env->bindings, bindingcmp);
-	if (!node) {
-		if (!env->parent)
-			return NULL;
-		return envvar(env->parent, var);
-	}
+	do {
+		node = tfind(&key, &env->bindings, bindingcmp);
+		if (node)
+			return (*node)->val;
+		env = env->parent;
+	} while (env);
 
-	return (*node)->val;
+	return NULL;
 }
 
 void
@@ -156,14 +156,14 @@ envrule(struct environment *env, char *name)
 {
 	struct rule key = {name}, **node;
 
-	node = tfind(&key, &env->rules, rulecmp);
-	if (!node) {
-		if (!env->parent)
-			errx(1, "undefined rule %s", name);
-		return envrule(env->parent, name);
-	}
+	do {
+		node = tfind(&key, &env->rules, rulecmp);
+		if (node)
+			return *node;
+		env = env->parent;
+	} while (env);
 
-	return *node;
+	errx(1, "undefined rule %s", name);
 }
 
 static struct string *
