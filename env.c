@@ -175,12 +175,14 @@ pathlist(struct node **nodes, size_t n, char sep)
 
 	if (n == 0)
 		return NULL;
-	for (i = 0, len = 0; i < n; ++i)
-		len += nodes[i]->path->n;
+	for (i = 0, len = 0; i < n; ++i) {
+		nodeescape(nodes[i]);
+		len += nodes[i]->shellpath->n;
+	}
 	result = mkstr(len + n - 1);
 	s = result->s;
 	for (i = 0; i < n; ++i) {
-		path = nodes[i]->path;
+		path = nodes[i]->shellpath;
 		memcpy(s, path->s, path->n);
 		s += path->n;
 		*s++ = sep;

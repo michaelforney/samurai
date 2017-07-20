@@ -7,7 +7,8 @@ enum {
 };
 
 struct node {
-	struct string *path;
+	/* shellpath is the escaped shell path, and is populated as needed by nodeescape */
+	struct string *path, *shellpath;
 	struct timespec mtime;
 
 	/* does the node need to be rebuilt */
@@ -55,6 +56,8 @@ struct node *mknode(struct string *);
 struct node *nodeget(char *);
 /* update the mtime field of a node */
 void nodestat(struct node *);
+/* escape a node's path, populating shellpath */
+void nodeescape(struct node *);
 
 struct edge *mkedge(struct environment *parent);
 

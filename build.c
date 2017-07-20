@@ -164,7 +164,7 @@ jobstart(struct job *j, struct edge *e)
 	posix_spawn_file_actions_t actions;
 	char *argv[] = {"/bin/sh", "-c", NULL, NULL};
 
-	rspfile = edgevar(e, "rspfile");
+	rspfile = edgevar(e, "rspfile");  // XXX: should use unescaped $out and $in
 	if (rspfile) {
 		content = edgevar(e, "rspfile_content");
 		writefile(rspfile->s, content);

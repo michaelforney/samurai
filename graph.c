@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <stdbool.h>
@@ -32,6 +33,7 @@ mknode(struct string *path)
 	}
 	n = xmalloc(sizeof(*n));
 	n->path = path;
+	n->shellpath = NULL;
 	n->gen = NULL;
 	n->use = NULL;
 	n->nuse = 0;
@@ -58,6 +60,40 @@ nodestat(struct node *n)
 		n->mtime.tv_nsec = MTIME_MISSING;
 	} else {
 		n->mtime = st.st_mtim;
+	}
+}
+
+void
+nodeescape(struct node *n)
+{
+	char *s, *d;
+	bool escape;
+	int nquote;
+
+	if (n->shellpath)
+		return;
+	escape = false;
+	nquote = 0;
+	for (s = n->path->s; *s; ++s) {
+		if (!isalnum(*s) && !strchr("_+-./", *s))
+			escape = true;
+		if (*s == '\'')
+			++nquote;
+	}
+	if (escape) {
+		n->shellpath = mkstr(n->path->n + 2 + 2 * nquote);
+		d = n->shellpath->s;
+		*d++ = '\'';
+		for (s = n->path->s; *s; ++s) {
+			*d++ = *s;
+			if (*s == '\'') {
+				*d++ = '\\';
+				*d++ = '\'';
+			}
+		}
+		*d++ = '\'';
+	} else {
+		n->shellpath = n->path;
 	}
 }
 
