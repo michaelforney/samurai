@@ -108,7 +108,7 @@ addsubtarget(struct node *n)
 	if (!n->dirty)
 		return;
 	if (!n->gen)
-		errx(1, "file is missing and not created by any action: '%s'", n->path);
+		errx(1, "file is missing and not created by any action: '%s'", n->path->s);
 	if (n->gen->seen > 1)
 		return;
 	++n->gen->seen;
@@ -230,7 +230,7 @@ jobstart(struct job *j, struct edge *e)
 	if ((errno = posix_spawn_file_actions_adddup2(&actions, fd[1], 2)))
 		err(1, "posix_spawn_file_actions_adddup2");
 	if ((errno = posix_spawn(&j->pid, argv[0], &actions, NULL, argv, environ)))
-		err(1, "posix_spawn %s", j->cmd);
+		err(1, "posix_spawn %s", j->cmd->s);
 	posix_spawn_file_actions_destroy(&actions);
 	close(fd[1]);
 
