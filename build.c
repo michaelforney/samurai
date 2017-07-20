@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
@@ -156,14 +157,53 @@ writefile(const char *name, struct string *s)
 	close(fd);
 }
 
+static void
+makedirs(struct string *path)
+{
+	struct stat st;
+	char *s, *end;
+	bool missing;
+
+	missing = false;
+	end = path->s + path->n;
+	for (s = end - 1; s > path->s; --s) {
+		if (*s != '/')
+			continue;
+		*s = '\0';
+		if (stat(path->s, &st) == 0)
+			break;
+		if (errno != ENOENT)
+			err(1, "stat %s", path->s);
+		missing = true;
+	}
+	if (s > path->s)
+		*s = '/';
+	if (!missing)
+		return;
+	for (++s; s < end; ++s) {
+		if (*s != '\0')
+			continue;
+		if (mkdir(path->s, 0777) < 0 && errno != EEXIST)
+			err(1, "mkdir %s", path->s);
+		*s = '/';
+	}
+}
+
 static int
 jobstart(struct job *j, struct edge *e)
 {
+	size_t i;
+	struct node *n;
 	struct string *rspfile, *content;
 	int fd[2];
 	posix_spawn_file_actions_t actions;
 	char *argv[] = {"/bin/sh", "-c", NULL, NULL};
 
+	for (i = 0; i < e->nout; ++i) {
+		n = e->out[i];
+		if (n->mtime.tv_nsec == MTIME_MISSING)
+			makedirs(n->path);
+	}
 	rspfile = edgevar(e, "rspfile");  // XXX: should use unescaped $out and $in
 	if (rspfile) {
 		content = edgevar(e, "rspfile_content");

@@ -7,4 +7,3 @@ work in progress.
 - Clean
 - Hash commands and rebuild if they change
 - depfile handling
-- Create parent directories when necessary
