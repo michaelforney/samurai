@@ -14,6 +14,14 @@ extern FILE *f;
 struct node **deftarg;
 size_t ndeftarg;
 
+void
+parseinit(void)
+{
+	free(deftarg);
+	deftarg = NULL;
+	ndeftarg = 0;
+}
+
 static void
 parselet(char **var, struct evalstring **val)
 {

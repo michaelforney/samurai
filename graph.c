@@ -17,6 +17,30 @@ struct edge *alledges;
 void
 graphinit(void)
 {
+	struct node *n;
+	struct edge *e;
+	size_t i;
+
+	/* delete old nodes and edges in case we rebuilt the manifest */
+	if (allnodes) {
+		for (i = 0; i < allnodes->sz; ++i) {
+			if (!allnodes->hashes[i])
+				continue;
+			n = allnodes->vals[i];
+			if (n->shellpath != n->path)
+				free(n->shellpath);
+			free(n->path);
+			free(n);
+		}
+		htfree(allnodes);
+	}
+	while (alledges) {
+		e = alledges;
+		alledges = e->allnext;
+		free(e->out);
+		free(e->in);
+		free(e);
+	}
 	allnodes = mkht(1024, strhash, streq);
 }
 

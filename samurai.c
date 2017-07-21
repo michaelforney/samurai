@@ -26,8 +26,8 @@ main(int argc, char *argv[])
 {
 	struct edge *e;
 	struct node *n;
-	const char *buildname = "build.ninja";
-	int numjobs = 0;
+	char *manifest = "build.ninja";
+	int numjobs = 0, tries = 0;
 	struct tool *tool = NULL;
 	size_t i;
 
@@ -38,7 +38,7 @@ main(int argc, char *argv[])
 			err(1, "chdir");
 		break;
 	case 'f':
-		buildname = EARGF(usage());
+		manifest = EARGF(usage());
 		break;
 	case 'j':
 		numjobs = strtol(EARGF(usage()), 0, 10);
@@ -72,17 +72,29 @@ argdone:
 #endif
 	}
 
+retry:
 	graphinit();
 	envinit();
-	f = fopen(buildname, "r");
+	parseinit();
+	f = fopen(manifest, "r");
 	if (!f)
-		err(1, "fopen %s", buildname);
+		err(1, "fopen %s", manifest);
 	parse(rootenv);
 	fclose(f);
 
 	if (tool)
 		return tool->run(argc, argv);
 
+	n = nodeget(manifest);
+	if (n && n->gen) {
+		addtarget(n);
+		if (n->dirty) {
+			build(numjobs);
+			if (++tries > 100)
+				errx(1, "manifest '%s' dirty after 100 tries", manifest);
+			goto retry;
+		}
+	}
 	if (argc) {
 		for (; *argv; ++argv) {
 			n = nodeget(*argv);

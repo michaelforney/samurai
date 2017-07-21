@@ -1,5 +1,6 @@
 struct environment;
 
+void parseinit(void);
 void parse(struct environment *env);
 
 /* default targets */

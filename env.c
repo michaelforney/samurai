@@ -27,8 +27,11 @@ struct environment *rootenv;
 void
 envinit(void)
 {
+	/* TODO: delete old root environment (in case we rebuilt build.ninja).
+	 * for now, we leak memory. */
 	rootenv = mkenv(NULL);
-	phonyrule = mkrule("phony");
+	if (!phonyrule)
+		phonyrule = mkrule("phony");
 	envaddrule(rootenv, phonyrule);
 }
 
