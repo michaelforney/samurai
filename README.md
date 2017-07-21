@@ -6,3 +6,5 @@ work in progress.
 - Pools
 - Hash commands and rebuild if they change
 - depfile handling
+- Generator rules
+- Handle restat
