@@ -23,9 +23,8 @@ parseinit(void)
 }
 
 static void
-parselet(char **var, struct evalstring **val)
+parselet(struct evalstring **val)
 {
-	*var = ident;
 	expect(EQUALS);
 	*val = readstr(false);
 	expect(NEWLINE);
@@ -38,13 +37,12 @@ parserule(struct environment *env)
 	char *var;
 	struct evalstring *val;
 
-	expect(IDENT);
-	r = mkrule(ident);
+	r = mkrule(readident());
 	expect(NEWLINE);
 	while (peek() == INDENT) {
 		next();
-		expect(IDENT);
-		parselet(&var, &val);
+		var = readident();
+		parselet(&val);
 		ruleaddvar(r, var, val);
 	}
 	envaddrule(env, r);
@@ -77,8 +75,7 @@ parseedge(struct environment *env)
 			pushstr(&end, str);
 	}
 	expect(COLON);
-	expect(IDENT);
-	e->rule = envrule(env, ident);
+	e->rule = envrule(env, readident());
 	for (in = NULL, end = &in; (str = readstr(true)); ++e->nin)
 		pushstr(&end, str);
 	e->inimpidx = e->nin;
@@ -94,8 +91,8 @@ parseedge(struct environment *env)
 	expect(NEWLINE);
 	while (peek() == INDENT) {
 		next();
-		expect(IDENT);
-		parselet(&var, &str);
+		var = readident();
+		parselet(&str);
 		s = enveval(env, str);
 		envaddvar(e->env, var, s);
 		delstr(str);
@@ -195,7 +192,8 @@ parse(struct environment *env)
 			parseinclude(env, c == SUBNINJA);
 			break;
 		case IDENT:
-			parselet(&var, &str);
+			var = ident;
+			parselet(&str);
 			val = enveval(env, str);
 			envaddvar(env, var, val);
 			delstr(str);

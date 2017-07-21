@@ -44,3 +44,5 @@ const char *tokstr(int);
 struct evalstring *readstr(bool ispath);
 /* delete a string token */
 void delstr(struct evalstring *);
+/* read an identifier token */
+char *readident(void);

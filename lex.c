@@ -345,3 +345,23 @@ delstr(struct evalstring *str)
 	}
 	free(str);
 }
+
+char *
+readident(void)
+{
+	int c;
+
+	buf.len = 0;
+	for (;;) {
+		c = fgetc(f);
+		if (!isvar(c))
+			break;
+		bufadd(c);
+	}
+	ungetc(c, f);
+	if (!buf.len)
+		errx(1, "bad identifier");
+	whitespace();
+
+	return xstrdup(buf.data, buf.len);
+}
