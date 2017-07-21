@@ -29,6 +29,7 @@ main(int argc, char *argv[])
 	int numjobs = 0;
 	size_t i;
 
+	argv0 = argv[0];
 	ARGBEGIN {
 	case 'C':
 		if (chdir(EARGF(usage())) < 0)
