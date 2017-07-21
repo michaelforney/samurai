@@ -27,6 +27,15 @@ struct environment {
 };
 
 struct rule *phonyrule;
+struct environment *rootenv;
+
+void
+envinit(void)
+{
+	rootenv = mkenv(NULL);
+	phonyrule = mkrule("phony");
+	envaddrule(rootenv, phonyrule);
+}
 
 static int
 bindingcmp(const void *k1, const void *k2)

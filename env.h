@@ -7,6 +7,8 @@ struct rule {
 	void *bindings;
 };
 
+void envinit(void);
+
 struct environment *mkenv(struct environment *);
 void envaddvar(struct environment *, char *, struct string *);
 struct string *enveval(struct environment *, struct evalstring *);
@@ -18,4 +20,5 @@ void ruleaddvar(struct rule *, char *, struct evalstring *);
 
 struct string *edgevar(struct edge *, char *);
 
+extern struct environment *rootenv;
 extern struct rule *phonyrule;

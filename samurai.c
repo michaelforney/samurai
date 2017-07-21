@@ -23,7 +23,6 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	struct environment *env;
 	struct edge *e;
 	struct node *n;
 	const char *buildname = "build.ninja";
@@ -67,13 +66,11 @@ main(int argc, char *argv[])
 	}
 
 	graphinit();
+	envinit();
 	f = fopen(buildname, "r");
 	if (!f)
 		err(1, "fopen %s", buildname);
-	env = mkenv(NULL);
-	phonyrule = mkrule("phony");
-	envaddrule(env, phonyrule);
-	parse(env);
+	parse(rootenv);
 	fclose(f);
 
 	if (argc) {
