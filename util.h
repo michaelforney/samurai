@@ -8,6 +8,8 @@ struct string {
 	char s[];
 };
 
+#define LEN(a) (sizeof(a) / sizeof((a)[0]))
+
 void *xmalloc(size_t);
 void *xrealloc(void *, size_t);
 void *xcalloc(size_t, size_t);

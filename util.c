@@ -4,8 +4,6 @@
 #include <err.h>
 #include "util.h"
 
-#define LEN(a) (sizeof(a) / sizeof((a)[0]))
-
 void *
 xmalloc(size_t n)
 {
