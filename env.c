@@ -12,12 +12,7 @@
 
 struct binding {
 	char *var;
-	struct string *val;
-};
-
-struct rulebinding {
-	char *var;
-	struct evalstring *val;
+	void *val;
 };
 
 struct environment {
@@ -45,12 +40,22 @@ bindingcmp(const void *k1, const void *k2)
 	return strcmp(b1->var, b2->var);
 }
 
-static int
-rulebindingcmp(const void *k1, const void *k2)
+static void
+addvar(void **tree, char *var, void *val)
 {
-	const struct rulebinding *b1 = k1, *b2 = k2;
+	struct binding *b, **node;
 
-	return strcmp(b1->var, b2->var);
+	b = xmalloc(sizeof(*b));
+	b->var = var;
+	node = tsearch(b, tree, bindingcmp);
+	if (!node)
+		err(1, "tsearch");
+	if (*node != b) {
+		free((*node)->val);
+		free(var);
+		free(b);
+	}
+	(*node)->val = val;
 }
 
 struct environment *
@@ -84,19 +89,7 @@ envvar(struct environment *env, char *var)
 void
 envaddvar(struct environment *env, char *var, struct string *val)
 {
-	struct binding *b, **node;
-
-	b = xmalloc(sizeof(*b));
-	b->var = var;
-	node = tsearch(b, &env->bindings, bindingcmp);
-	if (!node)
-		err(1, "tsearch");
-	if (*node != b) {
-		free((*node)->val);
-		free(var);
-		free(b);
-	}
-	(*node)->val = val;
+	addvar(&env->bindings, var, val);
 }
 
 static struct string *
@@ -216,27 +209,13 @@ mkrule(char *name)
 void
 ruleaddvar(struct rule *r, char *var, struct evalstring *val)
 {
-	struct rulebinding *b, **node;
-
-	b = xmalloc(sizeof(*b));
-	b->var = var;
-	b->val = 0;
-	node = tsearch(b, &r->bindings, rulebindingcmp);
-	if (!node)
-		err(1, "tsearch");
-	if (*node != b) {
-		free((*node)->val);
-		free(var);
-		free(b);
-	}
-	(*node)->val = val;
+	addvar(&r->bindings, var, val);
 }
 
 struct string *
 edgevar(struct edge *e, char *var)
 {
 	struct binding key = {var}, **node;
-	struct rulebinding rulekey = {var}, **rulenode;
 	struct string *val;
 	struct evalstring *str;
 	struct evalstringpart *p;
@@ -255,10 +234,10 @@ edgevar(struct edge *e, char *var)
 		val = envvar(e->env->parent, var);
 		if (val)
 			return val;
-		rulenode = tfind(&rulekey, &e->rule->bindings, rulebindingcmp);
-		if (!rulenode)
+		node = tfind(&key, &e->rule->bindings, bindingcmp);
+		if (!node)
 			return NULL;
-		str = (*rulenode)->val;
+		str = (*node)->val;
 		n = 0;
 		if (str) {
 			for (p = str->parts; p; p = p->next) {
