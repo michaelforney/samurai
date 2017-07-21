@@ -17,6 +17,7 @@ struct keyword {
 extern FILE *f;
 char *ident;
 static int tok;
+static struct buffer buf;
 
 static struct keyword keywords[] = {
 	{":",        COLON},
@@ -47,20 +48,20 @@ static const char *tokname[] = {
 };
 
 static void
-bufadd(struct buffer *buf, char c)
+bufadd(char c)
 {
 	char *newdata;
 	size_t newcap;
 
-	if (buf->len >= buf->cap) {
-		newcap = buf->cap * 2 + 1;
-		newdata = realloc(buf->data, newcap);
+	if (buf.len >= buf.cap) {
+		newcap = buf.cap * 2 + 1;
+		newdata = realloc(buf.data, newcap);
 		if (!newdata)
 			err(1, "realloc");
-		buf->cap = newcap;
-		buf->data = newdata;
+		buf.cap = newcap;
+		buf.data = newdata;
 	}
-	buf->data[buf->len++] = c;
+	buf.data[buf.len++] = c;
 }
 
 static int
@@ -70,7 +71,7 @@ isvar(int c)
 }
 
 static void
-token(struct buffer *buf)
+token(void)
 {
 	int c;
 
@@ -83,7 +84,7 @@ token(struct buffer *buf)
 	case '|':  /* check for || */
 		c = fgetc(f);
 		if (c == '|') {
-			bufadd(buf, c);
+			bufadd(c);
 		} else {
 			ungetc(c, f);
 			c = '|';
@@ -92,14 +93,14 @@ token(struct buffer *buf)
 	}
 	if (isvar(c)) {
 		do {
-			bufadd(buf, c);
+			bufadd(c);
 			c = fgetc(f);
 		} while (isvar(c));
 		ungetc(c, f);
 	} else {
-		bufadd(buf, c);
+		bufadd(c);
 	}
-	bufadd(buf, '\0');
+	bufadd('\0');
 }
 
 static int
@@ -128,7 +129,7 @@ issimplevar(int c)
 }
 
 static void
-addstringpart(struct evalstringpart ***end, bool var, struct buffer *b)
+addstringpart(struct evalstringpart ***end, bool var)
 {
 	struct evalstringpart *p;
 
@@ -136,15 +137,15 @@ addstringpart(struct evalstringpart ***end, bool var, struct buffer *b)
 	p->next = NULL;
 	**end = p;
 	if (var) {
-		p->var = xstrdup(b->data, b->len);
+		p->var = xstrdup(buf.data, buf.len);
 	} else {
 		p->var = NULL;
-		p->str = mkstr(b->len);
-		memcpy(p->str->s, b->data, b->len);
-		p->str->s[b->len] = '\0';
+		p->str = mkstr(buf.len);
+		memcpy(p->str->s, buf.data, buf.len);
+		p->str->s[buf.len] = '\0';
 	}
 	*end = &p->next;
-	b->len = 0;
+	buf.len = 0;
 }
 
 static void
@@ -168,14 +169,13 @@ done:
 int
 peek(void)
 {
-	static struct buffer buf;
 	int c;
 
 	if (tok)
 		return tok;
 	for (;;) {
 		buf.len = 0;
-		token(&buf);
+		token();
 		if (buf.len == 2) {
 			c = buf.data[0];
 			switch (c) {
@@ -230,12 +230,12 @@ expect(int tok)
 const char *
 tokstr(int t)
 {
-	static char buf[256];
+	static char s[256];
 
 	switch (t) {
 	case IDENT:
-		snprintf(buf, sizeof(buf), "IDENT(%s)", ident);
-		return buf;
+		snprintf(s, sizeof(s), "IDENT(%s)", ident);
+		return s;
 	case EOF:
 		return "EOF";
 	default:
@@ -244,7 +244,7 @@ tokstr(int t)
 }
 
 static void
-escape(struct evalstringpart ***end, struct buffer *buf)
+escape(struct evalstringpart ***end)
 {
 	int c;
 
@@ -253,11 +253,11 @@ escape(struct evalstringpart ***end, struct buffer *buf)
 	case '$':
 	case ' ':
 	case ':':
-		bufadd(buf, c);
+		bufadd(c);
 		break;
 	case '{':
-		if (buf->len > 0)
-			addstringpart(end, false, buf);
+		if (buf.len > 0)
+			addstringpart(end, false);
 		for (;;) {
 			c = fgetc(f);
 			if (!isvar(c))
@@ -265,7 +265,7 @@ escape(struct evalstringpart ***end, struct buffer *buf)
 		}
 		if (c != '}')
 			errx(1, "'%c' is not allowed in variable name", c);
-		addstringpart(end, true, buf);
+		addstringpart(end, true);
 		break;
 	case '\n':
 		whitespace();
@@ -273,36 +273,36 @@ escape(struct evalstringpart ***end, struct buffer *buf)
 	default:
 		if (!issimplevar(c))
 			errx(1, "bad $ escape: %c", c);
-		if (buf->len > 0)
-			addstringpart(end, false, buf);
+		if (buf.len > 0)
+			addstringpart(end, false);
 		do {
-			bufadd(buf, c);
+			bufadd(c);
 			c = fgetc(f);
 		} while (issimplevar(c));
 		ungetc(c, f);
-		addstringpart(end, true, buf);
+		addstringpart(end, true);
 	}
 }
 
 struct evalstring *
 readstr(bool path)
 {
-	static struct buffer buf;
 	struct evalstring *s;
 	struct evalstringpart *parts = NULL, **end = &parts;
 	int c;
 
+	buf.len = 0;
 	for (;;) {
 		c = fgetc(f);
 		switch (c) {
 		case '$':
-			escape(&end, &buf);
+			escape(&end);
 			break;
 		case ':':
 		case '|':
 		case ' ':
 			if (!path) {
-				bufadd(&buf, c);
+				bufadd(c);
 				break;
 			}
 			/* fallthrough */
@@ -312,12 +312,12 @@ readstr(bool path)
 		case EOF:
 			goto out;
 		default:
-			bufadd(&buf, c);
+			bufadd(c);
 		}
 	}
 out:
 	if (buf.len > 0)
-		addstringpart(&end, 0, &buf);
+		addstringpart(&end, 0);
 	if (path)
 		whitespace();
 	if (!parts)
@@ -328,7 +328,8 @@ out:
 	return s;
 }
 
-void delstr(struct evalstring *str)
+void
+delstr(struct evalstring *str)
 {
 	struct evalstringpart *p, *next;
 
