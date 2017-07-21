@@ -44,7 +44,6 @@ static const char *tokname[] = {
 	[RULE]     = "RULE",
 	[SUBNINJA] = "SUBNINJA",
 	[PATH]     = "PATH",
-	[VALUE]    = "VALUE",
 };
 
 static void

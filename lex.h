@@ -26,7 +26,6 @@ enum token {
 	RULE,
 	SUBNINJA,
 	PATH,
-	VALUE,
 };
 
 /* identifier name for IDENT token. must be freed by parser. */
