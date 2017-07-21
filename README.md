@@ -4,6 +4,5 @@ work in progress.
 
 ## TODO
 - Pools
-- Clean
 - Hash commands and rebuild if they change
 - depfile handling

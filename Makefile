@@ -7,6 +7,7 @@ OBJ=\
 	lex.o\
 	parse.o\
 	samurai.o\
+	tool.o\
 	util.o
 
 .c.o:

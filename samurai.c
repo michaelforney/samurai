@@ -9,6 +9,7 @@
 #include "env.h"
 #include "graph.h"
 #include "parse.h"
+#include "tool.h"
 
 FILE *f;
 char *argv0;
@@ -27,6 +28,7 @@ main(int argc, char *argv[])
 	struct node *n;
 	const char *buildname = "build.ninja";
 	int numjobs = 0;
+	struct tool *tool = NULL;
 	size_t i;
 
 	argv0 = argv[0];
@@ -43,9 +45,13 @@ main(int argc, char *argv[])
 		if (numjobs <= 0)
 			errx(1, "invalid -j parameter");
 		break;
+	case 't':
+		tool = toolget(EARGF(usage()));
+		goto argdone;
 	default:
 		usage();
 	} ARGEND
+argdone:
 
 	if (!numjobs) {
 #ifdef _SC_NPROCESSORS_ONLN
@@ -73,6 +79,9 @@ main(int argc, char *argv[])
 		err(1, "fopen %s", buildname);
 	parse(rootenv);
 	fclose(f);
+
+	if (tool)
+		return tool->run(argc, argv);
 
 	if (argc) {
 		for (; *argv; ++argv) {
