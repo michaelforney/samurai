@@ -21,8 +21,8 @@ struct environment {
 	void *rules;
 };
 
-struct rule *phonyrule;
 struct environment *rootenv;
+struct rule phonyrule = {.name = "phony"};
 
 void
 envinit(void)
@@ -30,9 +30,7 @@ envinit(void)
 	/* TODO: delete old root environment (in case we rebuilt build.ninja).
 	 * for now, we leak memory. */
 	rootenv = mkenv(NULL);
-	if (!phonyrule)
-		phonyrule = mkrule("phony");
-	envaddrule(rootenv, phonyrule);
+	envaddrule(rootenv, &phonyrule);
 }
 
 static int

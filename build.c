@@ -86,9 +86,9 @@ computedirty(struct edge *e)
 	/* all outputs are dirty if any are older than the newest input */
 	for (i = 0; i < e->nout && !dirty; ++i) {
 		n = e->out[i];
-		if (e->rule == phonyrule && e->nin > 0)
+		if (e->rule == &phonyrule && e->nin > 0)
 			continue;
-		if (n->mtime.tv_nsec == MTIME_MISSING || (e->rule != phonyrule && nodenewer(newest, n)))
+		if (n->mtime.tv_nsec == MTIME_MISSING || (e->rule != &phonyrule && nodenewer(newest, n)))
 			dirty = true;
 	}
 	for (i = 0; i < e->nout; ++i) {
@@ -332,7 +332,7 @@ build(int maxjobs)
 		while (work && numjobs < maxjobs) {
 			e = work;
 			work = work->worknext;
-			if (e->rule == phonyrule) {
+			if (e->rule == &phonyrule) {
 				edgedone(e);
 				continue;
 			}

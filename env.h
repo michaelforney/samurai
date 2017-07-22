@@ -21,4 +21,4 @@ void ruleaddvar(struct rule *, char *, struct evalstring *);
 struct string *edgevar(struct edge *, char *);
 
 extern struct environment *rootenv;
-extern struct rule *phonyrule;
+extern struct rule phonyrule;

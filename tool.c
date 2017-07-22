@@ -30,7 +30,7 @@ cleantarget(struct node *n)
 	int ret = 0;
 	size_t i;
 
-	if (!n->gen || n->gen->rule == phonyrule)
+	if (!n->gen || n->gen->rule == &phonyrule)
 		return 0;
 	if (cleannode(n) < 0)
 		ret = -1;
@@ -97,7 +97,7 @@ clean(int argc, char *argv[])
 		}
 	} else {
 		for (e = alledges; e; e = e->allnext) {
-			if (e->rule == phonyrule)
+			if (e->rule == &phonyrule)
 				continue;
 			if (!cleangen && edgevar(e, "generator"))
 				continue;
