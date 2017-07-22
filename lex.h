@@ -23,6 +23,7 @@ enum token {
 	NEWLINE,
 	PIPE,
 	PIPE2,
+	POOL,
 	RULE,
 	SUBNINJA,
 	PATH,

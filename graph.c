@@ -128,6 +128,7 @@ mkedge(struct environment *parent)
 
 	e = xmalloc(sizeof(*e));
 	e->env = mkenv(parent);
+	e->pool = NULL;
 	e->nout = 0;
 	e->nin = 0;
 	e->want = false;

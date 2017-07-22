@@ -19,12 +19,14 @@ char *ident;
 static int tok;
 static struct buffer buf;
 
+/* must stay in sorted order */
 static struct keyword keywords[] = {
 	{":",        COLON},
 	{"=",        EQUALS},
 	{"build",    BUILD},
 	{"default",  DEFAULT},
 	{"include",  INCLUDE},
+	{"pool",     POOL},
 	{"rule",     RULE},
 	{"subninja", SUBNINJA},
 	{"|",        PIPE},
@@ -42,6 +44,7 @@ static const char *tokname[] = {
 	[NEWLINE]  = "NEWLINE",
 	[PIPE]     = "PIPE",
 	[PIPE2]    = "PIPE2",
+	[POOL]     = "POOL",
 	[RULE]     = "RULE",
 	[SUBNINJA] = "SUBNINJA",
 	[PATH]     = "PATH",

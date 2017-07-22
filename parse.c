@@ -119,6 +119,10 @@ parseedge(struct environment *env)
 		*n = mknode(s);
 		++(*n)->nuse;
 	}
+
+	s = edgevar(e, "pool");
+	if (s)
+		e->pool = poolget(s->s);
 }
 
 static void
@@ -170,6 +174,33 @@ parsedefault(struct environment *env)
 	expect(NEWLINE);
 }
 
+static void
+parsepool(struct environment *env)
+{
+	struct pool *p;
+	struct evalstring *val;
+	struct string *s;
+	char *var, *end;
+
+	p = mkpool(readident());
+	expect(NEWLINE);
+	while (peek() == INDENT) {
+		next();
+		var = readident();
+		parselet(&val);
+		if (strcmp(var, "depth") == 0) {
+			s = enveval(env, val);
+			p->maxjobs = strtol(s->s, &end, 10);
+			if (*end)
+				errx(1, "invalid pool depth: %s", s->s);
+		} else {
+			errx(1, "unexpected pool variable: %s", var);
+		}
+	}
+	if (!p->maxjobs)
+		errx(1, "pool has no depth: %s", p->name);
+}
+
 void
 parse(struct environment *env)
 {
@@ -200,6 +231,9 @@ parse(struct environment *env)
 			break;
 		case DEFAULT:
 			parsedefault(env);
+			break;
+		case POOL:
+			parsepool(env);
 			break;
 		case EOF:
 			return;

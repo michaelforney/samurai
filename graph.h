@@ -24,6 +24,7 @@ struct node {
 
 struct edge {
 	struct rule *rule;
+	struct pool *pool;
 	struct environment *env;
 
 	/* input and output nodes */

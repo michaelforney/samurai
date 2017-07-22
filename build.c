@@ -1,4 +1,3 @@
-#define _GNU_SOURCE /* for pipe2, in posix-next */
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -100,6 +99,21 @@ computedirty(struct edge *e)
 }
 
 static void
+queue(struct edge *e)
+{
+	struct edge **front = &work;
+
+	if (e->pool) {
+		if (e->pool->numjobs == e->pool->maxjobs)
+			front = &e->pool->work;
+		else
+			++e->pool->numjobs;
+	}
+	e->worknext = *front;
+	*front = e;
+}
+
+static void
 addsubtarget(struct node *n)
 {
 	size_t i;
@@ -116,8 +130,7 @@ addsubtarget(struct node *n)
 		if (n->gen->in[i]->dirty)
 			goto notready;
 	}
-	n->gen->worknext = work;
-	work = n->gen;
+	queue(n->gen);
 notready:
 	for (i = 0; i < n->gen->nin; ++i)
 		addsubtarget(n->gen->in[i]);
@@ -210,7 +223,7 @@ jobstart(struct job *j, struct edge *e)
 		writefile(rspfile->s, content);
 	}
 
-	if (pipe2(fd, O_CLOEXEC) < 0)
+	if (pipe(fd) < 0)
 		err(1, "pipe");
 	j->edge = e;
 	j->cmd = edgevar(e, "command");
@@ -219,16 +232,21 @@ jobstart(struct job *j, struct edge *e)
 	j->fd = fd[0];
 	argv[2] = j->cmd->s;
 
-	puts(j->cmd->s);
+	if (consolepool.numjobs == 0)
+		puts(j->cmd->s);
 
 	if ((errno = posix_spawn_file_actions_init(&actions)))
 		err(1, "posix_spawn_file_actions_init");
-	if ((errno = posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0)))
-		err(1, "posix_spawn_file_actions_addopen");
-	if ((errno = posix_spawn_file_actions_adddup2(&actions, fd[1], 1)))
-		err(1, "posix_spawn_file_actions_adddup2");
-	if ((errno = posix_spawn_file_actions_adddup2(&actions, fd[1], 2)))
-		err(1, "posix_spawn_file_actions_adddup2");
+	if ((errno = posix_spawn_file_actions_addclose(&actions, fd[0])))
+		err(1, "posix_spawn_file_actions_addclose");
+	if (e->pool != &consolepool) {
+		if ((errno = posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0)))
+			err(1, "posix_spawn_file_actions_addopen");
+		if ((errno = posix_spawn_file_actions_adddup2(&actions, fd[1], 1)))
+			err(1, "posix_spawn_file_actions_adddup2");
+		if ((errno = posix_spawn_file_actions_adddup2(&actions, fd[1], 2)))
+			err(1, "posix_spawn_file_actions_adddup2");
+	}
 	if ((errno = posix_spawn(&j->pid, argv[0], &actions, NULL, argv, environ)))
 		err(1, "posix_spawn %s", j->cmd->s);
 	posix_spawn_file_actions_destroy(&actions);
@@ -260,7 +278,8 @@ jobclose(struct job *j)
 {
 	int status;
 
-	fwrite(j->buf.data, 1, j->buf.len, stdout);
+	if (j->buf.len && consolepool.numjobs == 0)
+		fwrite(j->buf.data, 1, j->buf.len, stdout);
 	if (waitpid(j->pid, &status, 0) < 0)
 		err(1, "waitpid %d", j->pid); // XXX: handle this
 	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
@@ -287,8 +306,7 @@ nodedone(struct node *n)
 			if (e->in[j]->dirty)
 				goto notready;
 		}
-		e->worknext = work;
-		work = e;
+		queue(e);
 	notready:;
 	}
 }
@@ -296,9 +314,24 @@ nodedone(struct node *n)
 static void
 edgedone(struct edge *e)
 {
+	struct edge *new;
+	struct pool *p;
 	size_t i;
 	struct string *rspfile;
 
+	if (e->pool) {
+		p = e->pool;
+
+		/* move edge from pool queue to main work queue */
+		if (p->work) {
+			new = p->work;
+			p->work = p->work->worknext;
+			new->worknext = work;
+			work = new;
+		} else {
+			--p->numjobs;
+		}
+	}
 	for (i = 0; i < e->nout; ++i)
 		nodedone(e->out[i]);
 	rspfile = edgevar(e, "rspfile");

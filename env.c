@@ -23,14 +23,20 @@ struct environment {
 
 struct environment *rootenv;
 struct rule phonyrule = {.name = "phony"};
+struct pool consolepool = {.name = "console", .maxjobs = 1};
+static void *pools;
+
+static void addpool(struct pool *);
 
 void
 envinit(void)
 {
-	/* TODO: delete old root environment (in case we rebuilt build.ninja).
-	 * for now, we leak memory. */
+	/* TODO: delete old root environment and pools (in case we rebuilt
+	 * build.ninja). for now, we leak memory. */
 	rootenv = mkenv(NULL);
 	envaddrule(rootenv, &phonyrule);
+	pools = NULL;
+	addpool(&consolepool);
 }
 
 static int
@@ -253,4 +259,51 @@ edgevar(struct edge *e, char *var)
 	envaddvar(e->env, var, val);
 
 	return val;
+}
+
+static int
+poolcmp(const void *k1, const void *k2)
+{
+	const struct pool *p1 = k1, *p2 = k2;
+
+	return strcmp(p1->name, p2->name);
+}
+
+static void
+addpool(struct pool *p)
+{
+	struct pool **node;
+
+	node = tsearch(p, &pools, poolcmp);
+	if (!node)
+		err(1, "tsearch");
+	if (*node != p)
+		errx(1, "pool redefined: %s", p->name);
+}
+
+struct pool *
+mkpool(char *name)
+{
+	struct pool *p;
+
+	p = xmalloc(sizeof(*p));
+	p->name = name;
+	p->numjobs = 0;
+	p->maxjobs = 0;
+	p->work = NULL;
+	addpool(p);
+
+	return p;
+}
+
+struct pool *
+poolget(char *name)
+{
+	struct pool **p;
+
+	p = tfind(&(struct pool){.name = name}, &pools, poolcmp);
+	if (!p)
+		errx(1, "unknown pool: %s", name);
+
+	return *p;
 }
