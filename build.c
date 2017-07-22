@@ -121,20 +121,22 @@ queue(struct edge *e)
 static void
 addsubtarget(struct node *n)
 {
+	struct edge *e;
 	size_t i;
 
 	// XXX: cycle detection
 	if (!n->dirty)
 		return;
-	if (!n->gen)
+	e = n->gen;
+	if (!e)
 		errx(1, "file is missing and not created by any action: '%s'", n->path->s);
-	if (n->gen->seen > 1)
+	if (e->seen > 1)
 		return;
-	++n->gen->seen;
-	if (n->gen->nblock == 0)
-		queue(n->gen);
-	for (i = 0; i < n->gen->nin; ++i)
-		addsubtarget(n->gen->in[i]);
+	++e->seen;
+	if (e->nblock == 0)
+		queue(e);
+	for (i = 0; i < e->nin; ++i)
+		addsubtarget(e->in[i]);
 }
 
 void
