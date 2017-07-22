@@ -13,7 +13,7 @@ OBJ=\
 .c.o:
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-samurai: $(OBJ)
+samu: $(OBJ)
 	$(CC) $(LDFLAGS) -o $@ $^
 
 .PHONY: clean

@@ -17,6 +17,6 @@ build parse.o: cc parse.c
 build samurai.o: cc samurai.c
 build tool.o: cc tool.c
 build util.o: cc util.c
-build samurai: link build.o env.o graph.o htab.o lex.o parse.o samurai.o tool.o util.o
+build samu: link build.o env.o graph.o htab.o lex.o parse.o samurai.o tool.o util.o
 
-default samurai
+default samu
