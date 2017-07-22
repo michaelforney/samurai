@@ -17,7 +17,7 @@ char *argv0;
 static _Noreturn void
 usage(void)
 {
-	fprintf(stderr, "usage: %s [-C dir] [-f buildfile] [-j numjobs]\n", argv0);
+	fprintf(stderr, "usage: %s [-C dir] [-f buildfile] [-j maxjobs] [-k maxfail]\n", argv0);
 	exit(2);
 }
 
@@ -26,8 +26,8 @@ main(int argc, char *argv[])
 {
 	struct edge *e;
 	struct node *n;
-	char *manifest = "build.ninja";
-	int numjobs = 0, tries = 0;
+	char *manifest = "build.ninja", *end;
+	int maxjobs = 0, maxfail = 1, tries = 0;
 	struct tool *tool = NULL;
 	size_t i;
 
@@ -41,9 +41,16 @@ main(int argc, char *argv[])
 		manifest = EARGF(usage());
 		break;
 	case 'j':
-		numjobs = strtol(EARGF(usage()), 0, 10);
-		if (numjobs <= 0)
+		maxjobs = strtol(EARGF(usage()), NULL, 10);
+		if (maxjobs <= 0)
 			errx(1, "invalid -j parameter");
+		break;
+	case 'k':
+		maxfail = strtol(EARGF(usage()), &end, 10);
+		if (*end)
+			errx(1, "invalid -k parameter");
+		if (maxfail < 0)
+			maxfail = 0;
 		break;
 	case 't':
 		tool = toolget(EARGF(usage()));
@@ -53,22 +60,22 @@ main(int argc, char *argv[])
 	} ARGEND
 argdone:
 
-	if (!numjobs) {
+	if (!maxjobs) {
 #ifdef _SC_NPROCESSORS_ONLN
 		int n = sysconf(_SC_NPROCESSORS_ONLN);
 		switch (n) {
 		case -1: case 0: case 1:
-			numjobs = 2;
+			maxjobs = 2;
 			break;
 		case 2:
-			numjobs = 3;
+			maxjobs = 3;
 			break;
 		default:
-			numjobs = n + 2;
+			maxjobs = n + 2;
 			break;
 		}
 #else
-		numjobs = 2;
+		maxjobs = 2;
 #endif
 	}
 
@@ -89,7 +96,7 @@ retry:
 	if (n && n->gen) {
 		addtarget(n);
 		if (n->dirty) {
-			build(numjobs);
+			build(maxjobs, maxfail);
 			if (++tries > 100)
 				errx(1, "manifest '%s' dirty after 100 tries", manifest);
 			goto retry;
@@ -117,7 +124,7 @@ retry:
 			}
 		}
 	}
-	build(numjobs);
+	build(maxjobs, maxfail);
 
 	return 0;
 }

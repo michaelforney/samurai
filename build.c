@@ -1,7 +1,9 @@
+#define _POSIX_C_SOURCE 200809L
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <signal.h>
 #include <spawn.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -23,6 +25,7 @@ struct job {
 	int fd;
 	struct edge *edge;
 	struct buffer buf;
+	bool failed;
 };
 
 static struct edge *work;
@@ -152,34 +155,44 @@ addtarget(struct node *n)
 	addsubtarget(n);
 }
 
-static void
+static int
 writefile(const char *name, struct string *s)
 {
-	int fd;
+	int fd, ret;
 	const char *p;
 	size_t n;
 	ssize_t nw;
 
 	fd = creat(name, 0666);
-	if (fd < 0)
-		err(1, "creat %s", name);
+	if (fd < 0) {
+		warn("creat %s", name);
+		return -1;
+	}
+	ret = 0;
 	if (s) {
 		for (p = s->s, n = s->n; n > 0; p += nw, n -= nw) {
 			nw = write(fd, p, n);
-			if (nw <= 0)
-				err(1, "write");
+			if (nw <= 0) {
+				warn("write");
+				ret = -1;
+				break;
+			}
 		}
 	}
 	close(fd);
+
+	return ret;
 }
 
-static void
+static int
 makedirs(struct string *path)
 {
+	int ret;
 	struct stat st;
 	char *s, *end;
 	bool missing;
 
+	ret = 0;
 	missing = false;
 	end = path->s + path->n;
 	for (s = end - 1; s > path->s; --s) {
@@ -188,21 +201,28 @@ makedirs(struct string *path)
 		*s = '\0';
 		if (stat(path->s, &st) == 0)
 			break;
-		if (errno != ENOENT)
-			err(1, "stat %s", path->s);
+		if (errno != ENOENT) {
+			warn("stat %s", path->s);
+			ret = -1;
+			break;
+		}
 		missing = true;
 	}
 	if (s > path->s)
 		*s = '/';
 	if (!missing)
-		return;
+		return ret;
 	for (++s; s < end; ++s) {
 		if (*s != '\0')
 			continue;
-		if (mkdir(path->s, 0777) < 0 && errno != EEXIST)
-			err(1, "mkdir %s", path->s);
+		if (ret == 0 && mkdir(path->s, 0777) < 0 && errno != EEXIST) {
+			warn("mkdir %s", path->s);
+			ret = -1;
+		}
 		*s = '/';
 	}
+
+	return ret;
 }
 
 static int
@@ -217,78 +237,76 @@ jobstart(struct job *j, struct edge *e)
 
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
-		if (n->mtime.tv_nsec == MTIME_MISSING)
-			makedirs(n->path);
+		if (n->mtime.tv_nsec == MTIME_MISSING) {
+			if (makedirs(n->path) < 0)
+				goto err0;
+		}
 	}
 	rspfile = edgevar(e, "rspfile");  // XXX: should use unescaped $out and $in
 	if (rspfile) {
 		content = edgevar(e, "rspfile_content");
-		writefile(rspfile->s, content);
+		if (writefile(rspfile->s, content) < 0)
+			goto err0;
 	}
 
-	if (pipe(fd) < 0)
-		err(1, "pipe");
+	if (pipe(fd) < 0) {
+		warn("pipe");
+		goto err1;
+	}
 	j->edge = e;
 	j->cmd = edgevar(e, "command");
-	if (!j->cmd)
-		errx(1, "rule '%s' has no command", e->rule->name);
+	if (!j->cmd) {
+		warnx("rule '%s' has no command", e->rule->name);
+		goto err2;
+	}
 	j->fd = fd[0];
 	argv[2] = j->cmd->s;
 
 	if (consolepool.numjobs == 0)
 		puts(j->cmd->s);
 
-	if ((errno = posix_spawn_file_actions_init(&actions)))
-		err(1, "posix_spawn_file_actions_init");
-	if ((errno = posix_spawn_file_actions_addclose(&actions, fd[0])))
-		err(1, "posix_spawn_file_actions_addclose");
-	if (e->pool != &consolepool) {
-		if ((errno = posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0)))
-			err(1, "posix_spawn_file_actions_addopen");
-		if ((errno = posix_spawn_file_actions_adddup2(&actions, fd[1], 1)))
-			err(1, "posix_spawn_file_actions_adddup2");
-		if ((errno = posix_spawn_file_actions_adddup2(&actions, fd[1], 2)))
-			err(1, "posix_spawn_file_actions_adddup2");
+	if ((errno = posix_spawn_file_actions_init(&actions))) {
+		warn("posix_spawn_file_actions_init");
+		goto err2;
 	}
-	if ((errno = posix_spawn(&j->pid, argv[0], &actions, NULL, argv, environ)))
-		err(1, "posix_spawn %s", j->cmd->s);
+	if ((errno = posix_spawn_file_actions_addclose(&actions, fd[0]))) {
+		warn("posix_spawn_file_actions_addclose");
+		goto err3;
+	}
+	if (e->pool != &consolepool) {
+		if ((errno = posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0))) {
+			warn("posix_spawn_file_actions_addopen");
+			goto err3;
+		}
+		if ((errno = posix_spawn_file_actions_adddup2(&actions, fd[1], 1))) {
+			warn("posix_spawn_file_actions_adddup2");
+			goto err3;
+		}
+		if ((errno = posix_spawn_file_actions_adddup2(&actions, fd[1], 2))) {
+			warn("posix_spawn_file_actions_adddup2");
+			goto err3;
+		}
+	}
+	if ((errno = posix_spawn(&j->pid, argv[0], &actions, NULL, argv, environ))) {
+		warn("posix_spawn %s", j->cmd->s);
+		goto err3;
+	}
 	posix_spawn_file_actions_destroy(&actions);
 	close(fd[1]);
+	j->failed = false;
 
 	return j->fd;
-}
 
-static bool
-jobread(struct job *j)
-{
-	ssize_t n;
-
-	if (j->buf.cap - j->buf.len < BUFSIZ) {
-		j->buf.cap += BUFSIZ;
-		j->buf.data = realloc(j->buf.data, j->buf.cap);
-		if (!j->buf.data)
-			err(1, "realloc"); // XXX: handle this
-	}
-	n = read(j->fd, j->buf.data + j->buf.len, j->buf.cap - j->buf.len);
-	if (n < 0)
-		err(1, "read"); // XXX: handle this
-	j->buf.len += n;
-	return n == 0;
-}
-
-static void
-jobclose(struct job *j)
-{
-	int status;
-
-	if (j->buf.len && consolepool.numjobs == 0)
-		fwrite(j->buf.data, 1, j->buf.len, stdout);
-	if (waitpid(j->pid, &status, 0) < 0)
-		err(1, "waitpid %d", j->pid); // XXX: handle this
-	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
-		errx(1, "job failed: %s", j->cmd->s); // XXX: handle this
-	close(j->fd);
-	j->buf.len = 0;
+err3:
+	posix_spawn_file_actions_destroy(&actions);
+err2:
+	close(fd[0]);
+	close(fd[1]);
+err1:
+	if (rspfile)
+		unlink(rspfile->s);
+err0:
+	return -1;
 }
 
 static void
@@ -336,12 +354,77 @@ edgedone(struct edge *e)
 		unlink(rspfile->s);
 }
 
+static void
+jobdone(struct job *j)
+{
+	int status;
+
+	if (j->buf.len && consolepool.numjobs == 0)
+		fwrite(j->buf.data, 1, j->buf.len, stdout);
+	if (waitpid(j->pid, &status, 0) < 0) {
+		warn("waitpid %d", j->pid);
+		j->failed = true;
+	} else if (WIFEXITED(status)) {
+		if (WEXITSTATUS(status) != 0) {
+			warnx("job failed: %s", j->cmd->s);
+			j->failed = true;
+		}
+	} else if (WIFSIGNALED(status)) {
+		warnx("job terminated due to signal %d: %s", WTERMSIG(status), j->cmd->s);
+		j->failed = true;
+	} else {
+		/* cannot happen according to POSIX */
+		warnx("job status unknown: %s", j->cmd->s);
+		j->failed = true;
+	}
+	close(j->fd);
+	j->buf.len = 0;
+	if (!j->failed)
+		edgedone(j->edge);
+}
+
+/* returns whether a job still has work to do. if not, sets j->failed */
+static bool
+jobwork(struct job *j)
+{
+	char *newdata;
+	size_t newcap;
+	ssize_t n;
+
+	if (j->buf.cap - j->buf.len < BUFSIZ / 2) {
+		newcap = j->buf.cap + BUFSIZ;
+		newdata = realloc(j->buf.data, newcap);
+		if (!newdata) {
+			warn("realloc");
+			goto kill;
+		}
+		j->buf.cap = newcap;
+		j->buf.data = newdata;
+	}
+	n = read(j->fd, j->buf.data + j->buf.len, j->buf.cap - j->buf.len);
+	if (n > 0) {
+		j->buf.len += n;
+		return true;
+	}
+	if (n == 0)
+		goto done;
+	warn("read");
+
+kill:
+	kill(j->pid, SIGTERM);
+	j->failed = true;
+done:
+	jobdone(j);
+
+	return false;
+}
+
 void
-build(int maxjobs)
+build(int maxjobs, int maxfail)
 {
 	struct job jobs[maxjobs];
 	struct pollfd fds[maxjobs];
-	int avail[maxjobs], i, next = 0, numjobs = 0;
+	int avail[maxjobs], i, next = 0, numjobs = 0, numfail = 0;
 	struct edge *e;
 
 	for (i = 0; i < maxjobs; ++i) {
@@ -359,7 +442,7 @@ build(int maxjobs)
 
 	while (work || numjobs > 0) {
 		/* start ready edges */
-		while (work && numjobs < maxjobs) {
+		while (work && numjobs < maxjobs && (!maxfail || numfail < maxfail)) {
 			e = work;
 			work = work->worknext;
 			if (e->rule == &phonyrule) {
@@ -367,8 +450,13 @@ build(int maxjobs)
 				continue;
 			}
 			fds[next].fd = jobstart(&jobs[next], e);
-			next = avail[next];
-			++numjobs;
+			if (fds[next].fd < 0) {
+				warnx("job failed to start");
+				++numfail;
+			} else {
+				next = avail[next];
+				++numjobs;
+			}
 		}
 		if (numjobs == 0)
 			break;
@@ -378,19 +466,25 @@ build(int maxjobs)
 			if (poll(fds, maxjobs, -1) < 0)
 				err(1, "poll");
 			for (i = 0; i < maxjobs; ++i) {
-				if (!fds[i].revents)
+				if (!fds[i].revents || jobwork(&jobs[i]))
 					continue;
-				if (jobread(&jobs[i])) {
-					--numjobs;
-					jobclose(&jobs[i]);
-					avail[i] = next;
-					fds[i].fd = -1;
-					next = i;
-					edgedone(jobs[i].edge);
-				}
+				--numjobs;
+				avail[i] = next;
+				fds[i].fd = -1;
+				next = i;
+				if (jobs[i].failed)
+					++numfail;
 			}
 		} while (numjobs == maxjobs);
 	}
 	for (i = 0; i < maxjobs; ++i)
 		free(jobs[i].buf.data);
+	if (numfail > 0) {
+		if (numfail < maxfail)
+			errx(1, "cannot make progress due to previous errors");
+		else if (numfail > 1)
+			errx(1, "subcommands failed");
+		else
+			errx(1, "subcommand failed");
+	}
 }
