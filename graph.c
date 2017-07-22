@@ -131,7 +131,7 @@ mkedge(struct environment *parent)
 	e->pool = NULL;
 	e->nout = 0;
 	e->nin = 0;
-	e->want = false;
+	e->nblock = -1;
 	e->seen = 0;
 	e->allnext = alledges;
 	alledges = e;

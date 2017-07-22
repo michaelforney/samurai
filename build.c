@@ -94,8 +94,13 @@ computedirty(struct edge *e)
 		n = e->out[i];
 		n->dirty = dirty;
 	}
-	if (dirty)
-		e->want = true;
+	if (dirty) {
+		e->nblock = 0;
+		for (i = 0; i < e->nin; ++i) {
+			if (e->in[i]->dirty)
+				++e->nblock;
+		}
+	}
 }
 
 static void
@@ -126,12 +131,8 @@ addsubtarget(struct node *n)
 	if (n->gen->seen > 1)
 		return;
 	++n->gen->seen;
-	for (i = 0; i < n->gen->nin; ++i) {
-		if (n->gen->in[i]->dirty)
-			goto notready;
-	}
-	queue(n->gen);
-notready:
+	if (n->gen->nblock == 0)
+		queue(n->gen);
 	for (i = 0; i < n->gen->nin; ++i)
 		addsubtarget(n->gen->in[i]);
 }
@@ -292,7 +293,7 @@ static void
 nodedone(struct node *n)
 {
 	struct edge *e;
-	size_t i, j;
+	size_t i;
 
 	n->dirty = false;
 	/* if we did not already populate n->use, we do not care about the dependent edges. */
@@ -300,14 +301,8 @@ nodedone(struct node *n)
 		return;
 	for (i = 0; i < n->nuse; ++i) {
 		e = n->use[i];
-		if (!e->want)
-			continue;
-		for (j = 0; j < e->nin; ++j) {
-			if (e->in[j]->dirty)
-				goto notready;
-		}
-		queue(e);
-	notready:;
+		if (e->nblock > 0 && --e->nblock == 0)
+			queue(e);
 	}
 }
 

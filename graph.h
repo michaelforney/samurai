@@ -36,8 +36,8 @@ struct edge {
 	/* index of first implicit and order-only input */
 	size_t inimpidx, inorderidx;
 
-	/* whether or not we need to build this edge */
-	bool want;
+	/* how many remaining inputs we are waiting for. -1 if we don't care about it */
+	int nblock;
 
 	/* how far we are with processing this edge. if 0, we have not seen it
 	 * in computedirty. if 1, we have not seen it in addsubtarget. */
