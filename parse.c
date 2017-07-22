@@ -75,7 +75,9 @@ parseedge(struct environment *env)
 			pushstr(&end, str);
 	}
 	expect(COLON);
-	e->rule = envrule(env, readident());
+	ident = readident();
+	e->rule = envrule(env, ident);
+	free(ident);
 	for (in = NULL, end = &in; (str = readstr(true)); ++e->nin)
 		pushstr(&end, str);
 	e->inimpidx = e->nin;

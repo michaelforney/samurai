@@ -394,4 +394,6 @@ build(int maxjobs)
 			}
 		} while (numjobs == maxjobs);
 	}
+	for (i = 0; i < maxjobs; ++i)
+		free(jobs[i].buf.data);
 }
