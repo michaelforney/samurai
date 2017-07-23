@@ -8,13 +8,10 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include "env.h"
 #include "build.h"
+#include "env.h"
 #include "graph.h"
 #include "util.h"
 
@@ -152,76 +149,6 @@ buildadd(struct node *n)
 		n->dirty = n->mtime.tv_nsec == MTIME_MISSING;
 	}
 	addsubtarget(n);
-}
-
-static int
-writefile(const char *name, struct string *s)
-{
-	int fd, ret;
-	const char *p;
-	size_t n;
-	ssize_t nw;
-
-	fd = creat(name, 0666);
-	if (fd < 0) {
-		warn("creat %s", name);
-		return -1;
-	}
-	ret = 0;
-	if (s) {
-		for (p = s->s, n = s->n; n > 0; p += nw, n -= nw) {
-			nw = write(fd, p, n);
-			if (nw <= 0) {
-				warn("write");
-				ret = -1;
-				break;
-			}
-		}
-	}
-	close(fd);
-
-	return ret;
-}
-
-static int
-makedirs(struct string *path)
-{
-	int ret;
-	struct stat st;
-	char *s, *end;
-	bool missing;
-
-	ret = 0;
-	missing = false;
-	end = path->s + path->n;
-	for (s = end - 1; s > path->s; --s) {
-		if (*s != '/')
-			continue;
-		*s = '\0';
-		if (stat(path->s, &st) == 0)
-			break;
-		if (errno != ENOENT) {
-			warn("stat %s", path->s);
-			ret = -1;
-			break;
-		}
-		missing = true;
-	}
-	if (s > path->s)
-		*s = '/';
-	if (!missing)
-		return ret;
-	for (++s; s < end; ++s) {
-		if (*s != '\0')
-			continue;
-		if (ret == 0 && mkdir(path->s, 0777) < 0 && errno != EEXIST) {
-			warn("mkdir %s", path->s);
-			ret = -1;
-		}
-		*s = '/';
-	}
-
-	return ret;
 }
 
 static int

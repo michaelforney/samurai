@@ -22,3 +22,7 @@ struct string *mkstr(size_t n);
 /* canonicalizes the given path by removing duplicate slashes, and
  * folding '/.' and 'foo/..' */
 void canonpath(struct string *);
+/* creates all the parent directories of the given path */
+int makedirs(struct string *);
+/* write a new file with the given name and contents */
+int writefile(const char *, struct string *);
