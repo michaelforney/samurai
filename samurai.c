@@ -1,13 +1,19 @@
+#define _POSIX_C_SOURCE 200809L
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <err.h>
 #include "arg.h"
 #include "build.h"
 #include "env.h"
 #include "graph.h"
+#include "log.h"
 #include "parse.h"
 #include "tool.h"
+#include "util.h"
 
 FILE *f;
 char *argv0;
@@ -51,7 +57,9 @@ main(int argc, char *argv[])
 	struct tool *tool = NULL;
 
 	struct node *n;
-	int tries = 0;
+	struct string *builddir;
+	int builddirfd = AT_FDCWD, tries;
+	struct stat st;
 	char *end;
 
 	argv0 = argv[0];
@@ -102,10 +110,14 @@ argdone:
 #endif
 	}
 
+	tries = 0;
 retry:
+	/* (re-)initialize global graph, environment, and parse structures */
 	graphinit();
 	envinit();
 	parseinit();
+
+	/* parse the manifest */
 	f = fopen(manifest, "r");
 	if (!f)
 		err(1, "fopen %s", manifest);
@@ -115,6 +127,25 @@ retry:
 	if (tool)
 		return tool->run(argc, argv);
 
+	/* load the build log */
+	builddir = envvar(rootenv, "builddir");
+	if (builddir) {
+		if (stat(builddir->s, &st) < 0) {
+			if (errno != ENOENT)
+				err(1, "stat %s", builddir->s);
+			if (makedirs(builddir) < 0)
+				exit(1);
+			if (mkdir(builddir->s, 0777) < 0)
+				err(1, "mkdir %s", builddir->s);
+		}
+		builddirfd = open(builddir->s, O_RDONLY | O_DIRECTORY);
+		if (builddirfd < 0)
+			err(1, "open %s", builddir->s);
+	}
+	loginit(builddirfd);
+	close(builddirfd);
+
+	/* rebuild the manifest if it's dirty */
 	n = nodeget(manifest);
 	if (n && n->gen) {
 		buildadd(n);
@@ -126,6 +157,7 @@ retry:
 		}
 	}
 
+	/* finally, build any specified targets or the default targets */
 	if (argc) {
 		for (; *argv; ++argv) {
 			n = nodeget(*argv);
@@ -137,6 +169,7 @@ retry:
 		builddefault();
 	}
 	build(maxjobs, maxfail);
+	logclose();
 
 	return 0;
 }

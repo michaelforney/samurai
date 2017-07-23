@@ -13,6 +13,7 @@
 #include "build.h"
 #include "env.h"
 #include "graph.h"
+#include "log.h"
 #include "util.h"
 
 struct job {
@@ -47,15 +48,17 @@ isdirty(struct node *n, struct node *newest)
 	struct edge *e;
 
 	e = n->gen;
-	if (e->rule == &phonyrule && e->nin > 0)
-		return false;
+	if (e->rule == &phonyrule)
+		return e->nin == 0 && n->mtime.tv_nsec == MTIME_MISSING;
 	if (n->mtime.tv_nsec == MTIME_MISSING)
 		return true;
 	if (e->rule != &phonyrule && isnewer(newest, n))
 		return true;
-	/* TODO: check build log */
+	if (edgevar(e, "generator"))
+		return false;
+	edgehash(e);
 
-	return false;
+	return e->hash != n->hash;
 }
 
 /* calculate e->ready and n->dirty for n in e->out */
@@ -273,6 +276,7 @@ edgedone(struct edge *e)
 {
 	struct edge *new;
 	struct pool *p;
+	struct node *n;
 	size_t i;
 	struct string *rspfile;
 
@@ -294,6 +298,14 @@ edgedone(struct edge *e)
 	rspfile = edgevar(e, "rspfile");
 	if (rspfile)
 		unlink(rspfile->s);
+	if (e->rule != &phonyrule) {
+		edgehash(e);
+		for (i = 0; i < e->nout; ++i) {
+			n = e->out[i];
+			n->hash = e->hash;
+			lognode(n);
+		}
+	}
 }
 
 static void

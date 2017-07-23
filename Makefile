@@ -5,6 +5,7 @@ OBJ=\
 	graph.o\
 	htab.o\
 	lex.o\
+	log.o\
 	parse.o\
 	samurai.o\
 	tool.o\

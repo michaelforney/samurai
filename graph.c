@@ -62,6 +62,10 @@ mknode(struct string *path)
 	n->use = NULL;
 	n->nuse = 0;
 	n->mtime.tv_nsec = MTIME_UNKNOWN;
+	/* this is a valid hash, but this only matters if the file is not
+	 * present in the log, but not otherwise dirty (in which case we don't
+	 * rebuild it) */
+	n->hash = 0;
 	*v = n;
 
 	return n;
@@ -137,4 +141,30 @@ mkedge(struct environment *parent)
 	alledges = e;
 
 	return e;
+}
+
+void
+edgehash(struct edge *e)
+{
+	static const char sep[] = ";rspfile=";
+	struct string *cmd, *rsp, *s;
+
+	if (e->mark & MARK_HASH)
+		return;
+	e->mark |= MARK_HASH;
+	cmd = edgevar(e, "command");
+	if (!cmd)
+		errx(1, "rule has no command: %s", e->rule->name);
+	rsp = edgevar(e, "rspfile_content");
+	if (rsp) {
+		s = mkstr(cmd->n + sizeof(sep) - 1 + rsp->n);
+		memcpy(s->s, cmd->s, cmd->n);
+		memcpy(s->s + cmd->n, sep, sizeof(sep) - 1);
+		memcpy(s->s + cmd->n + sizeof(sep) - 1, rsp->s, rsp->n);
+		s->s[s->n] = '\0';
+		e->hash = murmurhash64a(s->s, s->n);
+		free(s);
+	} else {
+		e->hash = murmurhash64a(cmd->s, cmd->n);
+	}
 }
