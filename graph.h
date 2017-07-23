@@ -60,6 +60,7 @@ void nodestat(struct node *);
 /* escape a node's path, populating shellpath */
 void nodeescape(struct node *);
 
+/* create a new edge with the given parent environment */
 struct edge *mkedge(struct environment *parent);
 
 /* a single linked list of all edges, valid up until build() */
