@@ -142,7 +142,7 @@ addsubtarget(struct node *n)
 }
 
 void
-addtarget(struct node *n)
+buildadd(struct node *n)
 {
 	if (n->gen) {
 		computedirty(n->gen);

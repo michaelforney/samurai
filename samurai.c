@@ -92,7 +92,7 @@ retry:
 
 	n = nodeget(manifest);
 	if (n && n->gen) {
-		addtarget(n);
+		buildadd(n);
 		if (n->dirty) {
 			build(maxjobs, maxfail);
 			if (++tries > 100)
@@ -100,24 +100,25 @@ retry:
 			goto retry;
 		}
 	}
+
 	if (argc) {
 		for (; *argv; ++argv) {
 			n = nodeget(*argv);
 			if (!n)
 				errx(1, "unknown target: '%s'", *argv);
-			addtarget(n);
+			buildadd(n);
 		}
 	} else {
 		if (ndeftarg) {
 			for (i = 0; i < ndeftarg; ++i)
-				addtarget(deftarg[i]);
+				buildadd(deftarg[i]);
 		} else {
 			/* by default build all nodes which are not used by any edges */
 			for (e = alledges; e; e = e->allnext) {
 				for (i = 0; i < e->nout; ++i) {
 					n = e->out[i];
 					if (n->nuse == 0)
-						addtarget(n);
+						buildadd(n);
 				}
 			}
 		}
