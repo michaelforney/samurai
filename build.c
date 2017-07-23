@@ -40,6 +40,24 @@ isnewer(struct node *n1, struct node *n2)
 	return n1->mtime.tv_nsec > n2->mtime.tv_nsec;
 }
 
+/* returns whether this output node is dirty in relation to the newest input */
+static bool
+isdirty(struct node *n, struct node *newest)
+{
+	struct edge *e;
+
+	e = n->gen;
+	if (e->rule == &phonyrule && e->nin > 0)
+		return false;
+	if (n->mtime.tv_nsec == MTIME_MISSING)
+		return true;
+	if (e->rule != &phonyrule && isnewer(newest, n))
+		return true;
+	/* TODO: check build log */
+
+	return false;
+}
+
 /* calculate e->ready and n->dirty for n in e->out */
 static void
 computedirty(struct edge *e)
@@ -84,10 +102,7 @@ computedirty(struct edge *e)
 	}
 	/* all outputs are dirty if any are older than the newest input */
 	for (i = 0; i < e->nout && !dirty; ++i) {
-		n = e->out[i];
-		if (e->rule == &phonyrule && e->nin > 0)
-			continue;
-		if (n->mtime.tv_nsec == MTIME_MISSING || (e->rule != &phonyrule && isnewer(newest, n)))
+		if (isdirty(e->out[i], newest))
 			dirty = true;
 	}
 	for (i = 0; i < e->nout; ++i) {
