@@ -19,15 +19,40 @@ usage(void)
 	exit(2);
 }
 
-int
-main(int argc, char *argv[])
+static void
+builddefault(void)
 {
 	struct edge *e;
 	struct node *n;
-	char *manifest = "build.ninja", *end;
-	int maxjobs = 0, maxfail = 1, tries = 0;
-	struct tool *tool = NULL;
 	size_t i;
+
+	if (ndeftarg > 0) {
+		for (i = 0; i < ndeftarg; ++i) {
+			buildadd(deftarg[i]);
+		}
+	} else {
+		/* by default build all nodes which are not used by any edges */
+		for (e = alledges; e; e = e->allnext) {
+			for (i = 0; i < e->nout; ++i) {
+				n = e->out[i];
+				if (n->nuse == 0)
+					buildadd(n);
+			}
+		}
+	}
+}
+
+int
+main(int argc, char *argv[])
+{
+	/* options */
+	char *manifest = "build.ninja";
+	int maxjobs = 0, maxfail = 1;
+	struct tool *tool = NULL;
+
+	struct node *n;
+	int tries = 0;
+	char *end;
 
 	argv0 = argv[0];
 	ARGBEGIN {
@@ -109,19 +134,7 @@ retry:
 			buildadd(n);
 		}
 	} else {
-		if (ndeftarg) {
-			for (i = 0; i < ndeftarg; ++i)
-				buildadd(deftarg[i]);
-		} else {
-			/* by default build all nodes which are not used by any edges */
-			for (e = alledges; e; e = e->allnext) {
-				for (i = 0; i < e->nout; ++i) {
-					n = e->out[i];
-					if (n->nuse == 0)
-						buildadd(n);
-				}
-			}
-		}
+		builddefault();
 	}
 	build(maxjobs, maxfail);
 
