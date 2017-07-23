@@ -27,8 +27,9 @@ struct job {
 static struct edge *work;
 extern char **environ;
 
+/* returns whether n2 is newer than n1, or false if n1 is NULL */
 static bool
-nodenewer(struct node *n1, struct node *n2)
+isnewer(struct node *n1, struct node *n2)
 {
 	if (!n1)
 		return false;
@@ -77,7 +78,7 @@ computedirty(struct edge *e)
 			if (n->dirty)
 				dirty = true;
 			/* a node may be missing but not dirty if it a phony target */
-			else if (n->mtime.tv_nsec != MTIME_MISSING && !nodenewer(newest, n))
+			else if (n->mtime.tv_nsec != MTIME_MISSING && !isnewer(newest, n))
 				newest = n;
 		}
 	}
@@ -86,7 +87,7 @@ computedirty(struct edge *e)
 		n = e->out[i];
 		if (e->rule == &phonyrule && e->nin > 0)
 			continue;
-		if (n->mtime.tv_nsec == MTIME_MISSING || (e->rule != &phonyrule && nodenewer(newest, n)))
+		if (n->mtime.tv_nsec == MTIME_MISSING || (e->rule != &phonyrule && isnewer(newest, n)))
 			dirty = true;
 	}
 	for (i = 0; i < e->nout; ++i) {
