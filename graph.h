@@ -1,3 +1,5 @@
+#include <time.h>   /* for struct timespec */
+
 /* set in the tv_nsec field of a node's mtime */
 enum {
 	/* we haven't stat the file yet */

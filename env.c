@@ -3,7 +3,6 @@
 #include <search.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include "env.h"
 #include "graph.h"
 #include "lex.h"
