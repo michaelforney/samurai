@@ -42,7 +42,7 @@ void expect(int);
 const char *tokstr(int);
 
 /* read a string token */
-struct evalstring *readstr(bool ispath);
+struct evalstring *readstr(_Bool ispath);
 /* delete a string token */
 void delstr(struct evalstring *);
 /* read an identifier token */

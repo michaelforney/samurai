@@ -12,7 +12,7 @@ struct node {
 	struct timespec mtime;
 
 	/* does the node need to be rebuilt */
-	bool dirty;
+	_Bool dirty;
 
 	/* generating edge and dependent edges.
 	 *
