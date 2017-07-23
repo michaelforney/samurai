@@ -154,7 +154,7 @@ hthas(struct hashtable *ht, void *k)
 	return htidx(ht, k) >= 0;
 }
 
-static unsigned long long
+uint64_t
 murmurhash64a(void *ptr, size_t len)
 {
 	uint64_t m = 0xc6a4a7935bd1e995ULL;
