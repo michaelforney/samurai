@@ -18,6 +18,7 @@ struct pool {
 void envinit(void);
 
 struct environment *mkenv(struct environment *);
+struct string *envvar(struct environment *, char *);
 void envaddvar(struct environment *, char *, struct string *);
 struct string *enveval(struct environment *, struct evalstring *);
 struct rule *envrule(struct environment *, char *);

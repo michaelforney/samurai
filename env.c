@@ -76,7 +76,7 @@ mkenv(struct environment *parent)
 	return env;
 }
 
-static struct string *
+struct string *
 envvar(struct environment *env, char *var)
 {
 	struct binding key = {var}, **node;
