@@ -41,9 +41,11 @@ struct edge {
 	/* how many remaining inputs we are waiting for. -1 if we don't care about it */
 	int nblock;
 
-	/* how far we are with processing this edge. if 0, we have not seen it
-	 * in computedirty. if 1, we have not seen it in addsubtarget. */
-	int seen;
+	/* how far we are with processing this edge */
+	enum {
+		MARK_STAT = 1,  /* queried the mtime of all outputs */
+		MARK_WORK = 2,  /* scheduled for build */
+	} mark;
 
 	/* used to coordinate ready work in build() */
 	struct edge *worknext;
