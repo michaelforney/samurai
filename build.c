@@ -411,7 +411,7 @@ build(int maxjobs, int maxfail)
 	avail[maxjobs - 1] = -1;
 
 	if (!work)
-		puts("nothing to do");
+		warnx("nothing to do");
 
 	while (work || numjobs > 0) {
 		/* start ready edges */
