@@ -41,6 +41,7 @@ loginit(int dirfd)
 	size_t sz = 0, nline, nentry, i;
 	struct edge *e;
 	struct node *n;
+	time_t mtime;
 
 	nline = 0;
 	nentry = 0;
@@ -65,19 +66,26 @@ loginit(int dirfd)
 			continue;
 		if (!nextfield(&p))  /* end time */
 			continue;
-		if (!nextfield(&p))  /* mtime (used for restat, ignore for now) */
+		s = nextfield(&p);  /* mtime (used for restat) */
+		if (!s)
 			continue;
+		mtime = strtol(s, &s, 10);
+		if (*s) {
+			warnx("corrupt log: invalid mtime");
+			continue;
+		}
 		s = nextfield(&p);  /* output path */
 		if (!s)
 			continue;
 		n = nodeget(s);
 		if (!n || !n->gen)
 			continue;
+		n->logmtime = mtime;
 		s = nextfield(&p);  /* command hash */
 		if (!s)
 			continue;
-		n->hash = strtoull(s, &p, 16);
-		if (*p) {
+		n->hash = strtoull(s, &s, 16);
+		if (*s) {
 			warnx("corrupt log: invalid hash for %s", n->path->s);
 			continue;
 		}
@@ -127,5 +135,5 @@ logclose(void)
 void
 lognode(struct node *n)
 {
-	fprintf(logfile, "0\t0\t0\t%s\t%" PRIx64 "\n", n->path->s, n->hash);
+	fprintf(logfile, "0\t0\t%ld\t%s\t%" PRIx64 "\n", (long)n->logmtime, n->path->s, n->hash);
 }

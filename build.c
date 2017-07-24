@@ -43,16 +43,17 @@ isnewer(struct node *n1, struct node *n2)
 
 /* returns whether this output node is dirty in relation to the newest input */
 static bool
-isdirty(struct node *n, struct node *newest, bool generator)
+isdirty(struct node *n, bool generator, bool restat)
 {
 	struct edge *e;
+	struct node *newest = n->gen->newest;
 
 	e = n->gen;
 	if (e->rule == &phonyrule)
 		return e->nin == 0 && n->mtime.tv_nsec == MTIME_MISSING;
 	if (n->mtime.tv_nsec == MTIME_MISSING)
 		return true;
-	if (e->rule != &phonyrule && isnewer(newest, n))
+	if (isnewer(newest, n) && (!restat || n->logmtime < newest->mtime.tv_sec))
 		return true;
 	if (generator)
 		return false;
@@ -65,9 +66,9 @@ isdirty(struct node *n, struct node *newest, bool generator)
 static void
 computedirty(struct edge *e)
 {
-	struct node *n, *newest = NULL;
+	struct node *n;
 	size_t i;
-	bool generator;
+	bool generator, restat;
 
 	if (e->flags & FLAG_STAT)
 		return;
@@ -77,6 +78,8 @@ computedirty(struct edge *e)
 		if (n->mtime.tv_nsec == MTIME_UNKNOWN)
 			nodestat(n);
 	}
+	e->nblock = 0;
+	e->newest = NULL;
 	for (i = 0; i < e->nin; ++i) {
 		n = e->in[i];
 
@@ -94,31 +97,28 @@ computedirty(struct edge *e)
 			else
 				n->dirty = n->mtime.tv_nsec == MTIME_MISSING;
 		}
-		if (!(e->flags & FLAG_DIRTY) && i < e->inorderidx) {
+		if (i < e->inorderidx) {
 			if (n->dirty)
-				e->flags |= FLAG_DIRTY;
-			/* a node may be missing but not dirty if it a phony target */
-			else if (n->mtime.tv_nsec != MTIME_MISSING && !isnewer(newest, n))
-				newest = n;
+				e->flags |= FLAG_DIRTY_IN;
+			if (n->mtime.tv_nsec != MTIME_MISSING && !isnewer(e->newest, n))
+				e->newest = n;
 		}
+		if (n->dirty)
+			++e->nblock;
 	}
 	/* all outputs are dirty if any are older than the newest input */
 	generator = edgevar(e, "generator");
-	for (i = 0; i < e->nout && !(e->flags & FLAG_DIRTY); ++i) {
-		if (isdirty(e->out[i], newest, generator))
-			e->flags |= FLAG_DIRTY;
+	restat = edgevar(e, "restat");
+	for (i = 0; i < e->nout && !(e->flags & FLAG_DIRTY_OUT); ++i) {
+		if (isdirty(e->out[i], generator, restat))
+			e->flags |= FLAG_DIRTY_OUT;
 	}
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
 		n->dirty = e->flags & FLAG_DIRTY;
 	}
-	if (e->flags & FLAG_DIRTY) {
-		e->nblock = 0;
-		for (i = 0; i < e->nin; ++i) {
-			if (e->in[i]->dirty)
-				++e->nblock;
-		}
-	}
+	if (!(e->flags & FLAG_DIRTY_OUT))
+		e->nprune = e->nblock;
 }
 
 static void
@@ -255,19 +255,25 @@ err0:
 }
 
 static void
-nodedone(struct node *n)
+nodedone(struct node *n, bool prune)
 {
 	struct edge *e;
-	size_t i;
+	size_t i, j;
 
-	n->dirty = false;
 	/* if we did not already populate n->use, we do not care about the dependent edges. */
 	if (!n->use)
 		return;
 	for (i = 0; i < n->nuse; ++i) {
 		e = n->use[i];
-		if ((e->flags & FLAG_DIRTY) && --e->nblock == 0)
+		if (!(e->flags & FLAG_DIRTY))
+			continue;
+		if (prune && !(e->flags & FLAG_DIRTY_OUT) && --e->nprune == 0) {
+			/* all the inputs were pruned, so the edge can be pruned as well */
+			for (j = 0; j < e->nout; ++j)
+				nodedone(e->out[j], true);
+		} else if (--e->nblock == 0) {
 			queue(e);
+		}
 	}
 }
 
@@ -279,6 +285,8 @@ edgedone(struct edge *e)
 	struct node *n;
 	size_t i;
 	struct string *rspfile;
+	struct timespec old;
+	bool restat, prune;
 
 	if (e->pool) {
 		p = e->pool;
@@ -293,8 +301,20 @@ edgedone(struct edge *e)
 			--p->numjobs;
 		}
 	}
-	for (i = 0; i < e->nout; ++i)
-		nodedone(e->out[i]);
+	restat = edgevar(e, "restat");
+	for (i = 0; i < e->nout; ++i) {
+		n = e->out[i];
+		prune = false;
+		if (restat) {
+			old = n->mtime;
+			nodestat(n);
+			if (old.tv_nsec == n->mtime.tv_nsec && (old.tv_nsec < 0 || old.tv_sec == n->mtime.tv_sec)) {
+				prune = true;
+				n->logmtime = e->newest->mtime.tv_sec;
+			}
+		}
+		nodedone(e->out[i], prune);
+	}
 	rspfile = edgevar(e, "rspfile");
 	if (rspfile)
 		unlink(rspfile->s);

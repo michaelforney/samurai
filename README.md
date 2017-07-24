@@ -4,4 +4,3 @@ work in progress.
 
 ## TODO
 - depfile handling
-- restat handling

@@ -62,6 +62,7 @@ mknode(struct string *path)
 	n->use = NULL;
 	n->nuse = 0;
 	n->mtime.tv_nsec = MTIME_UNKNOWN;
+	n->logmtime = 0;
 	/* this is a valid hash, but this only matters if the file is not
 	 * present in the log, but not otherwise dirty (in which case we don't
 	 * rebuild it) */
