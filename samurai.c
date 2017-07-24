@@ -10,12 +10,12 @@
 #include "build.h"
 #include "env.h"
 #include "graph.h"
+#include "lex.h"
 #include "log.h"
 #include "parse.h"
 #include "tool.h"
 #include "util.h"
 
-FILE *f;
 char *argv0;
 
 static _Noreturn void
@@ -118,11 +118,9 @@ retry:
 	parseinit();
 
 	/* parse the manifest */
-	f = fopen(manifest, "r");
-	if (!f)
-		err(1, "fopen %s", manifest);
+	lexfile = mkfile(manifest);
 	parse(rootenv);
-	fclose(f);
+	fileclose(lexfile);
 
 	if (tool)
 		return tool->run(argc, argv);

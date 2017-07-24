@@ -9,7 +9,6 @@
 #include "parse.h"
 #include "util.h"
 
-extern FILE *f;
 struct node **deftarg;
 size_t ndeftarg;
 
@@ -74,9 +73,9 @@ parseedge(struct environment *env)
 			pushstr(&end, str);
 	}
 	expect(COLON);
-	ident = readident();
-	e->rule = envrule(env, ident);
-	free(ident);
+	lexident = readident();
+	e->rule = envrule(env, lexident);
+	free(lexident);
 	for (in = NULL, end = &in; (str = readstr(true)); ++e->nin)
 		pushstr(&end, str);
 	e->inimpidx = e->nin;
@@ -129,7 +128,7 @@ parseedge(struct environment *env)
 static void
 parseinclude(struct environment *env, bool newscope)
 {
-	FILE *oldf = f;
+	struct file *old = lexfile;
 	struct evalstring *str;
 	struct string *path;
 
@@ -140,15 +139,13 @@ parseinclude(struct environment *env, bool newscope)
 	path = enveval(env, str);
 	delstr(str);
 
-	f = fopen(path->s, "r");
-	if (!f)
-		err(1, "fopen %s", path->s);
+	lexfile = mkfile(path->s);
 	if (newscope)
 		env = mkenv(env);
 	parse(env);
-	fclose(f);
+	fileclose(lexfile);
 	free(path);
-	f = oldf;
+	lexfile = old;
 }
 
 static void
@@ -224,7 +221,7 @@ parse(struct environment *env)
 			parseinclude(env, c == SUBNINJA);
 			break;
 		case IDENT:
-			var = ident;
+			var = lexident;
 			parselet(&str);
 			val = enveval(env, str);
 			envaddvar(env, var, val);

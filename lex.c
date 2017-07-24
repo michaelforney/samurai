@@ -9,14 +9,19 @@
 #include "lex.h"
 #include "util.h"
 
+struct file {
+	const char *path;
+	FILE *fp;
+	int tok;
+};
+
 struct keyword {
 	const char *name;
 	int value;
 };
 
-extern FILE *f;
-char *ident;
-static int tok;
+struct file *lexfile;
+char *lexident;
 static struct buffer buf;
 
 /* must stay in sorted order */
@@ -50,6 +55,28 @@ static const char *tokname[] = {
 	[PATH]     = "PATH",
 };
 
+struct file *
+mkfile(const char *path)
+{
+	struct file *f;
+
+	f = xmalloc(sizeof(*f));
+	f->path = path;
+	f->tok = 0;
+	f->fp = fopen(path, "r");
+	if (!f->fp)
+		err(1, "fopen %s", path);
+
+	return f;
+}
+
+void
+fileclose(struct file *f)
+{
+	fclose(f->fp);
+	free(f);
+}
+
 static void
 bufadd(char c)
 {
@@ -76,6 +103,7 @@ isvar(int c)
 static void
 token(void)
 {
+	FILE *f = lexfile->fp;
 	int c;
 
 	c = fgetc(f);
@@ -154,6 +182,7 @@ addstringpart(struct evalstringpart ***end, bool var)
 static void
 whitespace(void)
 {
+	FILE *f = lexfile->fp;
 	int c;
 
 	for (;;) {
@@ -172,10 +201,10 @@ done:
 int
 peek(void)
 {
-	int c;
+	int c, tok;
 
-	if (tok)
-		return tok;
+	if (lexfile->tok)
+		return lexfile->tok;
 	for (;;) {
 		buf.len = 0;
 		token();
@@ -199,13 +228,15 @@ peek(void)
 		tok = keyword(buf.data);
 		if (tok)
 			goto out;
-		ident = xstrdup(buf.data, buf.len - 1);
+		lexident = xstrdup(buf.data, buf.len - 1);
 		tok = IDENT;
 		break;
 	}
 out:
 	if (tok != NEWLINE)
 		whitespace();
+	lexfile->tok = tok;
+
 	return tok;
 }
 
@@ -215,7 +246,7 @@ next(void)
 	int t;
 
 	t = peek();
-	tok = 0;
+	lexfile->tok = 0;
 
 	return t;
 }
@@ -237,7 +268,7 @@ tokstr(int t)
 
 	switch (t) {
 	case IDENT:
-		snprintf(s, sizeof(s), "IDENT(%s)", ident);
+		snprintf(s, sizeof(s), "IDENT(%s)", lexident);
 		return s;
 	case EOF:
 		return "EOF";
@@ -249,6 +280,7 @@ tokstr(int t)
 static void
 escape(struct evalstringpart ***end)
 {
+	FILE *f = lexfile->fp;
 	int c;
 
 	c = fgetc(f);
@@ -290,6 +322,7 @@ escape(struct evalstringpart ***end)
 struct evalstring *
 readstr(bool path)
 {
+	FILE *f = lexfile->fp;
 	struct evalstring *s;
 	struct evalstringpart *parts = NULL, **end = &parts;
 	int c;
@@ -352,6 +385,7 @@ delstr(struct evalstring *str)
 char *
 readident(void)
 {
+	FILE *f = lexfile->fp;
 	int c;
 
 	buf.len = 0;

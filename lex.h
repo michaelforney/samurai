@@ -29,8 +29,13 @@ enum token {
 	PATH,
 };
 
+/* file the lexer should read */
+extern struct file *lexfile;
 /* identifier name for IDENT token. must be freed by parser. */
-extern char *ident;
+extern char *lexident;
+
+struct file *mkfile(const char *);
+void fileclose(struct file *);
 
 /* return the next token without consuming it */
 int peek(void);
