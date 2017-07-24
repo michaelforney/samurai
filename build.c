@@ -28,7 +28,7 @@ struct job {
 static struct edge *work;
 extern char **environ;
 
-/* returns whether n2 is newer than n1, or false if n1 is NULL */
+/* returns whether n1 is newer than n2, or false if n1 is NULL */
 static bool
 isnewer(struct node *n1, struct node *n2)
 {
@@ -121,6 +121,7 @@ computedirty(struct edge *e)
 		e->nprune = e->nblock;
 }
 
+/* add an edge to the work queue */
 static void
 queue(struct edge *e)
 {
