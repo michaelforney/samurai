@@ -45,13 +45,14 @@ struct edge {
 	/* command hash */
 	uint64_t hash;
 
-	/* how many remaining inputs we are waiting for. -1 if we don't care about it */
-	int nblock;
+	/* how many inputs need to be rebuilt or pruned before this edge is ready */
+	size_t nblock;
 
 	enum {
-		FLAG_STAT = 1<<0, /* queried the mtime of all outputs */
-		FLAG_HASH = 1<<1, /* calculated the command hash */
-		FLAG_WORK = 1<<2, /* scheduled for build */
+		FLAG_STAT  = 1<<0, /* queried the mtime of all outputs */
+		FLAG_HASH  = 1<<1, /* calculated the command hash */
+		FLAG_WORK  = 1<<2, /* scheduled for build */
+		FLAG_DIRTY = 1<<3, /* dirty inputs or out-of-date outputs */
 	} flags;
 
 	/* used to coordinate ready work in build() */

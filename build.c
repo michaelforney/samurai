@@ -67,12 +67,10 @@ computedirty(struct edge *e)
 {
 	struct node *n, *newest = NULL;
 	size_t i;
-	bool dirty;
 
 	if (e->flags & FLAG_STAT)
 		return;
 	e->flags |= FLAG_STAT;
-	dirty = false;
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
 		if (n->mtime.tv_nsec == MTIME_UNKNOWN)
@@ -95,24 +93,24 @@ computedirty(struct edge *e)
 			else
 				n->dirty = n->mtime.tv_nsec == MTIME_MISSING;
 		}
-		if (!dirty && i < e->inorderidx) {
+		if (!(e->flags & FLAG_DIRTY) && i < e->inorderidx) {
 			if (n->dirty)
-				dirty = true;
+				e->flags |= FLAG_DIRTY;
 			/* a node may be missing but not dirty if it a phony target */
 			else if (n->mtime.tv_nsec != MTIME_MISSING && !isnewer(newest, n))
 				newest = n;
 		}
 	}
 	/* all outputs are dirty if any are older than the newest input */
-	for (i = 0; i < e->nout && !dirty; ++i) {
+	for (i = 0; i < e->nout && !(e->flags & FLAG_DIRTY); ++i) {
 		if (isdirty(e->out[i], newest))
-			dirty = true;
+			e->flags |= FLAG_DIRTY;
 	}
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
-		n->dirty = dirty;
+		n->dirty = e->flags & FLAG_DIRTY;
 	}
-	if (dirty) {
+	if (e->flags & FLAG_DIRTY) {
 		e->nblock = 0;
 		for (i = 0; i < e->nin; ++i) {
 			if (e->in[i]->dirty)
@@ -266,7 +264,7 @@ nodedone(struct node *n)
 		return;
 	for (i = 0; i < n->nuse; ++i) {
 		e = n->use[i];
-		if (e->nblock > 0 && --e->nblock == 0)
+		if ((e->flags & FLAG_DIRTY) && --e->nblock == 0)
 			queue(e);
 	}
 }
