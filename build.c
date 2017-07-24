@@ -43,7 +43,7 @@ isnewer(struct node *n1, struct node *n2)
 
 /* returns whether this output node is dirty in relation to the newest input */
 static bool
-isdirty(struct node *n, struct node *newest)
+isdirty(struct node *n, struct node *newest, bool generator)
 {
 	struct edge *e;
 
@@ -54,7 +54,7 @@ isdirty(struct node *n, struct node *newest)
 		return true;
 	if (e->rule != &phonyrule && isnewer(newest, n))
 		return true;
-	if (edgevar(e, "generator"))
+	if (generator)
 		return false;
 	edgehash(e);
 
@@ -67,6 +67,7 @@ computedirty(struct edge *e)
 {
 	struct node *n, *newest = NULL;
 	size_t i;
+	bool generator;
 
 	if (e->flags & FLAG_STAT)
 		return;
@@ -102,8 +103,9 @@ computedirty(struct edge *e)
 		}
 	}
 	/* all outputs are dirty if any are older than the newest input */
+	generator = edgevar(e, "generator");
 	for (i = 0; i < e->nout && !(e->flags & FLAG_DIRTY); ++i) {
-		if (isdirty(e->out[i], newest))
+		if (isdirty(e->out[i], newest, generator))
 			e->flags |= FLAG_DIRTY;
 	}
 	for (i = 0; i < e->nout; ++i) {
