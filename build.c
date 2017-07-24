@@ -126,7 +126,7 @@ queue(struct edge *e)
 {
 	struct edge **front = &work;
 
-	if (e->pool) {
+	if (e->pool && e->rule != &phonyrule) {
 		if (e->pool->numjobs == e->pool->maxjobs)
 			front = &e->pool->work;
 		else
@@ -318,13 +318,11 @@ edgedone(struct edge *e)
 	rspfile = edgevar(e, "rspfile");
 	if (rspfile)
 		unlink(rspfile->s);
-	if (e->rule != &phonyrule) {
-		edgehash(e);
-		for (i = 0; i < e->nout; ++i) {
-			n = e->out[i];
-			n->hash = e->hash;
-			lognode(n);
-		}
+	edgehash(e);
+	for (i = 0; i < e->nout; ++i) {
+		n = e->out[i];
+		n->hash = e->hash;
+		lognode(n);
 	}
 }
 
@@ -420,7 +418,8 @@ build(int maxjobs, int maxfail)
 			e = work;
 			work = work->worknext;
 			if (e->rule == &phonyrule) {
-				edgedone(e);
+				for (i = 0; i < e->nout; ++i)
+					nodedone(e->out[i], false);
 				continue;
 			}
 			fds[next].fd = jobstart(&jobs[next], e);
