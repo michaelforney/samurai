@@ -48,12 +48,11 @@ struct edge {
 	/* how many remaining inputs we are waiting for. -1 if we don't care about it */
 	int nblock;
 
-	/* how far we are with processing this edge */
 	enum {
-		MARK_STAT = 1,  /* queried the mtime of all outputs */
-		MARK_HASH = 2,  /* calculated the command hash */
-		MARK_WORK = 4,  /* scheduled for build */
-	} mark;
+		FLAG_STAT = 1<<0, /* queried the mtime of all outputs */
+		FLAG_HASH = 1<<1, /* calculated the command hash */
+		FLAG_WORK = 1<<2, /* scheduled for build */
+	} flags;
 
 	/* used to coordinate ready work in build() */
 	struct edge *worknext;

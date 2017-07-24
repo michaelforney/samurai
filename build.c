@@ -69,9 +69,9 @@ computedirty(struct edge *e)
 	size_t i;
 	bool dirty;
 
-	if (e->mark & MARK_STAT)
+	if (e->flags & FLAG_STAT)
 		return;
-	e->mark |= MARK_STAT;
+	e->flags |= FLAG_STAT;
 	dirty = false;
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
@@ -148,9 +148,9 @@ addsubtarget(struct node *n)
 	e = n->gen;
 	if (!e)
 		errx(1, "file is missing and not created by any action: '%s'", n->path->s);
-	if (e->mark & MARK_WORK)
+	if (e->flags & FLAG_WORK)
 		return;
-	e->mark |= MARK_WORK;
+	e->flags |= FLAG_WORK;
 	if (e->nblock == 0)
 		queue(e);
 	for (i = 0; i < e->nin; ++i)

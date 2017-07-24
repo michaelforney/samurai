@@ -136,7 +136,7 @@ mkedge(struct environment *parent)
 	e->nout = 0;
 	e->nin = 0;
 	e->nblock = -1;
-	e->mark = 0;
+	e->flags = 0;
 	e->allnext = alledges;
 	alledges = e;
 
@@ -149,9 +149,9 @@ edgehash(struct edge *e)
 	static const char sep[] = ";rspfile=";
 	struct string *cmd, *rsp, *s;
 
-	if (e->mark & MARK_HASH)
+	if (e->flags & FLAG_HASH)
 		return;
-	e->mark |= MARK_HASH;
+	e->flags |= FLAG_HASH;
 	cmd = edgevar(e, "command");
 	if (!cmd)
 		errx(1, "rule has no command: %s", e->rule->name);
