@@ -297,6 +297,7 @@ escape(struct evalstringpart ***end)
 			c = fgetc(f);
 			if (!isvar(c))
 				break;
+			bufadd(c);
 		}
 		if (c != '}')
 			errx(1, "'%c' is not allowed in variable name", c);
