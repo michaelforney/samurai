@@ -2,16 +2,19 @@
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "lex.h"
 #include "util.h"
 
 struct file {
 	const char *path;
-	FILE *fp;
+	int fd;
+	char buf[8<<10], *p, *end;
 	int tok;
 };
 
@@ -26,16 +29,12 @@ static struct buffer buf;
 
 /* must stay in sorted order */
 static struct keyword keywords[] = {
-	{":",        COLON},
-	{"=",        EQUALS},
 	{"build",    BUILD},
 	{"default",  DEFAULT},
 	{"include",  INCLUDE},
 	{"pool",     POOL},
 	{"rule",     RULE},
 	{"subninja", SUBNINJA},
-	{"|",        PIPE},
-	{"||",       PIPE2},
 };
 
 static const char *tokname[] = {
@@ -63,9 +62,11 @@ mkfile(const char *path)
 	f = xmalloc(sizeof(*f));
 	f->path = path;
 	f->tok = 0;
-	f->fp = fopen(path, "r");
-	if (!f->fp)
-		err(1, "fopen %s", path);
+	f->p = f->buf;
+	f->end = f->buf;
+	f->fd = open(path, O_RDONLY);
+	if (f->fd < 0)
+		err(1, "open %s", path);
 
 	return f;
 }
@@ -73,8 +74,36 @@ mkfile(const char *path)
 void
 fileclose(struct file *f)
 {
-	fclose(f->fp);
+	close(f->fd);
 	free(f);
+}
+
+static void
+fileread(struct file *f)
+{
+	ssize_t n;
+
+	n = read(f->fd, f->buf, sizeof(f->buf));
+	if (n < 0)
+		err(1, "read");
+	f->p = f->buf;
+	f->end = f->buf + n;
+}
+
+static inline int
+filepeek(struct file *f)
+{
+	if (f->p == f->end)
+		fileread(f);
+	return f->p < f->end ? *f->p : EOF;
+}
+
+static inline int
+fileget(struct file *f)
+{
+	if (f->p == f->end)
+		fileread(f);
+	return f->p < f->end ? *f->p++ : EOF;
 }
 
 static void
@@ -98,40 +127,6 @@ static int
 isvar(int c)
 {
 	return isalnum(c) || strchr("_.-", c);
-}
-
-static void
-token(void)
-{
-	FILE *f = lexfile->fp;
-	int c;
-
-	c = fgetc(f);
-	switch (c) {
-	case '#':  /* comment */
-		do c = fgetc(f);
-		while (c != '\n' && c != EOF);
-		break;
-	case '|':  /* check for || */
-		c = fgetc(f);
-		if (c == '|') {
-			bufadd(c);
-		} else {
-			ungetc(c, f);
-			c = '|';
-		}
-		break;
-	}
-	if (isvar(c)) {
-		do {
-			bufadd(c);
-			c = fgetc(f);
-		} while (isvar(c));
-		ungetc(c, f);
-	} else {
-		bufadd(c);
-	}
-	bufadd('\0');
 }
 
 static int
@@ -182,73 +177,79 @@ addstringpart(struct evalstringpart ***end, bool var)
 static void
 whitespace(void)
 {
-	FILE *f = lexfile->fp;
-	int c;
-
-	for (;;) {
-		c = fgetc(f);
-		switch (c) {
-		case ' ':
-			continue;
-		default:
-			goto done;
-		}
-	}
-done:
-	ungetc(c, f);
-}
-
-int
-peek(void)
-{
-	int c, tok;
-
-	if (lexfile->tok)
-		return lexfile->tok;
-	for (;;) {
-		buf.len = 0;
-		token();
-		if (buf.len == 2) {
-			c = buf.data[0];
-			switch (c) {
-			case ' ':
-				tok = INDENT;
-				goto out;
-			case '=':
-				tok = EQUALS;
-				goto out;
-			case '\n':
-				tok = NEWLINE;
-				goto out;
-			case EOF:
-				tok = EOF;
-				goto out;
-			}
-		}
-		tok = keyword(buf.data);
-		if (tok)
-			goto out;
-		lexident = xstrdup(buf.data, buf.len - 1);
-		tok = IDENT;
-		break;
-	}
-out:
-	if (tok != NEWLINE)
-		whitespace();
-	lexfile->tok = tok;
-
-	return tok;
+	while (filepeek(lexfile) == ' ')
+		++lexfile->p;
 }
 
 int
 next(void)
 {
-	int t;
+	struct file *f = lexfile;
+	int c, t;
 
-	t = peek();
-	lexfile->tok = 0;
+	if (f->tok) {
+		t = f->tok;
+		f->tok = 0;
+		return t;
+	}
+	c = fileget(f);
+peek:
+	switch (c) {
+	case '#':  /* comment */
+		do c = fileget(f);
+		while (c != '\n' && c != EOF);
+		goto peek;
+	case '|':
+		if (filepeek(f) == '|') {
+			++f->p;
+			t = PIPE2;
+		} else {
+			t = PIPE;
+		}
+		break;
+	case '\n':
+		t = NEWLINE;
+		break;
+	case '=':
+		t = EQUALS;
+		break;
+	case ':':
+		t = COLON;
+		break;
+	case ' ':
+		t = INDENT;
+		while (filepeek(f) == ' ')
+			++f->p;
+		break;
+	case EOF:
+		t = EOF;
+		break;
+	default:
+		if (!isvar(c))
+			errx(1, "invalid character: %d", c);
+		bufadd(c);
+		while (isvar(filepeek(f)))
+			bufadd(*f->p++);
+		bufadd('\0');
+		t = keyword(buf.data);
+		if (!t) {
+			t = IDENT;
+			lexident = xstrdup(buf.data, buf.len - 1);
+		}
+		break;
+	}
+	if (t == EOF)
+		f->tok = EOF;
+	else if (t != NEWLINE)
+		whitespace();
 
 	return t;
+}
+
+int
+peek(void)
+{
+	return lexfile->tok = next();
 }
 
 void
@@ -280,10 +281,10 @@ tokstr(int t)
 static void
 escape(struct evalstringpart ***end)
 {
-	FILE *f = lexfile->fp;
+	struct file *f = lexfile;
 	int c;
 
-	c = fgetc(f);
+	c = fileget(f);
 	switch (c) {
 	case '$':
 	case ' ':
@@ -294,7 +295,7 @@ escape(struct evalstringpart ***end)
 		if (buf.len > 0)
 			addstringpart(end, false);
 		for (;;) {
-			c = fgetc(f);
+			c = fileget(f);
 			if (!isvar(c))
 				break;
 			bufadd(c);
@@ -311,11 +312,9 @@ escape(struct evalstringpart ***end)
 			errx(1, "bad $ escape: %c", c);
 		if (buf.len > 0)
 			addstringpart(end, false);
-		do {
-			bufadd(c);
-			c = fgetc(f);
-		} while (issimplevar(c));
-		ungetc(c, f);
+		bufadd(c);
+		while (issimplevar(filepeek(f)))
+			bufadd(*f->p++);
 		addstringpart(end, true);
 	}
 }
@@ -323,33 +322,30 @@ escape(struct evalstringpart ***end)
 struct evalstring *
 readstr(bool path)
 {
-	FILE *f = lexfile->fp;
+	struct file *f = lexfile;
 	struct evalstring *s;
 	struct evalstringpart *parts = NULL, **end = &parts;
-	int c;
 
 	buf.len = 0;
 	for (;;) {
-		c = fgetc(f);
-		switch (c) {
+		switch (filepeek(f)) {
 		case '$':
+			++f->p;
 			escape(&end);
 			break;
 		case ':':
 		case '|':
 		case ' ':
 			if (!path) {
-				bufadd(c);
+				bufadd(*f->p++);
 				break;
 			}
-			/* fallthrough */
-		case '\n':
-			ungetc(c, f);
 			goto out;
+		case '\n':
 		case EOF:
 			goto out;
 		default:
-			bufadd(c);
+			bufadd(*f->p++);
 		}
 	}
 out:
@@ -386,17 +382,9 @@ delstr(struct evalstring *str)
 char *
 readident(void)
 {
-	FILE *f = lexfile->fp;
-	int c;
-
 	buf.len = 0;
-	for (;;) {
-		c = fgetc(f);
-		if (!isvar(c))
-			break;
-		bufadd(c);
-	}
-	ungetc(c, f);
+	while (isvar(filepeek(lexfile)))
+		bufadd(*lexfile->p++);
 	if (!buf.len)
 		errx(1, "bad identifier");
 	whitespace();
