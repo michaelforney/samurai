@@ -176,7 +176,7 @@ jobstart(struct job *j, struct edge *e)
 {
 	size_t i;
 	struct node *n;
-	struct string *rspfile, *content;
+	struct string *rspfile, *content, *description;
 	int fd[2];
 	posix_spawn_file_actions_t actions;
 	char *argv[] = {"/bin/sh", "-c", NULL, NULL};
@@ -208,8 +208,12 @@ jobstart(struct job *j, struct edge *e)
 	j->fd = fd[0];
 	argv[2] = j->cmd->s;
 
-	if (consolepool.numjobs == 0)
-		puts(j->cmd->s);
+	if (consolepool.numjobs == 0) {
+		description = edgevar(e, "description");
+		if (!description)
+			description = j->cmd;
+		puts(description->s);
+	}
 
 	if ((errno = posix_spawn_file_actions_init(&actions))) {
 		warn("posix_spawn_file_actions_init");
