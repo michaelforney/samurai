@@ -25,6 +25,31 @@ usage(void)
 	exit(2);
 }
 
+static int
+openbuilddir(void)
+{
+	struct string *builddir;
+	struct stat st;
+	int fd;
+
+	builddir = envvar(rootenv, "builddir");
+	if (!builddir)
+		return AT_FDCWD;
+	if (stat(builddir->s, &st) < 0) {
+		if (errno != ENOENT)
+			err(1, "stat %s", builddir->s);
+		if (makedirs(builddir) < 0)
+			exit(1);
+		if (mkdir(builddir->s, 0777) < 0)
+			err(1, "mkdir %s", builddir->s);
+	}
+	fd = open(builddir->s, O_RDONLY | O_DIRECTORY);
+	if (fd < 0)
+		err(1, "open %s", builddir->s);
+
+	return fd;
+}
+
 static void
 builddefault(void)
 {
@@ -57,9 +82,7 @@ main(int argc, char *argv[])
 	struct tool *tool = NULL;
 
 	struct node *n;
-	struct string *builddir;
-	int builddirfd = AT_FDCWD, tries;
-	struct stat st;
+	int builddirfd, tries;
 	char *end;
 
 	argv0 = argv[0];
@@ -126,22 +149,10 @@ retry:
 		return tool->run(argc, argv);
 
 	/* load the build log */
-	builddir = envvar(rootenv, "builddir");
-	if (builddir) {
-		if (stat(builddir->s, &st) < 0) {
-			if (errno != ENOENT)
-				err(1, "stat %s", builddir->s);
-			if (makedirs(builddir) < 0)
-				exit(1);
-			if (mkdir(builddir->s, 0777) < 0)
-				err(1, "mkdir %s", builddir->s);
-		}
-		builddirfd = open(builddir->s, O_RDONLY | O_DIRECTORY);
-		if (builddirfd < 0)
-			err(1, "open %s", builddir->s);
-	}
+	builddirfd = openbuilddir();
 	loginit(builddirfd);
-	close(builddirfd);
+	if (builddirfd != AT_FDCWD)
+		close(builddirfd);
 
 	/* rebuild the manifest if it's dirty */
 	n = nodeget(manifest);
