@@ -1,6 +1,6 @@
 *.o
 *.o.d
 .*.sw*
-/samurai
+/samu
 /.ninja_deps
 /.ninja_log
