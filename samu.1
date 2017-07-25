@@ -29,7 +29,7 @@ dependency graph are built (outputs that have no consuming action).
 
 Targets are out of date if they are older than the generating action's newest
 input, they have no entry in the build log, or if the command to build the
-target differs from what was used previously. Actions with
+target differs from what was used previously. Targets built with
 .Cm generator
 rules are not rebuilt if the command changes.
 
@@ -37,7 +37,7 @@ If the
 .Cm clean
 tool is used, the targets are cleaned instead. When a target is cleaned, it is
 removed and are all of its inputs are cleaned. Targets with no generating
-actions are never removed. Targets with
+actions are never removed. Targets built with
 .Sy generator
 rules are only removed if
 .Fl g
