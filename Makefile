@@ -19,4 +19,4 @@ samu: $(OBJ)
 
 .PHONY: clean
 clean:
-	rm -f samurai $(OBJ)
+	rm -f samu $(OBJ)
