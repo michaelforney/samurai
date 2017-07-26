@@ -156,7 +156,7 @@ edgehash(struct edge *e)
 	if (!cmd)
 		errx(1, "rule has no command: %s", e->rule->name);
 	rsp = edgevar(e, "rspfile_content");
-	if (rsp) {
+	if (rsp && rsp->n > 0) {
 		s = mkstr(cmd->n + sizeof(sep) - 1 + rsp->n);
 		memcpy(s->s, cmd->s, cmd->n);
 		memcpy(s->s + cmd->n, sep, sizeof(sep) - 1);
