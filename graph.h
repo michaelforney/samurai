@@ -40,8 +40,6 @@ struct edge {
 	/* input and output nodes */
 	struct node **out, **in;
 	size_t nout, nin;
-	/* newest input */
-	struct node *newest;
 
 	/* index of first implicit output */
 	size_t outimpidx;

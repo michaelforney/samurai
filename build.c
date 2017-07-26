@@ -43,10 +43,9 @@ isnewer(struct node *n1, struct node *n2)
 
 /* returns whether this output node is dirty in relation to the newest input */
 static bool
-isdirty(struct node *n, bool generator, bool restat)
+isdirty(struct node *n, struct node *newest, bool generator, bool restat)
 {
 	struct edge *e;
-	struct node *newest = n->gen->newest;
 
 	e = n->gen;
 	if (e->rule == &phonyrule)
@@ -66,7 +65,7 @@ isdirty(struct node *n, bool generator, bool restat)
 static void
 computedirty(struct edge *e)
 {
-	struct node *n;
+	struct node *n, *newest;
 	size_t i;
 	bool generator, restat;
 
@@ -79,7 +78,7 @@ computedirty(struct edge *e)
 			nodestat(n);
 	}
 	e->nblock = 0;
-	e->newest = NULL;
+	newest = NULL;
 	for (i = 0; i < e->nin; ++i) {
 		n = e->in[i];
 
@@ -100,8 +99,8 @@ computedirty(struct edge *e)
 		if (i < e->inorderidx) {
 			if (n->dirty)
 				e->flags |= FLAG_DIRTY_IN;
-			if (n->mtime.tv_nsec != MTIME_MISSING && !isnewer(e->newest, n))
-				e->newest = n;
+			if (n->mtime.tv_nsec != MTIME_MISSING && !isnewer(newest, n))
+				newest = n;
 		}
 		if (n->dirty)
 			++e->nblock;
@@ -110,7 +109,7 @@ computedirty(struct edge *e)
 	generator = edgevar(e, "generator");
 	restat = edgevar(e, "restat");
 	for (i = 0; i < e->nout && !(e->flags & FLAG_DIRTY_OUT); ++i) {
-		if (isdirty(e->out[i], generator, restat))
+		if (isdirty(e->out[i], newest, generator, restat))
 			e->flags |= FLAG_DIRTY_OUT;
 	}
 	for (i = 0; i < e->nout; ++i) {
@@ -287,8 +286,8 @@ edgedone(struct edge *e)
 {
 	struct edge *new;
 	struct pool *p;
-	struct node *n;
-	size_t i;
+	struct node *out, *in, *newest;
+	size_t i, j;
 	struct string *rspfile;
 	struct timespec old;
 	bool restat, prune;
@@ -308,26 +307,37 @@ edgedone(struct edge *e)
 	}
 	restat = edgevar(e, "restat");
 	for (i = 0; i < e->nout; ++i) {
-		n = e->out[i];
+		out = e->out[i];
 		prune = false;
 		if (restat) {
-			old = n->mtime;
-			nodestat(n);
-			if (old.tv_nsec == n->mtime.tv_nsec && (old.tv_nsec < 0 || old.tv_sec == n->mtime.tv_sec)) {
-				prune = true;
-				n->logmtime = e->newest->mtime.tv_sec;
+			old = out->mtime;
+			nodestat(out);
+			if (old.tv_nsec != out->mtime.tv_nsec)
+				continue;
+			if (old.tv_nsec >= 0 && old.tv_sec != out->mtime.tv_sec)
+				continue;
+			prune = true;
+			/* recalculate newest input */
+			newest = NULL;
+			for (j = 0; j < e->inorderidx; ++j) {
+				in = e->in[j];
+				nodestat(in);
+				if (!isnewer(newest, in))
+					newest = in;
 			}
+			if (newest)
+				out->logmtime = newest->mtime.tv_sec;
 		}
-		nodedone(e->out[i], prune);
+		nodedone(out, prune);
 	}
 	rspfile = edgevar(e, "rspfile");
 	if (rspfile)
 		unlink(rspfile->s);
 	edgehash(e);
 	for (i = 0; i < e->nout; ++i) {
-		n = e->out[i];
-		n->hash = e->hash;
-		lognode(n);
+		out = e->out[i];
+		out->hash = e->hash;
+		lognode(out);
 	}
 }
 
