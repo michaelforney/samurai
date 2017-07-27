@@ -41,7 +41,7 @@ cleantarget(struct node *n)
 	return ret;
 }
 
-int
+static int
 clean(int argc, char *argv[])
 {
 	int ret = 0;

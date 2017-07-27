@@ -28,7 +28,7 @@ parselet(struct evalstring **val)
 	expect(NEWLINE);
 }
 
-void
+static void
 parserule(struct environment *env)
 {
 	struct rule *r;
@@ -154,12 +154,12 @@ parsedefault(struct environment *env)
 	struct evalstring *targ, *str, **end;
 	struct string *path;
 	struct node *n;
-	size_t i, ntarg;
+	size_t ntarg;
 
 	for (targ = NULL, ntarg = 0, end = &targ; (str = readstr(true)); ++ntarg)
 		pushstr(&end, str);
 	deftarg = xrealloc(deftarg, (ndeftarg + ntarg) * sizeof(*deftarg));
-	for (i = 0; targ; targ = str, ++i) {
+	for (; targ; targ = str) {
 		str = targ->next;
 		path = enveval(env, targ);
 		delstr(targ);
