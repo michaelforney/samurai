@@ -28,6 +28,8 @@ struct job {
 static struct edge *work;
 extern char **environ;
 
+static void nodedone(struct node *, bool);
+
 /* returns whether n1 is newer than n2, or false if n1 is NULL */
 static bool
 isnewer(struct node *n1, struct node *n2)
@@ -125,8 +127,14 @@ static void
 queue(struct edge *e)
 {
 	struct edge **front = &work;
+	size_t i;
 
-	if (e->pool && e->rule != &phonyrule) {
+	if (e->rule == &phonyrule) {
+		for (i = 0; i < e->nout; ++i)
+			nodedone(e->out[i], false);
+		return;
+	}
+	if (e->pool) {
 		if (e->pool->numjobs == e->pool->maxjobs)
 			front = &e->pool->work;
 		else
@@ -437,11 +445,6 @@ build(int maxjobs, int maxfail)
 		while (work && numjobs < maxjobs && (!maxfail || numfail < maxfail)) {
 			e = work;
 			work = work->worknext;
-			if (e->rule == &phonyrule) {
-				for (i = 0; i < e->nout; ++i)
-					nodedone(e->out[i], false);
-				continue;
-			}
 			fds[next].fd = jobstart(&jobs[next], e);
 			if (fds[next].fd < 0) {
 				warnx("job failed to start");
