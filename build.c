@@ -281,16 +281,41 @@ nodedone(struct node *n, bool prune)
 	}
 }
 
+static bool
+shouldprune(struct edge *e, struct node *n)
+{
+	struct node *in, *newest;
+	struct timespec old;
+	size_t i;
+
+	old = n->mtime;
+	nodestat(n);
+	if (old.tv_nsec != n->mtime.tv_nsec)
+		return false;
+	if (old.tv_nsec >= 0 && old.tv_sec != n->mtime.tv_sec)
+		return false;
+	newest = NULL;
+	for (i = 0; i < e->inorderidx; ++i) {
+		in = e->in[i];
+		nodestat(in);
+		if (!isnewer(newest, in))
+			newest = in;
+	}
+	if (newest)
+		n->logmtime = newest->mtime.tv_sec;
+
+	return true;
+}
+
 static void
 edgedone(struct edge *e)
 {
 	struct edge *new;
 	struct pool *p;
-	struct node *out, *in, *newest;
-	size_t i, j;
+	struct node *n;
+	size_t i;
 	struct string *rspfile;
-	struct timespec old;
-	bool restat, prune;
+	bool restat;
 
 	if (e->pool) {
 		p = e->pool;
@@ -307,37 +332,17 @@ edgedone(struct edge *e)
 	}
 	restat = edgevar(e, "restat");
 	for (i = 0; i < e->nout; ++i) {
-		out = e->out[i];
-		prune = false;
-		if (restat) {
-			old = out->mtime;
-			nodestat(out);
-			if (old.tv_nsec != out->mtime.tv_nsec)
-				continue;
-			if (old.tv_nsec >= 0 && old.tv_sec != out->mtime.tv_sec)
-				continue;
-			prune = true;
-			/* recalculate newest input */
-			newest = NULL;
-			for (j = 0; j < e->inorderidx; ++j) {
-				in = e->in[j];
-				nodestat(in);
-				if (!isnewer(newest, in))
-					newest = in;
-			}
-			if (newest)
-				out->logmtime = newest->mtime.tv_sec;
-		}
-		nodedone(out, prune);
+		n = e->out[i];
+		nodedone(n, restat && shouldprune(e, n));
 	}
 	rspfile = edgevar(e, "rspfile");
 	if (rspfile)
 		unlink(rspfile->s);
 	edgehash(e);
 	for (i = 0; i < e->nout; ++i) {
-		out = e->out[i];
-		out->hash = e->hash;
-		lognode(out);
+		n = e->out[i];
+		n->hash = e->hash;
+		lognode(n);
 	}
 }
 
