@@ -207,7 +207,7 @@ jobstart(struct job *j, struct edge *e)
 	j->fd = fd[0];
 	argv[2] = j->cmd->s;
 
-	if (consolepool.numjobs == 0) {
+	if (consolepool.numjobs == 0 || e->pool == &consolepool) {
 		description = edgevar(e, "description");
 		if (!description)
 			description = j->cmd;
