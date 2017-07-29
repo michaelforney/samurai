@@ -101,7 +101,7 @@ rewrite:
 		fclose(logfile);
 	fd = openat(dirfd, logtmpname, O_WRONLY | O_TRUNC | O_CREAT, 0666);
 	if (fd < 0)
-		errx(1, "open %s", logtmpname);
+		err(1, "open %s", logtmpname);
 	logfile = fdopen(fd, "w");
 	if (!logfile)
 		err(1, "fdopen");
