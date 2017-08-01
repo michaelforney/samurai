@@ -63,65 +63,6 @@ isdirty(struct node *n, struct node *newest, bool generator, bool restat)
 	return e->hash != n->hash;
 }
 
-/* calculate e->ready and n->dirty for n in e->out */
-static void
-computedirty(struct edge *e)
-{
-	struct node *n, *newest;
-	size_t i;
-	bool generator, restat;
-
-	if (e->flags & FLAG_STAT)
-		return;
-	e->flags |= FLAG_STAT;
-	for (i = 0; i < e->nout; ++i) {
-		n = e->out[i];
-		if (n->mtime.tv_nsec == MTIME_UNKNOWN)
-			nodestat(n);
-	}
-	e->nblock = 0;
-	newest = NULL;
-	for (i = 0; i < e->nin; ++i) {
-		n = e->in[i];
-
-		/* record edge dependency on node */
-		if (n->nuse && !n->use) {
-			n->use = xmalloc(n->nuse * sizeof(*n->use));
-			n->nuse = 0;
-		}
-		n->use[n->nuse++] = e;
-
-		if (n->mtime.tv_nsec == MTIME_UNKNOWN) {
-			nodestat(n);
-			if (n->gen)
-				computedirty(n->gen);
-			else
-				n->dirty = n->mtime.tv_nsec == MTIME_MISSING;
-		}
-		if (i < e->inorderidx) {
-			if (n->dirty)
-				e->flags |= FLAG_DIRTY_IN;
-			if (n->mtime.tv_nsec != MTIME_MISSING && !isnewer(newest, n))
-				newest = n;
-		}
-		if (n->dirty)
-			++e->nblock;
-	}
-	/* all outputs are dirty if any are older than the newest input */
-	generator = edgevar(e, "generator");
-	restat = edgevar(e, "restat");
-	for (i = 0; i < e->nout && !(e->flags & FLAG_DIRTY_OUT); ++i) {
-		if (isdirty(e->out[i], newest, generator, restat))
-			e->flags |= FLAG_DIRTY_OUT;
-	}
-	for (i = 0; i < e->nout; ++i) {
-		n = e->out[i];
-		n->dirty = e->flags & FLAG_DIRTY;
-	}
-	if (!(e->flags & FLAG_DIRTY_OUT))
-		e->nprune = e->nblock;
-}
-
 /* add an edge to the work queue */
 static void
 queue(struct edge *e)
@@ -144,38 +85,69 @@ queue(struct edge *e)
 	*front = e;
 }
 
-static void
-addsubtarget(struct node *n)
-{
-	struct edge *e;
-	size_t i;
-
-	// XXX: cycle detection
-	if (!n->dirty)
-		return;
-	e = n->gen;
-	if (!e)
-		errx(1, "file is missing and not created by any action: '%s'", n->path->s);
-	if (e->flags & FLAG_WORK)
-		return;
-	e->flags |= FLAG_WORK;
-	if (e->nblock == 0)
-		queue(e);
-	for (i = 0; i < e->nin; ++i)
-		addsubtarget(e->in[i]);
-}
-
 void
 buildadd(struct node *n)
 {
-	if (n->gen) {
-		computedirty(n->gen);
-	} else {
+	struct edge *e;
+	struct node *newest;
+	size_t i;
+	bool generator, restat;
+
+	// XXX: cycle detection
+	e = n->gen;
+	if (!e) {
 		if (n->mtime.tv_nsec == MTIME_UNKNOWN)
 			nodestat(n);
-		n->dirty = n->mtime.tv_nsec == MTIME_MISSING;
+		if (n->mtime.tv_nsec == MTIME_MISSING)
+			errx(1, "file is missing and not created by any action: '%s'", n->path->s);
+		n->dirty = false;
+		return;
 	}
-	addsubtarget(n);
+	if (e->flags & FLAG_WORK)
+		return;
+	e->flags |= FLAG_WORK;
+	for (i = 0; i < e->nout; ++i) {
+		n = e->out[i];
+		if (n->mtime.tv_nsec == MTIME_UNKNOWN)
+			nodestat(n);
+	}
+	e->nblock = 0;
+	newest = NULL;
+	for (i = 0; i < e->nin; ++i) {
+		n = e->in[i];
+
+		/* record edge dependency on node */
+		if (n->nuse && !n->use) {
+			n->use = xmalloc(n->nuse * sizeof(*n->use));
+			n->nuse = 0;
+		}
+		n->use[n->nuse++] = e;
+
+		buildadd(n);
+		if (i < e->inorderidx) {
+			if (n->dirty)
+				e->flags |= FLAG_DIRTY_IN;
+			if (n->mtime.tv_nsec != MTIME_MISSING && !isnewer(newest, n))
+				newest = n;
+		}
+		if (n->dirty)
+			++e->nblock;
+	}
+	/* all outputs are dirty if any are older than the newest input */
+	generator = edgevar(e, "generator");
+	restat = edgevar(e, "restat");
+	for (i = 0; i < e->nout && !(e->flags & FLAG_DIRTY_OUT); ++i) {
+		if (isdirty(e->out[i], newest, generator, restat))
+			e->flags |= FLAG_DIRTY_OUT;
+	}
+	for (i = 0; i < e->nout; ++i) {
+		n = e->out[i];
+		n->dirty = e->flags & FLAG_DIRTY;
+	}
+	if (!(e->flags & FLAG_DIRTY_OUT))
+		e->nprune = e->nblock;
+	if (e->flags & FLAG_DIRTY && e->nblock == 0)
+		queue(e);
 }
 
 static int

@@ -58,9 +58,8 @@ builddefault(void)
 	size_t i;
 
 	if (ndeftarg > 0) {
-		for (i = 0; i < ndeftarg; ++i) {
+		for (i = 0; i < ndeftarg; ++i)
 			buildadd(deftarg[i]);
-		}
 	} else {
 		/* by default build all nodes which are not used by any edges */
 		for (e = alledges; e; e = e->allnext) {

@@ -55,9 +55,8 @@ struct edge {
 	size_t nprune;
 
 	enum {
-		FLAG_STAT      = 1<<0, /* queried the mtime of all outputs */
+		FLAG_WORK      = 1<<0, /* scheduled for build */
 		FLAG_HASH      = 1<<1, /* calculated the command hash */
-		FLAG_WORK      = 1<<2, /* scheduled for build */
 		FLAG_DIRTY_IN  = 1<<3, /* dirty input */
 		FLAG_DIRTY_OUT = 1<<4, /* missing or outdated output */
 		FLAG_DIRTY     = FLAG_DIRTY_IN | FLAG_DIRTY_OUT,
