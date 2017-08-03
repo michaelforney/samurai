@@ -259,7 +259,7 @@ expect(int tok)
 
 	t = next();
 	if (t != tok)
-		errx(1, "expected %s, saw %s", tokname[tok], tokname[t]);
+		errx(1, "expected %s, saw %s", tokname[tok], tokstr(t));
 }
 
 const char *
