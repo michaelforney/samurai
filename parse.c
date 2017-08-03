@@ -191,6 +191,7 @@ parsepool(struct environment *env)
 			p->maxjobs = strtol(s->s, &end, 10);
 			if (*end)
 				errx(1, "invalid pool depth: %s", s->s);
+			free(s);
 		} else {
 			errx(1, "unexpected pool variable: %s", var);
 		}
