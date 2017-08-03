@@ -404,7 +404,7 @@ build(int maxjobs, int maxfail)
 	if (!work)
 		warnx("nothing to do");
 
-	while (work || numjobs > 0) {
+	for (;;) {
 		/* start ready edges */
 		while (work && numjobs < maxjobs && (!maxfail || numfail < maxfail)) {
 			e = work;
