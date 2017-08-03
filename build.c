@@ -122,7 +122,7 @@ buildadd(struct node *n)
 			if (n->mtime.tv_nsec != MTIME_MISSING && !isnewer(newest, n))
 				newest = n;
 		}
-		if (n->dirty)
+		if (n->dirty || (n->gen && n->gen->nblock > 0))
 			++e->nblock;
 	}
 	/* all outputs are dirty if any are older than the newest input */
@@ -241,10 +241,10 @@ nodedone(struct node *n, bool prune)
 		return;
 	for (i = 0; i < n->nuse; ++i) {
 		e = n->use[i];
-		if (!(e->flags & FLAG_DIRTY))
-			continue;
-		if (prune && !(e->flags & FLAG_DIRTY_OUT) && --e->nprune == 0) {
-			/* all the inputs were pruned, so the edge can be pruned as well */
+		if (!(e->flags & (prune ? FLAG_DIRTY_OUT : FLAG_DIRTY)) && --e->nprune == 0) {
+			/* either edge was clean (possible with order-only
+			 * inputs), or all its blocking inputs were pruned, so
+			 * its outputs can be pruned as well */
 			for (j = 0; j < e->nout; ++j)
 				nodedone(e->out[j], true);
 		} else if (--e->nblock == 0) {
