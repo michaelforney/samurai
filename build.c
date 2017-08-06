@@ -108,13 +108,6 @@ buildadd(struct node *n)
 	for (i = 0; i < e->nin; ++i) {
 		n = e->in[i];
 
-		/* record edge dependency on node */
-		if (n->nuse && !n->use) {
-			n->use = xmalloc(n->nuse * sizeof(*n->use));
-			n->nuse = 0;
-		}
-		n->use[n->nuse++] = e;
-
 		buildadd(n);
 		if (i < e->inorderidx) {
 			if (n->dirty)
@@ -122,8 +115,10 @@ buildadd(struct node *n)
 			if (n->mtime.tv_nsec != MTIME_MISSING && !isnewer(newest, n))
 				newest = n;
 		}
-		if (n->dirty || (n->gen && n->gen->nblock > 0))
+		if (n->dirty || (n->gen && n->gen->nblock > 0)) {
 			++e->nblock;
+			nodeuse(n, e);
+		}
 	}
 	/* all outputs are dirty if any are older than the newest input */
 	generator = edgevar(e, "generator");

@@ -78,6 +78,8 @@ struct node *nodeget(char *);
 void nodestat(struct node *);
 /* escape a node's path, populating shellpath */
 void nodeescape(struct node *);
+/* record the usage of a node by an edge */
+void nodeuse(struct node *, struct edge *);
 
 /* create a new edge with the given parent environment */
 struct edge *mkedge(struct environment *parent);

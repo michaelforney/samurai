@@ -126,6 +126,15 @@ nodeescape(struct node *n)
 	}
 }
 
+void
+nodeuse(struct node *n, struct edge *e)
+{
+	/* allocate in powers of two */
+	if (!(n->nuse & (n->nuse - 1)))
+		n->use = xrealloc(n->use, (n->nuse ? n->nuse * 2 : 1) * sizeof(e));
+	n->use[n->nuse++] = e;
+}
+
 struct edge *
 mkedge(struct environment *parent)
 {

@@ -117,7 +117,6 @@ parseedge(struct environment *env)
 		delstr(in);
 		canonpath(s);
 		*n = mknode(s);
-		++(*n)->nuse;
 	}
 
 	s = edgevar(e, "pool");
