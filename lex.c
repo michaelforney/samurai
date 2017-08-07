@@ -106,23 +106,6 @@ fileget(struct file *f)
 	return f->p < f->end ? *f->p++ : EOF;
 }
 
-static void
-bufadd(char c)
-{
-	char *newdata;
-	size_t newcap;
-
-	if (buf.len >= buf.cap) {
-		newcap = buf.cap * 2 + 1;
-		newdata = realloc(buf.data, newcap);
-		if (!newdata)
-			err(1, "realloc");
-		buf.cap = newcap;
-		buf.data = newdata;
-	}
-	buf.data[buf.len++] = c;
-}
-
 static int
 isvar(int c)
 {
@@ -227,10 +210,10 @@ peek:
 	default:
 		if (!isvar(c))
 			errx(1, "invalid character: %d", c);
-		bufadd(c);
+		bufadd(&buf, c);
 		while (isvar(filepeek(f)))
-			bufadd(*f->p++);
-		bufadd('\0');
+			bufadd(&buf, *f->p++);
+		bufadd(&buf, '\0');
 		t = keyword(buf.data);
 		if (!t) {
 			t = IDENT;
@@ -289,7 +272,7 @@ escape(struct evalstringpart ***end)
 	case '$':
 	case ' ':
 	case ':':
-		bufadd(c);
+		bufadd(&buf, c);
 		break;
 	case '{':
 		if (buf.len > 0)
@@ -298,7 +281,7 @@ escape(struct evalstringpart ***end)
 			c = fileget(f);
 			if (!isvar(c))
 				break;
-			bufadd(c);
+			bufadd(&buf, c);
 		}
 		if (c != '}')
 			errx(1, "'%c' is not allowed in variable name", c);
@@ -312,9 +295,9 @@ escape(struct evalstringpart ***end)
 			errx(1, "bad $ escape: %c", c);
 		if (buf.len > 0)
 			addstringpart(end, false);
-		bufadd(c);
+		bufadd(&buf, c);
 		while (issimplevar(filepeek(f)))
-			bufadd(*f->p++);
+			bufadd(&buf, *f->p++);
 		addstringpart(end, true);
 	}
 }
@@ -337,7 +320,7 @@ readstr(bool path)
 		case '|':
 		case ' ':
 			if (!path) {
-				bufadd(*f->p++);
+				bufadd(&buf, *f->p++);
 				break;
 			}
 			goto out;
@@ -345,7 +328,7 @@ readstr(bool path)
 		case EOF:
 			goto out;
 		default:
-			bufadd(*f->p++);
+			bufadd(&buf, *f->p++);
 		}
 	}
 out:
@@ -384,7 +367,7 @@ readident(void)
 {
 	buf.len = 0;
 	while (isvar(filepeek(lexfile)))
-		bufadd(*lexfile->p++);
+		bufadd(&buf, *lexfile->p++);
 	if (!buf.len)
 		errx(1, "bad identifier");
 	whitespace();

@@ -55,6 +55,16 @@ xstrdup(const char *s, size_t n)
 	return r;
 }
 
+void
+bufadd(struct buffer *buf, char c)
+{
+	if (buf->len >= buf->cap) {
+		buf->cap = buf->cap ? buf->cap * 2 : 1<<8;
+		buf->data = xrealloc(buf->data, buf->cap);
+	}
+	buf->data[buf->len++] = c;
+}
+
 struct string *
 mkstr(size_t n)
 {

@@ -15,6 +15,9 @@ void *xrealloc(void *, size_t);
 void *xcalloc(size_t, size_t);
 char *xstrdup(const char *, size_t);
 
+/* append a byte to a buffer */
+void bufadd(struct buffer *buf, char c);
+
 /* allocates a new string with length n. n + 1 bytes are allocated for
  * s, but not initialized. */
 struct string *mkstr(size_t n);
