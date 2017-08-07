@@ -11,6 +11,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include "build.h"
+#include "deps.h"
 #include "env.h"
 #include "graph.h"
 #include "log.h"
@@ -103,6 +104,7 @@ buildadd(struct node *n)
 		if (n->mtime.tv_nsec == MTIME_UNKNOWN)
 			nodestat(n);
 	}
+	depsload(e);
 	e->nblock = 0;
 	newest = NULL;
 	for (i = 0; i < e->nin; ++i) {

@@ -9,6 +9,7 @@ rule link
   command = $cc $ldflags -o $out $in
 
 build build.o: cc build.c
+build deps.o: cc deps.c
 build env.o: cc env.c
 build graph.o: cc graph.c
 build htab.o: cc htab.c
@@ -18,6 +19,6 @@ build parse.o: cc parse.c
 build samurai.o: cc samurai.c
 build tool.o: cc tool.c
 build util.o: cc util.c
-build samu: link build.o env.o graph.o htab.o lex.o log.o parse.o samurai.o tool.o util.o
+build samu: link build.o deps.o env.o graph.o htab.o lex.o log.o parse.o samurai.o tool.o util.o
 
 default samu

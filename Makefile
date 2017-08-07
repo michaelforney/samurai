@@ -2,6 +2,7 @@ CFLAGS=-Wall -std=c11 -pedantic
 OBJ=\
 	build.o\
 	env.o\
+	deps.o\
 	graph.o\
 	htab.o\
 	lex.o\

@@ -177,3 +177,40 @@ edgehash(struct edge *e)
 		e->hash = murmurhash64a(cmd->s, cmd->n);
 	}
 }
+
+static struct edge *
+mkphony(struct node *n)
+{
+	struct edge *e;
+
+	e = mkedge(rootenv);
+	e->rule = &phonyrule;
+	e->inimpidx = 0;
+	e->inorderidx = 0;
+	e->outimpidx = 1;
+	e->nout = 1;
+	e->out = xmalloc(sizeof(n));
+	e->out[0] = n;
+
+	return e;
+}
+
+void
+edgeadddeps(struct edge *e, struct node **deps, size_t ndeps)
+{
+	struct node **order, *n;
+	size_t norder, i;
+
+	for (i = 0; i < ndeps; ++i) {
+		n = deps[i];
+		if (!n->gen)
+			n->gen = mkphony(n);
+	}
+	e->in = xrealloc(e->in, (e->nin + ndeps) * sizeof(e->in[0]));
+	order = e->in + e->inorderidx;
+	norder = e->nin - e->inorderidx;
+	memmove(order + ndeps, order, norder * sizeof(e->in[0]));
+	memcpy(order, deps, ndeps * sizeof(e->in[0]));
+	e->inorderidx += ndeps;
+	e->nin += ndeps;
+}
