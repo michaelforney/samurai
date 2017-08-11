@@ -311,7 +311,7 @@ edgedone(struct edge *e)
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
 		n->hash = e->hash;
-		lognode(n);
+		logrecord(n);
 	}
 }
 

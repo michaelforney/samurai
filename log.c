@@ -112,7 +112,7 @@ rewrite:
 				n = e->out[i];
 				if (!n->hash)
 					continue;
-				lognode(n);
+				logrecord(n);
 			}
 		}
 	}
@@ -133,7 +133,7 @@ logclose(void)
 }
 
 void
-lognode(struct node *n)
+logrecord(struct node *n)
 {
 	fprintf(logfile, "0\t0\t%ld\t%s\t%" PRIx64 "\n", (long)n->logmtime, n->path->s, n->hash);
 }
