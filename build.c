@@ -140,7 +140,7 @@ buildadd(struct node *n)
 }
 
 static int
-jobstart(struct job *j, struct edge *e)
+jobstart(struct job *j, struct edge *e, bool verbose)
 {
 	size_t i;
 	struct node *n;
@@ -177,8 +177,8 @@ jobstart(struct job *j, struct edge *e)
 	argv[2] = j->cmd->s;
 
 	if (consolepool.numjobs == 0 || e->pool == &consolepool) {
-		description = edgevar(e, "description");
-		if (!description)
+		description = verbose ? NULL : edgevar(e, "description");
+		if (!description || description->n == 0)
 			description = j->cmd;
 		puts(description->s);
 	}
@@ -382,7 +382,7 @@ done:
 }
 
 void
-build(int maxjobs, int maxfail)
+build(int maxjobs, int maxfail, bool verbose)
 {
 	struct job jobs[maxjobs];
 	struct pollfd fds[maxjobs];
@@ -412,7 +412,7 @@ build(int maxjobs, int maxfail)
 					nodedone(e->out[i], false);
 				continue;
 			}
-			fds[next].fd = jobstart(&jobs[next], e);
+			fds[next].fd = jobstart(&jobs[next], e, verbose);
 			if (fds[next].fd < 0) {
 				warnx("job failed to start");
 				++numfail;

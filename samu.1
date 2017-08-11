@@ -1,4 +1,4 @@
-.Dd 2017-07-23
+.Dd 2017-08-10
 .Dt SAMU 1
 .Os samurai
 .Sh NAME
@@ -10,6 +10,7 @@
 .Op Fl f Ar buildfile
 .Op Fl j Ar maxjobs
 .Op Fl k Ar maxfail
+.Op Fl v
 .Op Ar target...
 .Nm
 .Op Fl C Ar dir
@@ -60,6 +61,9 @@ jobs in parallel (default based on number of CPUs).
 Allow up to
 .Ar maxfail
 job failures. If not positive, allow any number of job failures.
+.It Fl v
+Print full commands instead of just
+.Sy description .
 .It Fl t
 Instead of building, invoke a subtool. All arguments and flags after the
 subtool are interpreted by the subtool. Currently,

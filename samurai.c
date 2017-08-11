@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include <errno.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -80,6 +81,7 @@ main(int argc, char *argv[])
 	char *manifest = "build.ninja";
 	int maxjobs = 0, maxfail = 1;
 	struct tool *tool = NULL;
+	bool verbose = false;
 
 	struct node *n;
 	int builddirfd, tries;
@@ -109,6 +111,9 @@ main(int argc, char *argv[])
 	case 't':
 		tool = toolget(EARGF(usage()));
 		goto argdone;
+	case 'v':
+		verbose = true;
+		break;
 	default:
 		usage();
 	} ARGEND
@@ -160,7 +165,7 @@ retry:
 	if (n && n->gen) {
 		buildadd(n);
 		if (n->dirty) {
-			build(maxjobs, maxfail);
+			build(maxjobs, maxfail, verbose);
 			if (++tries > 100)
 				errx(1, "manifest '%s' dirty after 100 tries", manifest);
 			goto retry;
@@ -178,7 +183,7 @@ retry:
 	} else {
 		builddefault();
 	}
-	build(maxjobs, maxfail);
+	build(maxjobs, maxfail, verbose);
 	logclose();
 
 	return 0;
