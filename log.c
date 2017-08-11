@@ -46,6 +46,8 @@ loginit(int dirfd)
 	nline = 0;
 	nentry = 0;
 
+	if (logfile)
+		fclose(logfile);
 	fd = openat(dirfd, logname, O_RDWR | O_APPEND);
 	if (fd < 0)
 		goto rewrite;
