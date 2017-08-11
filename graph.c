@@ -67,6 +67,7 @@ mknode(struct string *path)
 	 * present in the log, but not otherwise dirty (in which case we don't
 	 * rebuild it) */
 	n->hash = 0;
+	n->id = -1;
 	*v = n;
 
 	return n;

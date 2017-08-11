@@ -28,6 +28,9 @@ struct node {
 	/* command hash used to build this output, read from build log */
 	uint64_t hash;
 
+	/* ID for .ninja_deps. -1 if not present in log. */
+	uint32_t id;
+
 	/* does the node need to be rebuilt */
 	_Bool dirty;
 };

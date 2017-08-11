@@ -8,6 +8,7 @@
 #include <err.h>
 #include "arg.h"
 #include "build.h"
+#include "deps.h"
 #include "env.h"
 #include "graph.h"
 #include "lex.h"
@@ -150,6 +151,7 @@ retry:
 	/* load the build log */
 	builddirfd = openbuilddir();
 	loginit(builddirfd);
+	depsinit(builddirfd);
 	if (builddirfd != AT_FDCWD)
 		close(builddirfd);
 

@@ -308,6 +308,7 @@ edgedone(struct edge *e)
 	if (rspfile)
 		unlink(rspfile->s);
 	edgehash(e);
+	depsrecord(e);
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
 		n->hash = e->hash;

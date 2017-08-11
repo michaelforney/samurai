@@ -10,7 +10,3 @@ It is mostly feature-complete, and is able to build large projects like
 ## Requirements
 samurai should run on any POSIX system. It currently also requires `err.h`, but
 this may change in the future.
-
-## TODO
-samurai does not yet parse or update `.ninja_deps` or gcc's `-MD` output. This
-is planned.
