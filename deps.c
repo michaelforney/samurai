@@ -146,7 +146,7 @@ depsinit(int dirfd)
 			goto rewrite;
 		}
 		if (isdep) {
-			if (sz <= 8) {
+			if (sz < 8) {
 				warnx("invalid size, must be at least 8: %" PRIu32, sz);
 				goto rewrite;
 			}
