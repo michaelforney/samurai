@@ -265,7 +265,7 @@ depsparse(const char *name, struct string *out)
 	deps.len = 0;
 	for (;;) {
 		c = fgetc(f);
-		if (isalnum(c) || strchr("._-/+", c)) {
+		if (isalnum(c) || strchr("+,-./@_", c)) {
 			bufadd(&buf, c);
 			continue;
 		}
