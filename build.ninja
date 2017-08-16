@@ -1,5 +1,5 @@
 cc = cc
-cflags = -Wall -std=c99 -pedantic
+cflags = -Wall -std=c99 -pedantic -D_POSIX_C_SOURCE=200809L
 
 rule cc
   command = $cc -MD -MF $out.d $cflags -c -o $out $in
