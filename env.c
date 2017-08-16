@@ -1,5 +1,4 @@
 #define _POSIX_C_SOURCE 200809L
-#include <err.h>
 #include <search.h>
 #include <stdlib.h>
 #include <string.h>
@@ -170,7 +169,7 @@ envrule(struct environment *env, char *name)
 		env = env->parent;
 	} while (env);
 
-	errx(1, "undefined rule %s", name);
+	return NULL;
 }
 
 static struct string *

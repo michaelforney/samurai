@@ -4,9 +4,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <err.h>
 #include "arg.h"
 #include "build.h"
 #include "deps.h"
@@ -87,7 +87,8 @@ main(int argc, char *argv[])
 	int builddirfd, tries;
 	char *end;
 
-	argv0 = argv[0];
+	argv0 = strrchr(argv[0], '/');
+	argv0 = argv0 ? argv0 + 1 : argv[0];
 	ARGBEGIN {
 	case 'C':
 		if (chdir(EARGF(usage())) < 0)

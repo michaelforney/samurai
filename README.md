@@ -8,5 +8,5 @@ It is mostly feature-complete, and is able to build large projects like
 `chromium`, `llvm`, and [`oasis`](https://github.com/michaelforney/oasis).
 
 ## Requirements
-samurai should run on any POSIX system. It currently also requires `err.h`, but
-this may change in the future.
+
+samurai should run on any POSIX system.

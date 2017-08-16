@@ -1,4 +1,3 @@
-#include <err.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -75,6 +74,8 @@ parseedge(struct environment *env)
 	expect(COLON);
 	lexident = readident();
 	e->rule = envrule(env, lexident);
+	if (!e->rule)
+		errx(1, "undefined rule: %s", lexident);
 	free(lexident);
 	for (in = NULL, end = &in; (str = readstr(true)); ++e->nin)
 		pushstr(&end, str);

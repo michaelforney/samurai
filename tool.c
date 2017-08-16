@@ -1,4 +1,3 @@
-#include <err.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -117,11 +116,18 @@ static struct tool tools[] = {
 struct tool *
 toolget(const char *name)
 {
-	int i;
+	struct tool *t;
+	size_t i;
 
+	t = NULL;
 	for (i = 0; i < LEN(tools); ++i) {
-		if (strcmp(name, tools[i].name) == 0)
-			return &tools[i];
+		if (strcmp(name, tools[i].name) == 0) {
+			t = &tools[i];
+			break;
+		}
 	}
-	errx(1, "unknown tool: %s", name);
+	if (!t)
+		errx(1, "unknown tool: %s", name);
+
+	return t;
 }

@@ -1,13 +1,68 @@
 #define _POSIX_C_SOURCE 200809L
-#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include "util.h"
+
+extern char *argv0;
+
+static void
+vwarn(int errnum, const char *fmt, va_list ap)
+{
+	fprintf(stderr, "%s: ", argv0);
+	vfprintf(stderr, fmt, ap);
+	if (errnum)
+		fprintf(stderr, ": %s", strerror(errnum));
+	fputc('\n', stderr);
+}
+
+void
+warn(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vwarn(errno, fmt, ap);
+	va_end(ap);
+}
+
+void
+warnx(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vwarn(0, fmt, ap);
+	va_end(ap);
+}
+
+void
+err(int status, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vwarn(errno, fmt, ap);
+	va_end(ap);
+	exit(status);
+}
+
+void
+errx(int status, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vwarn(0, fmt, ap);
+	va_end(ap);
+	exit(status);
+}
 
 void *
 xmalloc(size_t n)
