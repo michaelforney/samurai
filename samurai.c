@@ -20,7 +20,7 @@
 
 char *argv0;
 
-static _Noreturn void
+static void
 usage(void)
 {
 	fprintf(stderr, "usage: %s [-C dir] [-f buildfile] [-j maxjobs] [-k maxfail]\n", argv0);

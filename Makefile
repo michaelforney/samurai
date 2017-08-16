@@ -1,4 +1,4 @@
-CFLAGS=-Wall -std=c11 -pedantic
+CFLAGS=-Wall -std=c99 -pedantic
 OBJ=\
 	build.o\
 	env.o\
