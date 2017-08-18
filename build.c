@@ -25,6 +25,7 @@ struct job {
 };
 
 static struct edge *work;
+static size_t nstarted, ntotal;
 extern char **environ;
 
 /* returns whether n1 is newer than n2, or false if n1 is NULL */
@@ -133,8 +134,12 @@ buildadd(struct node *n)
 	}
 	if (!(e->flags & FLAG_DIRTY_OUT))
 		e->nprune = e->nblock;
-	if (e->flags & FLAG_DIRTY && e->nblock == 0)
-		queue(e);
+	if (e->flags & FLAG_DIRTY) {
+		if (e->nblock == 0)
+			queue(e);
+		if (e->rule != &phonyrule)
+			++ntotal;
+	}
 }
 
 static int
@@ -147,6 +152,7 @@ jobstart(struct job *j, struct edge *e, bool verbose)
 	posix_spawn_file_actions_t actions;
 	char *argv[] = {"/bin/sh", "-c", NULL, NULL};
 
+	++nstarted;
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
 		if (n->mtime.tv_nsec == MTIME_MISSING) {
@@ -178,7 +184,7 @@ jobstart(struct job *j, struct edge *e, bool verbose)
 		description = verbose ? NULL : edgevar(e, "description");
 		if (!description || description->n == 0)
 			description = j->cmd;
-		puts(description->s);
+		printf("[%zu/%zu] %s\n", nstarted, ntotal, description->s);
 	}
 
 	if ((errno = posix_spawn_file_actions_init(&actions))) {
@@ -242,6 +248,8 @@ nodedone(struct node *n, bool prune)
 			 * its outputs can be pruned as well */
 			for (j = 0; j < e->nout; ++j)
 				nodedone(e->out[j], true);
+			if (e->flags & FLAG_DIRTY && e->rule != &phonyrule)
+				--ntotal;
 		} else if (--e->nblock == 0) {
 			queue(e);
 		}
@@ -400,6 +408,7 @@ build(int maxjobs, int maxfail, bool verbose)
 	if (!work)
 		warnx("nothing to do");
 
+	nstarted = 0;
 	for (;;) {
 		/* start ready edges */
 		while (work && numjobs < maxjobs && (!maxfail || numfail < maxfail)) {
@@ -448,4 +457,5 @@ build(int maxjobs, int maxfail, bool verbose)
 		else
 			errx(1, "subcommand failed");
 	}
+	ntotal = 0;  /* reset in case we just rebuilt the manifest */
 }
