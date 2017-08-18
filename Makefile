@@ -1,5 +1,5 @@
 PREFIX=/usr/local
-CFLAGS=-Wall -std=c99 -pedantic -D_POSIX_C_SOURCE=200809L
+ALL_CFLAGS=$(CFLAGS) -Wall -std=c99 -pedantic -D_POSIX_C_SOURCE=200809L
 OBJ=\
 	build.o\
 	env.o\
@@ -14,7 +14,7 @@ OBJ=\
 	util.o
 
 .c.o:
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+	$(CC) $(ALL_CFLAGS) -c -o $@ $<
 
 samu: $(OBJ)
 	$(CC) $(LDFLAGS) -o $@ $^
