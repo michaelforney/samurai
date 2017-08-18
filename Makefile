@@ -1,3 +1,5 @@
+.POSIX:
+
 PREFIX=/usr/local
 ALL_CFLAGS=$(CFLAGS) -Wall -std=c99 -pedantic -D_POSIX_C_SOURCE=200809L
 OBJ=\
