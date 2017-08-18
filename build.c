@@ -85,7 +85,6 @@ buildadd(struct node *n)
 	size_t i;
 	bool generator, restat;
 
-	// XXX: cycle detection
 	e = n->gen;
 	if (!e) {
 		if (n->mtime.tv_nsec == MTIME_UNKNOWN)
@@ -95,9 +94,11 @@ buildadd(struct node *n)
 		n->dirty = false;
 		return;
 	}
+	if (e->flags & FLAG_CYCLE)
+		errx(1, "dependency cycle involving '%s'", n->path->s);
 	if (e->flags & FLAG_WORK)
 		return;
-	e->flags |= FLAG_WORK;
+	e->flags |= FLAG_CYCLE | FLAG_WORK;
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
 		if (n->mtime.tv_nsec == MTIME_UNKNOWN)
@@ -140,6 +141,7 @@ buildadd(struct node *n)
 		if (e->rule != &phonyrule)
 			++ntotal;
 	}
+	e->flags &= ~FLAG_CYCLE;
 }
 
 static int
