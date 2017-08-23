@@ -19,7 +19,7 @@ OBJ=\
 	$(CC) $(ALL_CFLAGS) -c -o $@ $<
 
 samu: $(OBJ)
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CC) $(LDFLAGS) -o $@ $(OBJ)
 
 install: samu samu.1
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
