@@ -394,16 +394,17 @@ build(int maxjobs, int maxfail, bool verbose)
 {
 	struct job jobs[maxjobs];
 	struct pollfd fds[maxjobs];
-	int avail[maxjobs], i, next = 0, numjobs = 0, numfail = 0;
+	size_t i;
+	int avail[maxjobs], j, next = 0, numjobs = 0, numfail = 0;
 	struct edge *e;
 
-	for (i = 0; i < maxjobs; ++i) {
-		jobs[i].buf.data = NULL;
-		jobs[i].buf.len = 0;
-		jobs[i].buf.cap = 0;
-		fds[i].fd = -1;
-		fds[i].events = POLLIN;
-		avail[i] = i + 1;
+	for (j = 0; j < maxjobs; ++j) {
+		jobs[j].buf.data = NULL;
+		jobs[j].buf.len = 0;
+		jobs[j].buf.cap = 0;
+		fds[j].fd = -1;
+		fds[j].events = POLLIN;
+		avail[j] = j + 1;
 	}
 	avail[maxjobs - 1] = -1;
 
@@ -437,20 +438,20 @@ build(int maxjobs, int maxfail, bool verbose)
 		do {
 			if (poll(fds, maxjobs, -1) < 0)
 				err(1, "poll");
-			for (i = 0; i < maxjobs; ++i) {
-				if (!fds[i].revents || jobwork(&jobs[i]))
+			for (j = 0; j < maxjobs; ++j) {
+				if (!fds[j].revents || jobwork(&jobs[j]))
 					continue;
 				--numjobs;
-				avail[i] = next;
-				fds[i].fd = -1;
-				next = i;
-				if (jobs[i].failed)
+				avail[j] = next;
+				fds[j].fd = -1;
+				next = j;
+				if (jobs[j].failed)
 					++numfail;
 			}
 		} while (numjobs == maxjobs);
 	}
-	for (i = 0; i < maxjobs; ++i)
-		free(jobs[i].buf.data);
+	for (j = 0; j < maxjobs; ++j)
+		free(jobs[j].buf.data);
 	if (numfail > 0) {
 		if (numfail < maxfail)
 			errx(1, "cannot make progress due to previous errors");
