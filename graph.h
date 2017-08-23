@@ -29,7 +29,7 @@ struct node {
 	uint64_t hash;
 
 	/* ID for .ninja_deps. -1 if not present in log. */
-	uint32_t id;
+	int32_t id;
 
 	/* does the node need to be rebuilt */
 	_Bool dirty;
