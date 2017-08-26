@@ -55,9 +55,9 @@ recordid(struct node *n)
 
 	if (n->id != -1)
 		return false;
-	n->id = entrieslen++;
-	if (n->id == -1)
+	if (entrieslen == INT32_MAX)
 		errx(1, "too many nodes");
+	n->id = entrieslen++;
 	sz = (n->path->n + 7) & ~3;
 	if (sz + 4 >= sizeof(buf))
 		errx(1, "ID record too large");
@@ -180,6 +180,10 @@ depsinit(int dirfd)
 				warnx("corrupt deps log, bad checksum");
 				goto rewrite;
 			}
+			if (entrieslen == INT32_MAX) {
+				warnx("too many nodes in deps log");
+				goto rewrite;
+			}
 			len = sz - 4;
 			while (((char *)buf)[len - 1] == '\0')
 				--len;
@@ -193,10 +197,6 @@ depsinit(int dirfd)
 				entries = xrealloc(entries, entriescap * sizeof(entries[0]));
 			}
 			n->id = entrieslen;
-			if (n->id == -1) {
-				warnx("too many nodes in deps log");
-				goto rewrite;
-			}
 			entries[entrieslen++] = (struct entry){.node = n};
 		}
 	}
