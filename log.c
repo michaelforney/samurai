@@ -84,12 +84,13 @@ loginit(int dirfd)
 		s = nextfield(&p);  /* command hash */
 		if (!s)
 			continue;
+		if (!n->hash)
+			++nentry;
 		n->hash = strtoull(s, &s, 16);
 		if (*s) {
 			warnx("corrupt log: invalid hash for %s", n->path->s);
 			continue;
 		}
-		++nentry;
 	}
 	if (ferror(logfile))
 		warnx("log read failed");
