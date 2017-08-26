@@ -77,7 +77,7 @@ mkenv(struct environment *parent)
 struct string *
 envvar(struct environment *env, char *var)
 {
-	struct binding key = {var}, **node;
+	struct binding key = {.var = var}, **node;
 
 	do {
 		node = tfind(&key, &env->bindings, bindingcmp);
@@ -159,7 +159,7 @@ envaddrule(struct environment *env, struct rule *r)
 struct rule *
 envrule(struct environment *env, char *name)
 {
-	struct rule key = {name}, **node;
+	struct rule key = {.name = name}, **node;
 
 	do {
 		node = tfind(&key, &env->rules, rulecmp);
@@ -218,7 +218,7 @@ ruleaddvar(struct rule *r, char *var, struct evalstring *val)
 struct string *
 edgevar(struct edge *e, char *var)
 {
-	struct binding key = {var}, **node;
+	struct binding key = {.var = var}, **node;
 	struct string *val;
 	struct evalstring *str;
 	struct evalstringpart *p;
