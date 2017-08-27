@@ -26,6 +26,7 @@ struct job {
 
 static struct edge *work;
 static size_t nstarted, ntotal;
+static bool consoleused;
 extern char **environ;
 
 /* returns whether n1 is newer than n2, or false if n1 is NULL */
@@ -182,7 +183,7 @@ jobstart(struct job *j, struct edge *e, bool verbose)
 	j->fd = fd[0];
 	argv[2] = j->cmd->s;
 
-	if (consolepool.numjobs == 0 || e->pool == &consolepool) {
+	if (!consoleused) {
 		description = verbose ? NULL : edgevar(e, "description");
 		if (!description || description->n == 0)
 			description = j->cmd;
@@ -218,6 +219,8 @@ jobstart(struct job *j, struct edge *e, bool verbose)
 	posix_spawn_file_actions_destroy(&actions);
 	close(fd[1]);
 	j->failed = false;
+	if (e->pool == &consolepool)
+		consoleused = true;
 
 	return j->fd;
 
@@ -297,6 +300,8 @@ edgedone(struct edge *e)
 	if (e->pool) {
 		p = e->pool;
 
+		if (p == &consolepool)
+			consoleused = false;
 		/* move edge from pool queue to main work queue */
 		if (p->work) {
 			new = p->work;
