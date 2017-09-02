@@ -200,6 +200,15 @@ parsepool(struct environment *env)
 		errx(1, "pool has no depth: %s", p->name);
 }
 
+static void
+checkversion(const char *ver)
+{
+	static const char supported[] = "1.7";
+
+	if (strcmp(ver, supported) > 0)
+		errx(1, "ninja_required_version is newer than %s: %s", supported, ver);
+}
+
 void
 parse(struct environment *env)
 {
@@ -225,6 +234,8 @@ parse(struct environment *env)
 			var = lexident;
 			parselet(&str);
 			val = enveval(env, str);
+			if (strcmp(var, "ninja_required_version") == 0)
+				checkversion(val->s);
 			envaddvar(env, var, val);
 			delstr(str);
 			break;
