@@ -334,7 +334,7 @@ jobdone(struct job *j)
 {
 	int status;
 
-	if (j->buf.len && consolepool.numjobs == 0)
+	if (j->buf.len && !consoleused)
 		fwrite(j->buf.data, 1, j->buf.len, stdout);
 	if (waitpid(j->pid, &status, 0) < 0) {
 		warn("waitpid %d", j->pid);
