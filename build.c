@@ -278,7 +278,7 @@ shouldprune(struct edge *e, struct node *n)
 	for (i = 0; i < e->inorderidx; ++i) {
 		in = e->in[i];
 		nodestat(in);
-		if (!isnewer(newest, in))
+		if (in->mtime.tv_nsec != MTIME_MISSING && !isnewer(newest, in))
 			newest = in;
 	}
 	if (newest)
