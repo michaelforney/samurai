@@ -213,6 +213,10 @@ jobstart(struct job *j, struct edge *e, bool verbose)
 			warn("posix_spawn_file_actions_adddup2");
 			goto err3;
 		}
+		if ((errno = posix_spawn_file_actions_addclose(&actions, fd[1]))) {
+			warn("posix_spawn_file_actions_addclose");
+			goto err3;
+		}
 	}
 	if ((errno = posix_spawn(&j->pid, argv[0], &actions, NULL, argv, environ))) {
 		warn("posix_spawn %s", j->cmd->s);
