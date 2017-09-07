@@ -203,7 +203,7 @@ parsepool(struct environment *env)
 static void
 checkversion(const char *ver)
 {
-	static const char supported[] = "1.7";
+	static const char supported[] = "1.8";
 
 	if (strcmp(ver, supported) > 0)
 		errx(1, "ninja_required_version is newer than %s: %s", supported, ver);
