@@ -53,7 +53,9 @@ isdirty(struct node *n, struct node *newest, bool generator, bool restat)
 		return e->nin == 0 && n->mtime.tv_nsec == MTIME_MISSING;
 	if (n->mtime.tv_nsec == MTIME_MISSING)
 		return true;
-	if (isnewer(newest, n) && (!restat || n->logmtime < newest->mtime.tv_sec))
+	if (newest && n->logmtime < newest->mtime.tv_sec)
+		return true;
+	if (isnewer(newest, n) && !restat)
 		return true;
 	if (generator)
 		return false;
@@ -262,17 +264,14 @@ nodedone(struct node *n, bool prune)
 }
 
 static bool
-shouldprune(struct edge *e, struct node *n)
+shouldprune(struct edge *e, struct node *n, const struct timespec *old)
 {
 	struct node *in, *newest;
-	struct timespec old;
 	size_t i;
 
-	old = n->mtime;
-	nodestat(n);
-	if (old.tv_nsec != n->mtime.tv_nsec)
+	if (old->tv_nsec != n->mtime.tv_nsec)
 		return false;
-	if (old.tv_nsec >= 0 && old.tv_sec != n->mtime.tv_sec)
+	if (old->tv_nsec >= 0 && old->tv_sec != n->mtime.tv_sec)
 		return false;
 	newest = NULL;
 	for (i = 0; i < e->inorderidx; ++i) {
@@ -296,6 +295,7 @@ edgedone(struct edge *e)
 	size_t i;
 	struct string *rspfile;
 	bool restat;
+	struct timespec old;
 
 	if (e->pool) {
 		p = e->pool;
@@ -315,7 +315,11 @@ edgedone(struct edge *e)
 	restat = edgevar(e, "restat");
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
-		nodedone(n, restat && shouldprune(e, n));
+		old = n->mtime;
+		nodestat(n);
+		if (n->mtime.tv_nsec != MTIME_MISSING)
+			n->logmtime = n->mtime.tv_sec;
+		nodedone(n, restat && shouldprune(e, n, &old));
 	}
 	rspfile = edgevar(e, "rspfile");
 	if (rspfile)
