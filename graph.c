@@ -109,13 +109,14 @@ nodeescape(struct node *n)
 			++nquote;
 	}
 	if (escape) {
-		n->shellpath = mkstr(n->path->n + 2 + 2 * nquote);
+		n->shellpath = mkstr(n->path->n + 2 + 3 * nquote);
 		d = n->shellpath->s;
 		*d++ = '\'';
 		for (s = n->path->s; *s; ++s) {
 			*d++ = *s;
 			if (*s == '\'') {
 				*d++ = '\\';
+				*d++ = '\'';
 				*d++ = '\'';
 			}
 		}
