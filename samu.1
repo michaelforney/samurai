@@ -1,6 +1,6 @@
-.Dd 2017-08-10
+.Dd October 18, 2017
 .Dt SAMU 1
-.Os samurai
+.Os
 .Sh NAME
 .Nm samu
 .Nd ninja-compatible build tool
@@ -24,21 +24,24 @@ loads a build manifest from
 .Ar buildfile
 and rebuilds
 .Ar targets
-if they are out of date. If no targets are specified, the manifest's default
-targets are built. If there are no default targets, the leaf nodes of the
-dependency graph are built (outputs that have no consuming action).
-
+if they are out of date.
+If no targets are specified, the manifest's default targets are built.
+If there are no default targets, the leaf nodes of the dependency graph are
+built (outputs that have no consuming action).
+.Pp
 Targets are out of date if they are older than the generating action's newest
 input, they have no entry in the build log, or if the command to build the
-target differs from what was used previously. Targets built with
+target differs from what was used previously.
+Targets built with
 .Cm generator
 rules are not rebuilt if the command changes.
-
+.Pp
 If the
 .Cm clean
-tool is used, the targets are cleaned instead. When a target is cleaned, it is
-removed and are all of its inputs are cleaned. Targets with no generating
-actions are never removed. Targets built with
+tool is used, the targets are cleaned instead.
+When a target is cleaned, it is removed and are all of its inputs are cleaned.
+Targets with no generating actions are never removed.
+Targets built with
 .Sy generator
 rules are only removed if
 .Fl g
@@ -60,13 +63,15 @@ jobs in parallel (default based on number of CPUs).
 .It Fl k
 Allow up to
 .Ar maxfail
-job failures. If not positive, allow any number of job failures.
+job failures.
+If not positive, allow any number of job failures.
 .It Fl v
 Print full commands instead of just
 .Sy description .
 .It Fl t
-Instead of building, invoke a subtool. All arguments and flags after the
-subtool are interpreted by the subtool. Currently,
+Instead of building, invoke a subtool.
+All arguments and flags after the subtool are interpreted by the subtool.
+Currently,
 .Cm clean
 is the only subtool.
 .It Fl g
@@ -77,6 +82,6 @@ actions.
 .Ar targets
 are interpreted as rules, and all outputs of actions with the specified rule
 types will be cleaned instead.
+.El
 .Sh SEE ALSO
-.Xr ninja 1
 .Xr make 1
