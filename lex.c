@@ -174,12 +174,19 @@ next(void)
 		return t;
 	}
 	c = fileget(f);
-peek:
+again:
 	switch (c) {
 	case '#':  /* comment */
-		do c = fileget(f);
-		while (c != '\n' && c != EOF);
-		goto peek;
+		for (;;) {
+			c = fileget(f);
+			switch (c) {
+			case '\n':
+				c = fileget(f);
+				/* fallthrough */
+			case EOF:
+				goto again;
+			}
+		}
 	case '|':
 		if (filepeek(f) == '|') {
 			++f->p;
@@ -198,9 +205,17 @@ peek:
 		t = COLON;
 		break;
 	case ' ':
-		t = INDENT;
-		while (filepeek(f) == ' ')
+		for (;;) {
+			c = filepeek(f);
+			if (c != ' ')
+				break;
 			++f->p;
+		}
+		if (c == '#' || c == '\n') {
+			++f->p;
+			goto again;
+		}
+		t = INDENT;
 		break;
 	case EOF:
 		t = EOF;
