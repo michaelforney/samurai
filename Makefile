@@ -1,6 +1,7 @@
 .POSIX:
 
 PREFIX=/usr/local
+MANDIR=$(PREFIX)/share/man
 ALL_CFLAGS=$(CFLAGS) -Wall -Wextra -std=c99 -pedantic -D_POSIX_C_SOURCE=200809L
 OBJ=\
 	build.o\
@@ -24,8 +25,8 @@ samu: $(OBJ)
 install: samu samu.1
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
 	cp samu $(DESTDIR)$(PREFIX)/bin/
-	mkdir -p $(DESTDIR)$(PREFIX)/share/man/man1
-	cp samu.1 $(DESTDIR)$(PREFIX)/share/man/man1/
+	mkdir -p $(DESTDIR)$(MANDIR)/man1
+	cp samu.1 $(DESTDIR)$(MANDIR)/man1/
 
 clean:
 	rm -f samu $(OBJ)
