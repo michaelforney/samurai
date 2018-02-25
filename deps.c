@@ -11,6 +11,33 @@
 #include "graph.h"
 #include "util.h"
 
+/*
+.ninja_deps file format
+
+The header identifying the format is the string "# ninjadeps\n". After this is a
+series of binary records. Integers in these records are written in system
+byte-order.
+
+A record starts with a 4-byte integer indicating the record type and size. If
+the high bit is set, then it is a dependency record. Otherwise, it is a node
+record. In either case, the remaining 31 bits specify the size in bytes of the
+rest of the record. The size must be a multiple of 4, and no larger than than
+2^19.
+
+Node records are given in incrementing ID order, and must be given before any
+dependency record that refers to it. The last 4-byte integer in the record is
+used as a checksum to prevent corruption. Counting from 0, the n-th node record
+(specifying the node with ID n) will have a checksum of ~n (bitwise negation of
+n). The remaining bytes of the record specify the path of the node, padded with
+NUL bytes to the next 4-byte boundary (start of the checksum value).
+
+A dependency record contains a list of dependencies for the edge that built a
+particular node. The first 4-byte integer is the node ID. The second 4-byte
+integer is the UNIX mtime of the node when it was built. Following this is a
+sequence of 4-byte integers specifying the IDs of the dependency nodes for this
+edge, which will have been specified previously in node records.
+*/
+
 /* maximum record length (in uint32_t) */
 #define MAX_RECORD (1<<17)
 
