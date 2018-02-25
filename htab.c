@@ -163,13 +163,6 @@ htget(struct hashtable *ht, void *k)
 		return ht->vals[i];
 }
 
-/* Tests for 'k's presence in 'ht' */
-int
-hthas(struct hashtable *ht, void *k)
-{
-	return htidx(ht, k) >= 0;
-}
-
 uint64_t
 murmurhash64a(void *ptr, size_t len)
 {
