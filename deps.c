@@ -356,28 +356,24 @@ void
 depsload(struct edge *e)
 {
 	struct string *deptype, *depfile;
-	struct nodearray *deps;
+	struct nodearray *deps = NULL;
 	struct node *n;
 
 	deptype = edgevar(e, "deps");
 	if (deptype) {
 		n = e->out[0];
-		if (n->id != -1 && (n->mtime.tv_nsec < 0 || n->mtime.tv_sec <= entries[n->id].mtime)) {
+		if (n->id != -1 && (n->mtime.tv_nsec < 0 || n->mtime.tv_sec <= entries[n->id].mtime))
 			deps = &entries[n->id].deps;
-			edgeadddeps(e, deps->node, deps->len);
-		} else {
-			e->flags |= FLAG_DIRTY_OUT;
-		}
 	} else {
 		depfile = edgevar(e, "depfile");
 		if (!depfile)
 			return;
 		deps = depsparse(depfile->s, e->out[0]->path);
-		if (deps)
-			edgeadddeps(e, deps->node, deps->len);
-		else
-			e->flags |= FLAG_DIRTY_OUT;
 	}
+	if (deps)
+		edgeadddeps(e, deps->node, deps->len);
+	else
+		e->flags |= FLAG_DIRTY_OUT;
 }
 
 void
