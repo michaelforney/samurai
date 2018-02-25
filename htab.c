@@ -9,6 +9,16 @@
 
 #define SEED 0xdecafbaddecafbadULL
 
+struct hashtable {
+	size_t nelt;
+	size_t sz;
+	hashfn hash;
+	eqfn eq;
+	void **keys;
+	void **vals;
+	unsigned long *hashes;
+};
+
 /* Creates a new empty hash table, using 'sz' as the initial size, 'hash' as the
  * hash function, and 'eq' to verify that there are no hash collisions. */
 struct hashtable *
@@ -30,10 +40,16 @@ mkht(size_t sz, hashfn hash, eqfn eq)
 
 /* Frees a hash table. Passing this function NULL is a no-op. */
 void
-htfree(struct hashtable *ht)
+htfree(struct hashtable *ht, void (*del)(void *))
 {
+	size_t i;
+
 	if (!ht)
 		return;
+	for (i = 0; i < ht->sz; ++i) {
+		if (ht->hashes[i])
+			del(ht->vals[i]);
+	}
 	free(ht->keys);
 	free(ht->vals);
 	free(ht->hashes);

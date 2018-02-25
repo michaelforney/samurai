@@ -12,26 +12,24 @@
 static struct hashtable *allnodes;
 struct edge *alledges;
 
+static void
+delnode(void *p)
+{
+	struct node *n = p;
+
+	if (n->shellpath != n->path)
+		free(n->shellpath);
+	free(n->path);
+	free(n);
+}
+
 void
 graphinit(void)
 {
-	struct node *n;
 	struct edge *e;
-	size_t i;
 
 	/* delete old nodes and edges in case we rebuilt the manifest */
-	if (allnodes) {
-		for (i = 0; i < allnodes->sz; ++i) {
-			if (!allnodes->hashes[i])
-				continue;
-			n = allnodes->vals[i];
-			if (n->shellpath != n->path)
-				free(n->shellpath);
-			free(n->path);
-			free(n);
-		}
-		htfree(allnodes);
-	}
+	htfree(allnodes, delnode);
 	while (alledges) {
 		e = alledges;
 		alledges = e->allnext;
