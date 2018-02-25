@@ -40,24 +40,13 @@ htfree(struct hashtable *ht, void (*del)(void *))
 	if (!ht)
 		return;
 	for (i = 0; i < ht->sz; ++i) {
-		if (ht->hashes[i])
+		if (ht->keys[i])
 			del(ht->vals[i]);
 	}
 	free(ht->keys);
 	free(ht->vals);
 	free(ht->hashes);
 	free(ht);
-}
-
-/* Offsets the hash so that '0' can be used as a 'no valid value' */
-static uint64_t
-hash(const char *k)
-{
-	uint64_t h;
-
-	h = murmurhash64a(k, strlen(k));
-
-	return h ? h : 1;
 }
 
 /* Resizes the hash table by copying all the old keys into the right slots in a
@@ -105,9 +94,9 @@ htput(struct hashtable *ht, const char *k)
 		grow(ht, ht->sz * 2);
 
 	di = 0;
-	h = hash(k);
+	h = murmurhash64a(k, strlen(k));
 	i = h & (ht->sz - 1);
-	while (ht->hashes[i]) {
+	while (ht->keys[i]) {
 		if (ht->hashes[i] == h && strcmp(ht->keys[i], k) == 0)
 			return &ht->vals[i];
 		di++;
@@ -129,10 +118,10 @@ htidx(struct hashtable *ht, const char *k)
 	int di;
 
 	di = 0;
-	h = hash(k);
+	h = murmurhash64a(k, strlen(k));
 	i = h & (ht->sz - 1);
 	for (;;) {
-		if (!ht->hashes[i])
+		if (!ht->keys[i])
 			return -1;
 		if (ht->hashes[i] == h && strcmp(ht->keys[i], k) == 0)
 			return i;
