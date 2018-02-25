@@ -14,6 +14,7 @@ OBJ=\
 	parse.o\
 	samurai.o\
 	tool.o\
+	tree.o\
 	util.o
 
 .c.o:

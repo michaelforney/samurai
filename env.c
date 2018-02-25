@@ -1,26 +1,21 @@
-#include <search.h>
 #include <stdlib.h>
 #include <string.h>
 #include "env.h"
 #include "graph.h"
 #include "lex.h"
+#include "tree.h"
 #include "util.h"
-
-struct binding {
-	char *var;
-	void *val;
-};
 
 struct environment {
 	struct environment *parent;
-	void *bindings;
-	void *rules;
+	struct treenode *bindings;
+	struct treenode *rules;
 };
 
 struct environment *rootenv;
 struct rule phonyrule = {.name = "phony"};
 struct pool consolepool = {.name = "console", .maxjobs = 1};
-static void *pools;
+static struct treenode *pools;
 
 static void addpool(struct pool *);
 
@@ -35,30 +30,14 @@ envinit(void)
 	addpool(&consolepool);
 }
 
-static int
-bindingcmp(const void *k1, const void *k2)
-{
-	const struct binding *b1 = k1, *b2 = k2;
-
-	return strcmp(b1->var, b2->var);
-}
-
 static void
-addvar(void **tree, char *var, void *val)
+addvar(struct treenode **tree, char *var, void *val)
 {
-	struct binding *b, **node;
+	char *old;
 
-	b = xmalloc(sizeof(*b));
-	b->var = var;
-	node = tsearch(b, tree, bindingcmp);
-	if (!node)
-		err(1, "tsearch");
-	if (*node != b) {
-		free((*node)->val);
-		free(var);
-		free(b);
-	}
-	(*node)->val = val;
+	old = treeinsert(tree, var, val);
+	if (old)
+		free(old);
 }
 
 struct environment *
@@ -77,12 +56,12 @@ mkenv(struct environment *parent)
 struct string *
 envvar(struct environment *env, char *var)
 {
-	struct binding key = {.var = var}, **node;
+	struct string *s;
 
 	do {
-		node = tfind(&key, &env->bindings, bindingcmp);
-		if (node)
-			return (*node)->val;
+		s = treefind(env->bindings, var);
+		if (s)
+			return s;
 		env = env->parent;
 	} while (env);
 
@@ -136,35 +115,22 @@ enveval(struct environment *env, struct evalstring *str)
 	return merge(str, n);
 }
 
-static int
-rulecmp(const void *k1, const void *k2)
-{
-	const struct rule *r1 = k1, *r2 = k2;
-
-	return strcmp(r1->name, r2->name);
-}
-
 void
 envaddrule(struct environment *env, struct rule *r)
 {
-	struct rule **node;
-
-	node = tsearch(r, &env->rules, rulecmp);
-	if (!node)
-		err(1, "tsearch");
-	if (*node != r)
+	if (treeinsert(&env->rules, r->name, r))
 		errx(1, "rule %s already defined", r->name);
 }
 
 struct rule *
 envrule(struct environment *env, char *name)
 {
-	struct rule key = {.name = name}, **node;
+	struct rule *r;
 
 	do {
-		node = tfind(&key, &env->rules, rulecmp);
-		if (node)
-			return *node;
+		r = treefind(env->rules, name);
+		if (r)
+			return r;
 		env = env->parent;
 	} while (env);
 
@@ -218,15 +184,14 @@ ruleaddvar(struct rule *r, char *var, struct evalstring *val)
 struct string *
 edgevar(struct edge *e, char *var)
 {
-	struct binding key = {.var = var}, **node;
 	struct string *val;
 	struct evalstring *str;
 	struct evalstringpart *p;
 	size_t n;
 
-	node = tfind(&key, &e->env->bindings, bindingcmp);
-	if (node && (*node)->val)
-		return (*node)->val;
+	val = treefind(e->env->bindings, var);
+	if (val)
+		return val;
 	if (strcmp(var, "in") == 0) {
 		val = pathlist(e->in, e->inimpidx, ' ');
 	} else if (strcmp(var, "in_newline") == 0) {
@@ -237,18 +202,15 @@ edgevar(struct edge *e, char *var)
 		val = envvar(e->env->parent, var);
 		if (val)
 			return val;
-		node = tfind(&key, &e->rule->bindings, bindingcmp);
-		if (!node)
+		str = treefind(e->rule->bindings, var);
+		if (!str)
 			return NULL;
-		str = (*node)->val;
 		n = 0;
-		if (str) {
-			for (p = str->parts; p; p = p->next) {
-				if (p->var)
-					p->str = edgevar(e, p->var);
-				if (p->str)
-					n += p->str->n;
-			}
+		for (p = str->parts; p; p = p->next) {
+			if (p->var)
+				p->str = edgevar(e, p->var);
+			if (p->str)
+				n += p->str->n;
 		}
 		val = merge(str, n);
 	}
@@ -257,23 +219,10 @@ edgevar(struct edge *e, char *var)
 	return val;
 }
 
-static int
-poolcmp(const void *k1, const void *k2)
-{
-	const struct pool *p1 = k1, *p2 = k2;
-
-	return strcmp(p1->name, p2->name);
-}
-
 static void
 addpool(struct pool *p)
 {
-	struct pool **node;
-
-	node = tsearch(p, &pools, poolcmp);
-	if (!node)
-		err(1, "tsearch");
-	if (*node != p)
+	if (treeinsert(&pools, p->name, p))
 		errx(1, "pool redefined: %s", p->name);
 }
 
@@ -295,11 +244,11 @@ mkpool(char *name)
 struct pool *
 poolget(char *name)
 {
-	struct pool **p;
+	struct pool *p;
 
-	p = tfind(&(struct pool){.name = name}, &pools, poolcmp);
+	p = treefind(pools, name);
 	if (!p)
 		errx(1, "unknown pool: %s", name);
 
-	return *p;
+	return p;
 }

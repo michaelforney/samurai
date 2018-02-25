@@ -1,10 +1,9 @@
-struct edge;
 struct evalstring;
 struct string;
 
 struct rule {
 	char *name;
-	void *bindings;
+	struct treenode *bindings;
 };
 
 struct pool {
