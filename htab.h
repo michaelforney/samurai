@@ -9,7 +9,7 @@ void **htput(struct hashtable *, void *);
 void *htget(struct hashtable *, void *);
 void **htkeys(struct hashtable *, size_t *);
 
-uint64_t murmurhash64a(void *, size_t);
+uint64_t murmurhash64a(const void *, size_t);
 
 unsigned long strhash(void *);
 int streq(void *, void *);

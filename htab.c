@@ -164,11 +164,11 @@ htget(struct hashtable *ht, void *k)
 }
 
 uint64_t
-murmurhash64a(void *ptr, size_t len)
+murmurhash64a(const void *ptr, size_t len)
 {
 	uint64_t m = 0xc6a4a7935bd1e995ULL;
 	uint64_t h, k, n;
-	uint8_t *p, *end;
+	const uint8_t *p, *end;
 	int r = 47;
 
 	h = SEED ^ (len * m);
