@@ -342,8 +342,6 @@ jobdone(struct job *j)
 {
 	int status;
 
-	if (j->buf.len && !consoleused)
-		fwrite(j->buf.data, 1, j->buf.len, stdout);
 	if (waitpid(j->pid, &status, 0) < 0) {
 		warn("waitpid %d", j->pid);
 		j->failed = true;
@@ -361,6 +359,8 @@ jobdone(struct job *j)
 		j->failed = true;
 	}
 	close(j->fd);
+	if (j->buf.len && (!consoleused || j->failed))
+		fwrite(j->buf.data, 1, j->buf.len, stdout);
 	j->buf.len = 0;
 	if (!j->failed)
 		edgedone(j->edge);
