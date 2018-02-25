@@ -1,6 +1,6 @@
 #include <stdint.h>  /* for uint64_t */
 
-typedef unsigned long (*hashfn)(void *);
+typedef uint64_t (*hashfn)(void *);
 typedef int (*eqfn)(void *, void *);
 
 struct hashtable *mkht(size_t, hashfn, eqfn);

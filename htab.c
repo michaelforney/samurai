@@ -16,7 +16,7 @@ struct hashtable {
 	eqfn eq;
 	void **keys;
 	void **vals;
-	unsigned long *hashes;
+	uint64_t *hashes;
 };
 
 /* Creates a new empty hash table, using 'sz' as the initial size, 'hash' as the
@@ -57,10 +57,10 @@ htfree(struct hashtable *ht, void (*del)(void *))
 }
 
 /* Offsets the hash so that '0' can be used as a 'no valid value' */
-static unsigned long
+static uint64_t
 hash(struct hashtable *ht, void *k)
 {
-	unsigned long h;
+	uint64_t h;
 	h = ht->hash(k);
 	if (h == 0)
 		return 1;
@@ -75,7 +75,7 @@ grow(struct hashtable *ht, int sz)
 {
 	void **oldk;
 	void **oldv;
-	unsigned long *oldh;
+	uint64_t *oldh;
 	int oldsz;
 	int i;
 
@@ -106,7 +106,7 @@ void **
 htput(struct hashtable *ht, void *k)
 {
 	int i;
-	unsigned long h;
+	uint64_t h;
 	int di;
 
 	if (ht->sz < ht->nelt * 2)
@@ -133,7 +133,7 @@ static ssize_t
 htidx(struct hashtable *ht, void *k)
 {
 	ssize_t i;
-	unsigned long h;
+	uint64_t h;
 	int di;
 
 	di = 0;
