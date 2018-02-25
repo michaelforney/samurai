@@ -7,30 +7,23 @@
 #include "htab.h"
 #include "util.h"
 
-#define SEED 0xdecafbaddecafbadULL
-
 struct hashtable {
 	size_t nelt;
 	size_t sz;
-	hashfn hash;
-	eqfn eq;
-	void **keys;
+	const char **keys;
 	void **vals;
 	uint64_t *hashes;
 };
 
-/* Creates a new empty hash table, using 'sz' as the initial size, 'hash' as the
- * hash function, and 'eq' to verify that there are no hash collisions. */
+/* Creates a new empty hash table, using 'sz' as the initial size. */
 struct hashtable *
-mkht(size_t sz, hashfn hash, eqfn eq)
+mkht(size_t sz)
 {
 	struct hashtable *ht;
 
 	ht = xmalloc(sizeof(*ht));
 	ht->nelt = 0;
 	ht->sz = sz;
-	ht->hash = hash;
-	ht->eq = eq;
 	ht->keys = xcalloc(sz, sizeof(ht->keys[0]));
 	ht->vals = xcalloc(sz, sizeof(ht->vals[0]));
 	ht->hashes = xcalloc(sz, sizeof(ht->hashes[0]));
@@ -58,14 +51,13 @@ htfree(struct hashtable *ht, void (*del)(void *))
 
 /* Offsets the hash so that '0' can be used as a 'no valid value' */
 static uint64_t
-hash(struct hashtable *ht, void *k)
+hash(const char *k)
 {
 	uint64_t h;
-	h = ht->hash(k);
-	if (h == 0)
-		return 1;
-	else
-		return h;
+
+	h = murmurhash64a(k, strlen(k));
+
+	return h ? h : 1;
 }
 
 /* Resizes the hash table by copying all the old keys into the right slots in a
@@ -73,7 +65,7 @@ hash(struct hashtable *ht, void *k)
 static void
 grow(struct hashtable *ht, int sz)
 {
-	void **oldk;
+	const char **oldk;
 	void **oldv;
 	uint64_t *oldh;
 	int oldsz;
@@ -103,7 +95,7 @@ grow(struct hashtable *ht, int sz)
 /* Inserts or retrieves 'k' from the hash table, possibly killing any previous
  * key that compare as equal. */
 void **
-htput(struct hashtable *ht, void *k)
+htput(struct hashtable *ht, const char *k)
 {
 	int i;
 	uint64_t h;
@@ -113,10 +105,10 @@ htput(struct hashtable *ht, void *k)
 		grow(ht, ht->sz * 2);
 
 	di = 0;
-	h = hash(ht, k);
+	h = hash(k);
 	i = h & (ht->sz - 1);
 	while (ht->hashes[i]) {
-		if (ht->hashes[i] == h && ht->eq(ht->keys[i], k))
+		if (ht->hashes[i] == h && strcmp(ht->keys[i], k) == 0)
 			return &ht->vals[i];
 		di++;
 		i = (h + di) & (ht->sz - 1);
@@ -130,19 +122,19 @@ htput(struct hashtable *ht, void *k)
 
 /* Finds the index that we would insert the key into */
 static ssize_t
-htidx(struct hashtable *ht, void *k)
+htidx(struct hashtable *ht, const char *k)
 {
 	ssize_t i;
 	uint64_t h;
 	int di;
 
 	di = 0;
-	h = hash(ht, k);
+	h = hash(k);
 	i = h & (ht->sz - 1);
 	for (;;) {
 		if (!ht->hashes[i])
 			return -1;
-		if (ht->hashes[i] == h && ht->eq(ht->keys[i], k))
+		if (ht->hashes[i] == h && strcmp(ht->keys[i], k) == 0)
 			return i;
 		di++;
 		i = (h + di) & (ht->sz - 1);
@@ -152,7 +144,7 @@ htidx(struct hashtable *ht, void *k)
 /* Looks up a key, returning NULL if the value is not present. Note, if NULL is
  * a valid value, you need to check with hthas() to see if it's not there */
 void *
-htget(struct hashtable *ht, void *k)
+htget(struct hashtable *ht, const char *k)
 {
 	ssize_t i;
 
@@ -166,12 +158,13 @@ htget(struct hashtable *ht, void *k)
 uint64_t
 murmurhash64a(const void *ptr, size_t len)
 {
-	uint64_t m = 0xc6a4a7935bd1e995ULL;
+	const uint64_t seed = 0xdecafbaddecafbadull;
+	const uint64_t m = 0xc6a4a7935bd1e995ull;
 	uint64_t h, k, n;
 	const uint8_t *p, *end;
 	int r = 47;
 
-	h = SEED ^ (len * m);
+	h = seed ^ (len * m);
 	n = len & ~0x7ull;
 	end = ptr;
 	end += n;
@@ -202,22 +195,4 @@ murmurhash64a(const void *ptr, size_t len)
 	h ^= h >> r;
 
 	return h;
-}
-
-unsigned long
-strhash(void *s)
-{
-	if (!s)
-		return SEED;
-	return murmurhash64a(s, strlen(s));
-}
-
-int
-streq(void *a, void *b)
-{
-	if (a == b)
-		return 1;
-	if (a == NULL || b == NULL)
-		return 0;
-	return !strcmp(a, b);
 }

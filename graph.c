@@ -37,7 +37,7 @@ graphinit(void)
 		free(e->in);
 		free(e);
 	}
-	allnodes = mkht(1024, strhash, streq);
+	allnodes = mkht(1024);
 }
 
 struct node *
