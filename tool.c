@@ -2,7 +2,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include "arg.h"
 #include "env.h"
 #include "graph.h"
@@ -12,10 +11,10 @@
 static int
 cleannode(struct node *n)
 {
-	if (unlink(n->path->s) == 0) {
+	if (remove(n->path->s) == 0) {
 		printf("remove %s\n", n->path->s);
 	} else if (errno != ENOENT) {
-		warn("unlink %s", n->path->s);
+		warn("remove %s", n->path->s);
 		return -1;
 	}
 

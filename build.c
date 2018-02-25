@@ -270,7 +270,7 @@ err2:
 	close(fd[1]);
 err1:
 	if (rspfile)
-		unlink(rspfile->s);
+		remove(rspfile->s);
 err0:
 	return -1;
 }
@@ -360,7 +360,7 @@ edgedone(struct edge *e)
 	}
 	rspfile = edgevar(e, "rspfile");
 	if (rspfile)
-		unlink(rspfile->s);
+		remove(rspfile->s);
 	edgehash(e);
 	depsrecord(e);
 	for (i = 0; i < e->nout; ++i) {

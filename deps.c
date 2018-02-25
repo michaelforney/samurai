@@ -401,7 +401,7 @@ depsrecord(struct edge *e)
 	out = e->out[0];
 	nodestat(out);
 	deps = depsparse(depfile->s, out->path);
-	unlink(depfile->s);
+	remove(depfile->s);
 	if (!deps)
 		return;
 	update = false;
