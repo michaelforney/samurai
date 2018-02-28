@@ -28,7 +28,6 @@ struct buildoptions buildopts = {.maxfail = 1};
 static struct edge *work;
 static size_t nstarted, ntotal;
 static bool consoleused;
-extern char **environ;
 
 /* returns whether n1 is newer than n2, or false if n1 is NULL */
 static bool
@@ -183,6 +182,7 @@ buildadd(struct node *n)
 static int
 jobstart(struct job *j, struct edge *e)
 {
+	extern char **environ;
 	size_t i;
 	struct node *n;
 	struct string *rspfile, *content, *description;
