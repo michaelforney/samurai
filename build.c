@@ -24,6 +24,7 @@ struct job {
 	bool failed;
 };
 
+struct buildoptions buildopts = {.maxfail = 1};
 static struct edge *work;
 static size_t nstarted, ntotal;
 static bool consoleused;
@@ -148,7 +149,7 @@ buildadd(struct node *n)
 }
 
 static int
-jobstart(struct job *j, struct edge *e, bool verbose)
+jobstart(struct job *j, struct edge *e)
 {
 	size_t i;
 	struct node *n;
@@ -186,7 +187,7 @@ jobstart(struct job *j, struct edge *e, bool verbose)
 	argv[2] = j->cmd->s;
 
 	if (!consoleused) {
-		description = verbose ? NULL : edgevar(e, "description");
+		description = buildopts.verbose ? NULL : edgevar(e, "description");
 		if (!description || description->n == 0)
 			description = j->cmd;
 		printf("[%zu/%zu] %s\n", nstarted, ntotal, description->s);
@@ -403,15 +404,15 @@ done:
 }
 
 void
-build(int maxjobs, int maxfail, bool verbose)
+build(void)
 {
-	struct job jobs[maxjobs];
-	struct pollfd fds[maxjobs];
+	struct job jobs[buildopts.maxjobs];
+	struct pollfd fds[buildopts.maxjobs];
 	size_t i;
-	int avail[maxjobs], j, next = 0, numjobs = 0, numfail = 0;
+	int avail[buildopts.maxjobs], j, next = 0, numjobs = 0, numfail = 0;
 	struct edge *e;
 
-	for (j = 0; j < maxjobs; ++j) {
+	for (j = 0; j < buildopts.maxjobs; ++j) {
 		jobs[j].buf.data = NULL;
 		jobs[j].buf.len = 0;
 		jobs[j].buf.cap = 0;
@@ -419,7 +420,7 @@ build(int maxjobs, int maxfail, bool verbose)
 		fds[j].events = POLLIN;
 		avail[j] = j + 1;
 	}
-	avail[maxjobs - 1] = -1;
+	avail[buildopts.maxjobs - 1] = -1;
 
 	if (!work)
 		warnx("nothing to do");
@@ -427,7 +428,7 @@ build(int maxjobs, int maxfail, bool verbose)
 	nstarted = 0;
 	for (;;) {
 		/* start ready edges */
-		while (work && numjobs < maxjobs && (!maxfail || numfail < maxfail)) {
+		while (work && numjobs != buildopts.maxjobs && numfail != buildopts.maxfail) {
 			e = work;
 			work = work->worknext;
 			if (e->rule == &phonyrule) {
@@ -435,7 +436,7 @@ build(int maxjobs, int maxfail, bool verbose)
 					nodedone(e->out[i], false);
 				continue;
 			}
-			fds[next].fd = jobstart(&jobs[next], e, verbose);
+			fds[next].fd = jobstart(&jobs[next], e);
 			if (fds[next].fd < 0) {
 				warnx("job failed to start");
 				++numfail;
@@ -449,9 +450,9 @@ build(int maxjobs, int maxfail, bool verbose)
 
 		/* wait for job to finish */
 		do {
-			if (poll(fds, maxjobs, -1) < 0)
+			if (poll(fds, buildopts.maxjobs, -1) < 0)
 				err(1, "poll");
-			for (j = 0; j < maxjobs; ++j) {
+			for (j = 0; j < buildopts.maxjobs; ++j) {
 				if (!fds[j].revents || jobwork(&jobs[j]))
 					continue;
 				--numjobs;
@@ -461,12 +462,12 @@ build(int maxjobs, int maxfail, bool verbose)
 				if (jobs[j].failed)
 					++numfail;
 			}
-		} while (numjobs == maxjobs);
+		} while (numjobs == buildopts.maxjobs);
 	}
-	for (j = 0; j < maxjobs; ++j)
+	for (j = 0; j < buildopts.maxjobs; ++j)
 		free(jobs[j].buf.data);
 	if (numfail > 0) {
-		if (numfail < maxfail)
+		if (numfail < buildopts.maxfail)
 			errx(1, "cannot make progress due to previous errors");
 		else if (numfail > 1)
 			errx(1, "subcommands failed");

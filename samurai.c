@@ -76,12 +76,8 @@ builddefault(void)
 int
 main(int argc, char *argv[])
 {
-	/* options */
 	char *manifest = "build.ninja";
-	int maxjobs = 0, maxfail = 1;
 	struct tool *tool = NULL;
-	bool verbose = false;
-
 	struct node *n;
 	int builddirfd, tries;
 	char *end;
@@ -97,44 +93,43 @@ main(int argc, char *argv[])
 		manifest = EARGF(usage());
 		break;
 	case 'j':
-		maxjobs = strtol(EARGF(usage()), NULL, 10);
-		if (maxjobs <= 0)
+		buildopts.maxjobs = strtol(EARGF(usage()), NULL, 10);
+		if (buildopts.maxjobs <= 0)
 			errx(1, "invalid -j parameter");
 		break;
 	case 'k':
-		maxfail = strtol(EARGF(usage()), &end, 10);
+		buildopts.maxfail = strtol(EARGF(usage()), &end, 10);
 		if (*end)
 			errx(1, "invalid -k parameter");
-		if (maxfail < 0)
-			maxfail = 0;
+		if (buildopts.maxfail == 0)
+			buildopts.maxfail = -1;
 		break;
 	case 't':
 		tool = toolget(EARGF(usage()));
 		goto argdone;
 	case 'v':
-		verbose = true;
+		buildopts.verbose = true;
 		break;
 	default:
 		usage();
 	} ARGEND
 argdone:
-
-	if (!maxjobs) {
+	if (!buildopts.maxjobs) {
 #ifdef _SC_NPROCESSORS_ONLN
 		int n = sysconf(_SC_NPROCESSORS_ONLN);
 		switch (n) {
 		case -1: case 0: case 1:
-			maxjobs = 2;
+			buildopts.maxjobs = 2;
 			break;
 		case 2:
-			maxjobs = 3;
+			buildopts.maxjobs = 3;
 			break;
 		default:
-			maxjobs = n + 2;
+			buildopts.maxjobs = n + 2;
 			break;
 		}
 #else
-		maxjobs = 2;
+		buildopts.maxjobs = 2;
 #endif
 	}
 
@@ -165,7 +160,7 @@ retry:
 	if (n && n->gen) {
 		buildadd(n);
 		if (n->dirty) {
-			build(maxjobs, maxfail, verbose);
+			build();
 			if (++tries > 100)
 				errx(1, "manifest '%s' dirty after 100 tries", manifest);
 			goto retry;
@@ -183,7 +178,7 @@ retry:
 	} else {
 		builddefault();
 	}
-	build(maxjobs, maxfail, verbose);
+	build();
 	logclose();
 
 	return 0;
