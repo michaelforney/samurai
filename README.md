@@ -2,11 +2,18 @@
 
 [![Build Status](https://travis-ci.org/michaelforney/samurai.svg?branch=master)](https://travis-ci.org/michaelforney/samurai)
 
-samurai is a ninja-compatible build tool written in C.
+samurai is a ninja-compatible build tool written in C99 with a focus on
+simplicity, speed, and portability.
 
-It is mostly feature-complete, and is able to build large projects like
-`chromium`, `llvm`, and [`oasis`](https://github.com/michaelforney/oasis).
+## Status
+
+samurai implements the ninja build language through version 1.8.2 except
+for MSVC dependency handling (`deps = msvc`). It uses the same format
+for `.ninja_log` and `.ninja_deps` as ninja, currently version 5 and 3
+respectively.
+
+It is largely feature-complete and supports most of the same options as ninja.
 
 ## Requirements
 
-samurai should run on any POSIX system.
+samurai requires various POSIX.1-2008 interfaces.
