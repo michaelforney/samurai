@@ -16,11 +16,11 @@
 #include "util.h"
 
 struct job {
-	pid_t pid;
 	struct string *cmd;
-	int fd;
 	struct edge *edge;
 	struct buffer buf;
+	pid_t pid;
+	int fd, next;
 	bool failed;
 };
 
@@ -441,18 +441,17 @@ build(void)
 	struct job jobs[buildopts.maxjobs];
 	struct pollfd fds[buildopts.maxjobs];
 	size_t i;
-	int avail[buildopts.maxjobs], j, next = 0, numjobs = 0, numfail = 0;
+	int j, next = 0, numjobs = 0, numfail = 0;
 	struct edge *e;
 
 	for (j = 0; j < buildopts.maxjobs; ++j) {
 		jobs[j].buf.data = NULL;
 		jobs[j].buf.len = 0;
 		jobs[j].buf.cap = 0;
+		jobs[j].next = j + 1;
 		fds[j].fd = -1;
 		fds[j].events = POLLIN;
-		avail[j] = j + 1;
 	}
-	avail[buildopts.maxjobs - 1] = -1;
 
 	if (!work)
 		warnx("nothing to do");
@@ -473,7 +472,7 @@ build(void)
 				warnx("job failed to start");
 				++numfail;
 			} else {
-				next = avail[next];
+				next = jobs[next].next;
 				++numjobs;
 			}
 		}
@@ -488,7 +487,7 @@ build(void)
 				if (!fds[j].revents || jobwork(&jobs[j]))
 					continue;
 				--numjobs;
-				avail[j] = next;
+				jobs[j].next = next;
 				fds[j].fd = -1;
 				next = j;
 				if (jobs[j].failed)
