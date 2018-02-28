@@ -2,7 +2,7 @@ struct node;
 
 struct buildoptions {
 	int maxjobs, maxfail;
-	_Bool verbose;
+	_Bool verbose, explain;
 };
 
 extern struct buildoptions buildopts;

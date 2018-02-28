@@ -1,4 +1,4 @@
-.Dd October 18, 2017
+.Dd February 27, 2018
 .Dt SAMU 1
 .Os
 .Sh NAME
@@ -7,6 +7,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl C Ar dir
+.Op Fl d Ar debugmode
 .Op Fl f Ar buildfile
 .Op Fl j Ar maxjobs
 .Op Fl k Ar maxfail
@@ -52,6 +53,13 @@ is specified.
 Switch working directory to
 .Ar dir
 before building.
+.It Fl d
+Enable debug output.
+If
+.Ar debugmode
+is
+.Cm explain ,
+print messages explaining why outputs were dirty.
 .It Fl f
 Load manifest from
 .Ar buildfile

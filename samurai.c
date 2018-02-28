@@ -73,6 +73,15 @@ builddefault(void)
 	}
 }
 
+static void
+debug(const char *mode)
+{
+	if (strcmp(mode, "explain") == 0)
+		buildopts.explain = true;
+	else
+		errx(1, "unknown debug mode: %s", mode);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -88,6 +97,9 @@ main(int argc, char *argv[])
 	case 'C':
 		if (chdir(EARGF(usage())) < 0)
 			err(1, "chdir");
+		break;
+	case 'd':
+		debug(EARGF(usage()));
 		break;
 	case 'f':
 		manifest = EARGF(usage());

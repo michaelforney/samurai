@@ -50,19 +50,40 @@ isdirty(struct node *n, struct node *newest, bool generator, bool restat)
 	struct edge *e;
 
 	e = n->gen;
-	if (e->rule == &phonyrule)
-		return e->nin == 0 && n->mtime.tv_nsec == MTIME_MISSING;
-	if (n->mtime.tv_nsec == MTIME_MISSING)
+	if (e->rule == &phonyrule) {
+		if (e->nin > 0 || n->mtime.tv_nsec != MTIME_MISSING)
+			return false;
+		if (buildopts.explain)
+			warnx("explain %s: phony and no inputs", n->path->s);
 		return true;
-	if (newest && n->logmtime < newest->mtime.tv_sec)
+	}
+	if (n->mtime.tv_nsec == MTIME_MISSING) {
+		if (buildopts.explain)
+			warnx("explain %s: missing", n->path->s);
 		return true;
-	if (isnewer(newest, n) && !restat)
+	}
+	if (isnewer(newest, n) && !restat) {
+		if (buildopts.explain) {
+			warnx("explain %s: older than input '%s': %ju vs %ju",
+			      n->path->s, newest->path->s, (uintmax_t)n->logmtime, (uintmax_t)newest->mtime.tv_sec);
+		}
 		return true;
+	}
+	if (newest && n->logmtime < newest->mtime.tv_sec) {
+		if (buildopts.explain) {
+			warnx("explain %s: recorded mtime is older than input '%s': %ju vs %ju",
+			      n->path->s, newest->path->s, (uintmax_t)n->logmtime, (uintmax_t)newest->mtime.tv_sec);
+		}
+		return true;
+	}
 	if (generator)
 		return false;
 	edgehash(e);
-
-	return e->hash != n->hash;
+	if (e->hash == n->hash)
+		return false;
+	if (buildopts.explain)
+		warnx("explain %s: command line changed", n->path->s);
+	return true;
 }
 
 /* add an edge to the work queue */
@@ -105,6 +126,7 @@ buildadd(struct node *n)
 	e->flags |= FLAG_CYCLE | FLAG_WORK;
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
+		n->dirty = false;
 		if (n->mtime.tv_nsec == MTIME_UNKNOWN)
 			nodestat(n);
 	}
@@ -113,7 +135,6 @@ buildadd(struct node *n)
 	newest = NULL;
 	for (i = 0; i < e->nin; ++i) {
 		n = e->in[i];
-
 		buildadd(n);
 		if (i < e->inorderidx) {
 			if (n->dirty)
@@ -130,12 +151,23 @@ buildadd(struct node *n)
 	generator = edgevar(e, "generator");
 	restat = edgevar(e, "restat");
 	for (i = 0; i < e->nout && !(e->flags & FLAG_DIRTY_OUT); ++i) {
-		if (isdirty(e->out[i], newest, generator, restat))
-			e->flags |= FLAG_DIRTY_OUT;
-	}
-	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
-		n->dirty = e->flags & FLAG_DIRTY;
+		if (isdirty(n, newest, generator, restat)) {
+			n->dirty = true;
+			e->flags |= FLAG_DIRTY_OUT;
+		}
+	}
+	if (e->flags & FLAG_DIRTY) {
+		for (i = 0; i < e->nout; ++i) {
+			n = e->out[i];
+			if (buildopts.explain && !n->dirty) {
+				if (e->flags & FLAG_DIRTY_IN)
+					warnx("explain %s: input is dirty", n->path->s);
+				else if (e->flags & FLAG_DIRTY_OUT)
+					warnx("explain %s: output of generating action is dirty", n->path->s);
+			}
+			n->dirty = true;
+		}
 	}
 	if (!(e->flags & FLAG_DIRTY_OUT))
 		e->nprune = e->nblock;
