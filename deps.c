@@ -14,9 +14,9 @@
 /*
 .ninja_deps file format
 
-The header identifying the format is the string "# ninjadeps\n". After this is a
-series of binary records. Integers in these records are written in system
-byte-order.
+The header identifying the format is the string "# ninjadeps\n", followed by a
+4-byte integer specifying the format version. After this is a series of binary
+records. All integers in .ninja_deps are written in system byte-order.
 
 A record starts with a 4-byte integer indicating the record type and size. If
 the high bit is set, then it is a dependency record. Otherwise, it is a node
