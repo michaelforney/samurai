@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
 #include "htab.h"
 #include "util.h"
 
@@ -110,12 +109,11 @@ htput(struct hashtable *ht, const char *k)
 }
 
 /* Finds the index that we would insert the key into */
-static ssize_t
+static size_t
 htidx(struct hashtable *ht, const char *k)
 {
-	ssize_t i;
+	size_t i, di;
 	uint64_t h;
-	int di;
 
 	di = 0;
 	h = murmurhash64a(k, strlen(k));
@@ -135,13 +133,10 @@ htidx(struct hashtable *ht, const char *k)
 void *
 htget(struct hashtable *ht, const char *k)
 {
-	ssize_t i;
+	size_t i;
 
 	i = htidx(ht, k);
-	if (i < 0)
-		return NULL;
-	else
-		return ht->vals[i];
+	return i == (size_t)-1 ? NULL : ht->vals[i];
 }
 
 uint64_t
