@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "build.h"
 #include "deps.h"
 #include "env.h"
 #include "graph.h"
@@ -360,21 +361,27 @@ depsload(struct edge *e)
 	struct nodearray *deps = NULL;
 	struct node *n;
 
+	n = e->out[0];
 	deptype = edgevar(e, "deps");
 	if (deptype) {
-		n = e->out[0];
 		if (n->id != -1 && (n->mtime < 0 || n->mtime / 1000000000 <= entries[n->id].mtime))
 			deps = &entries[n->id].deps;
+		else if (buildopts.explain)
+			warnx("explain %s: missing or outdated record in .ninja_deps", n->path->s);
 	} else {
 		depfile = edgevar(e, "depfile");
 		if (!depfile)
 			return;
-		deps = depsparse(depfile->s, e->out[0]->path);
+		deps = depsparse(depfile->s, n->path);
+		if (buildopts.explain && !deps)
+			warnx("explain %s: missing or invalid dep file", n->path->s);
 	}
-	if (deps)
+	if (deps) {
 		edgeadddeps(e, deps->node, deps->len);
-	else
+	} else {
+		n->dirty = true;
 		e->flags |= FLAG_DIRTY_OUT;
+	}
 }
 
 void
