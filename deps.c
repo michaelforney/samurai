@@ -362,7 +362,7 @@ depsload(struct edge *e)
 	deptype = edgevar(e, "deps");
 	if (deptype) {
 		n = e->out[0];
-		if (n->id != -1 && (n->mtime.tv_nsec < 0 || n->mtime.tv_sec <= entries[n->id].mtime))
+		if (n->id != -1 && (n->mtime < 0 || n->mtime / 1000000000 <= entries[n->id].mtime))
 			deps = &entries[n->id].deps;
 	} else {
 		depfile = edgevar(e, "depfile");
@@ -385,6 +385,7 @@ depsrecord(struct edge *e)
 	struct entry *entry;
 	size_t i;
 	bool update;
+	uint32_t mtime;
 
 	deptype = edgevar(e, "deps");
 	if (!deptype || deptype->n == 0)
@@ -400,6 +401,7 @@ depsrecord(struct edge *e)
 	}
 	out = e->out[0];
 	nodestat(out);
+	mtime = out->mtime / 1000000000;
 	deps = depsparse(depfile->s, out->path);
 	remove(depfile->s);
 	if (!deps)
@@ -410,7 +412,7 @@ depsrecord(struct edge *e)
 		update = true;
 	} else {
 		entry = &entries[out->id];
-		if (entry->mtime != out->mtime.tv_sec || entry->deps.len != deps->len)
+		if (entry->mtime != mtime || entry->deps.len != deps->len)
 			update = true;
 		for (i = 0; i < deps->len && !update; ++i) {
 			if (entry->deps.node[i] != deps->node[i])
@@ -423,5 +425,5 @@ depsrecord(struct edge *e)
 			update = true;
 	}
 	if (update)
-		recorddeps(out, deps, out->mtime.tv_sec);
+		recorddeps(out, deps, mtime);
 }

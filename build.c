@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <poll.h>
 #include <signal.h>
 #include <spawn.h>
@@ -33,13 +34,7 @@ static bool consoleused;
 static bool
 isnewer(struct node *n1, struct node *n2)
 {
-	if (!n1)
-		return false;
-	if (n1->mtime.tv_sec > n2->mtime.tv_sec)
-		return true;
-	if (n1->mtime.tv_sec < n2->mtime.tv_sec)
-		return false;
-	return n1->mtime.tv_nsec > n2->mtime.tv_nsec;
+	return n1 && n1->mtime > n2->mtime;
 }
 
 /* returns whether this output node is dirty in relation to the newest input */
@@ -50,28 +45,28 @@ isdirty(struct node *n, struct node *newest, bool generator, bool restat)
 
 	e = n->gen;
 	if (e->rule == &phonyrule) {
-		if (e->nin > 0 || n->mtime.tv_nsec != MTIME_MISSING)
+		if (e->nin > 0 || n->mtime != MTIME_MISSING)
 			return false;
 		if (buildopts.explain)
 			warnx("explain %s: phony and no inputs", n->path->s);
 		return true;
 	}
-	if (n->mtime.tv_nsec == MTIME_MISSING) {
+	if (n->mtime == MTIME_MISSING) {
 		if (buildopts.explain)
 			warnx("explain %s: missing", n->path->s);
 		return true;
 	}
 	if (isnewer(newest, n) && !restat) {
 		if (buildopts.explain) {
-			warnx("explain %s: older than input '%s': %ju vs %ju",
-			      n->path->s, newest->path->s, (uintmax_t)n->logmtime, (uintmax_t)newest->mtime.tv_sec);
+			warnx("explain %s: older than input '%s': %" PRId64 " vs %" PRId64,
+			      n->path->s, newest->path->s, n->mtime, newest->mtime);
 		}
 		return true;
 	}
-	if (newest && n->logmtime < newest->mtime.tv_sec) {
+	if (newest && n->logmtime < newest->mtime / 1000000000) {
 		if (buildopts.explain) {
-			warnx("explain %s: recorded mtime is older than input '%s': %ju vs %ju",
-			      n->path->s, newest->path->s, (uintmax_t)n->logmtime, (uintmax_t)newest->mtime.tv_sec);
+			warnx("explain %s: recorded mtime is older than input '%s': %" PRId64 " vs %" PRId64,
+			      n->path->s, newest->path->s, n->logmtime, newest->mtime / 1000000000);
 		}
 		return true;
 	}
@@ -111,9 +106,9 @@ buildadd(struct node *n)
 
 	e = n->gen;
 	if (!e) {
-		if (n->mtime.tv_nsec == MTIME_UNKNOWN)
+		if (n->mtime == MTIME_UNKNOWN)
 			nodestat(n);
-		if (n->mtime.tv_nsec == MTIME_MISSING)
+		if (n->mtime == MTIME_MISSING)
 			errx(1, "file is missing and not created by any action: '%s'", n->path->s);
 		n->dirty = false;
 		return;
@@ -126,7 +121,7 @@ buildadd(struct node *n)
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
 		n->dirty = false;
-		if (n->mtime.tv_nsec == MTIME_UNKNOWN)
+		if (n->mtime == MTIME_UNKNOWN)
 			nodestat(n);
 	}
 	depsload(e);
@@ -138,7 +133,7 @@ buildadd(struct node *n)
 		if (i < e->inorderidx) {
 			if (n->dirty)
 				e->flags |= FLAG_DIRTY_IN;
-			if (n->mtime.tv_nsec != MTIME_MISSING && !isnewer(newest, n))
+			if (n->mtime != MTIME_MISSING && !isnewer(newest, n))
 				newest = n;
 		}
 		if (n->dirty || (n->gen && n->gen->nblock > 0)) {
@@ -193,7 +188,7 @@ jobstart(struct job *j, struct edge *e)
 	++nstarted;
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
-		if (n->mtime.tv_nsec == MTIME_MISSING) {
+		if (n->mtime == MTIME_MISSING) {
 			if (makedirs(n->path) < 0)
 				goto err0;
 		}
@@ -301,24 +296,22 @@ nodedone(struct node *n, bool prune)
 }
 
 static bool
-shouldprune(struct edge *e, struct node *n, const struct timespec *old)
+shouldprune(struct edge *e, struct node *n, int64_t old)
 {
 	struct node *in, *newest;
 	size_t i;
 
-	if (old->tv_nsec != n->mtime.tv_nsec)
-		return false;
-	if (old->tv_nsec >= 0 && old->tv_sec != n->mtime.tv_sec)
+	if (old != n->mtime)
 		return false;
 	newest = NULL;
 	for (i = 0; i < e->inorderidx; ++i) {
 		in = e->in[i];
 		nodestat(in);
-		if (in->mtime.tv_nsec != MTIME_MISSING && !isnewer(newest, in))
+		if (in->mtime != MTIME_MISSING && !isnewer(newest, in))
 			newest = in;
 	}
 	if (newest)
-		n->logmtime = newest->mtime.tv_sec;
+		n->logmtime = newest->mtime / 1000000000;
 
 	return true;
 }
@@ -332,7 +325,7 @@ edgedone(struct edge *e)
 	size_t i;
 	struct string *rspfile;
 	bool restat;
-	struct timespec old;
+	int64_t old;
 
 	if (e->pool) {
 		p = e->pool;
@@ -354,9 +347,9 @@ edgedone(struct edge *e)
 		n = e->out[i];
 		old = n->mtime;
 		nodestat(n);
-		if (n->mtime.tv_nsec != MTIME_MISSING)
-			n->logmtime = n->mtime.tv_sec;
-		nodedone(n, restat && shouldprune(e, n, &old));
+		if (n->mtime != MTIME_MISSING)
+			n->logmtime = n->mtime / 1000000000;
+		nodedone(n, restat && shouldprune(e, n, old));
 	}
 	rspfile = edgevar(e, "rspfile");
 	if (rspfile)

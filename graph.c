@@ -57,7 +57,7 @@ mknode(struct string *path)
 	n->gen = NULL;
 	n->use = NULL;
 	n->nuse = 0;
-	n->mtime.tv_nsec = MTIME_UNKNOWN;
+	n->mtime = MTIME_UNKNOWN;
 	n->logmtime = 0;
 	/* this is a valid hash, but this only matters if the file is not
 	 * present in the log, but not otherwise dirty (in which case we don't
@@ -83,9 +83,9 @@ nodestat(struct node *n)
 	if (stat(n->path->s, &st) < 0) {
 		if (errno != ENOENT)
 			err(1, "stat %s", n->path->s);
-		n->mtime.tv_nsec = MTIME_MISSING;
+		n->mtime = MTIME_MISSING;
 	} else {
-		n->mtime = st.st_mtim;
+		n->mtime = (int64_t)st.st_mtim.tv_sec * 1000000000 + st.st_mtim.tv_nsec;
 	}
 }
 

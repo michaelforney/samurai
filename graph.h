@@ -1,4 +1,3 @@
-#include <time.h>   /* for struct timespec */
 #include <stdint.h> /* for uint64_t */
 
 /* set in the tv_nsec field of a node's mtime */
@@ -13,10 +12,8 @@ struct node {
 	/* shellpath is the escaped shell path, and is populated as needed by nodeescape */
 	struct string *path, *shellpath;
 
-	/* modification time */
-	struct timespec mtime;
-	/* modification time for build log */
-	time_t logmtime;
+	/* modification time of file (in nanoseconds) and build log entry (in seconds) */
+	int64_t mtime, logmtime;
 
 	/* generating edge and dependent edges.
 	 *

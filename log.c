@@ -39,7 +39,7 @@ loginit(int dirfd)
 	size_t sz = 0, nline, nentry, i;
 	struct edge *e;
 	struct node *n;
-	time_t mtime;
+	int64_t mtime;
 
 	nline = 0;
 	nentry = 0;
@@ -69,7 +69,7 @@ loginit(int dirfd)
 		s = nextfield(&p);  /* mtime (used for restat) */
 		if (!s)
 			continue;
-		mtime = strtol(s, &s, 10);
+		mtime = strtoll(s, &s, 10);
 		if (*s) {
 			warnx("corrupt log: invalid mtime");
 			continue;
@@ -136,5 +136,5 @@ logclose(void)
 void
 logrecord(struct node *n)
 {
-	fprintf(logfile, "0\t0\t%ld\t%s\t%" PRIx64 "\n", (long)n->logmtime, n->path->s, n->hash);
+	fprintf(logfile, "0\t0\t%" PRId64 "\t%s\t%" PRIx64 "\n", n->logmtime, n->path->s, n->hash);
 }
