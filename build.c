@@ -57,6 +57,11 @@ isdirty(struct node *n, struct node *newest, bool generator, bool restat)
 			warnx("explain %s: missing", n->path->s);
 		return true;
 	}
+	if (n->logmtime == MTIME_MISSING) {
+		if (buildopts.explain)
+			warnx("explain %s: no record in .ninja_log", n->path->s);
+		return true;
+	}
 	if (isnewer(newest, n) && !restat) {
 		if (buildopts.explain) {
 			warnx("explain %s: older than input '%s': %" PRId64 " vs %" PRId64,
@@ -348,8 +353,7 @@ edgedone(struct edge *e)
 		n = e->out[i];
 		old = n->mtime;
 		nodestat(n);
-		if (n->mtime != MTIME_MISSING)
-			n->logmtime = n->mtime / 1000000000;
+		n->logmtime = n->mtime == MTIME_MISSING ? 0 : n->mtime / 1000000000;
 		nodedone(n, restat && shouldprune(e, n, old));
 	}
 	rspfile = edgevar(e, "rspfile");
