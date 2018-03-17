@@ -2,7 +2,7 @@
 
 PREFIX=/usr/local
 MANDIR=$(PREFIX)/share/man
-ALL_CFLAGS=$(CFLAGS) -Wall -Wextra -std=c99 -pedantic -D_POSIX_C_SOURCE=200809L
+ALL_CFLAGS=$(CFLAGS) -Wall -Wextra -std=c99 -pedantic
 OBJ=\
 	build.o\
 	env.o\
