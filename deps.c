@@ -401,7 +401,6 @@ depsrecord(struct edge *e)
 		return;
 	}
 	out = e->out[0];
-	nodestat(out);
 	mtime = out->mtime / 1000000000;
 	deps = depsparse(depfile->s, out->path);
 	remove(depfile->s);
