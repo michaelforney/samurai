@@ -40,8 +40,8 @@ sequence of 4-byte integers specifying the IDs of the dependency nodes for this
 edge, which will have been specified previously in node records.
 */
 
-/* maximum record length (in uint32_t) */
-#define MAX_RECORD (1<<17)
+/* maximum record size (in bytes) */
+#define MAX_RECORD_SIZE (1<<19)
 
 struct nodearray {
 	struct node **node;
@@ -54,11 +54,12 @@ struct entry {
 	uint32_t mtime;
 };
 
-static int depsfd = -1;
 static const char depsname[] = ".ninja_deps";
 static const char depstmpname[] = ".ninja_deps.tmp";
 static const char depsheader[] = "# ninjadeps\n";
 static const uint32_t depsver = 3;
+static int depsfd = -1;
+static uint32_t *depsbuf;
 static struct entry *entries;
 static size_t entrieslen, entriescap;
 
@@ -80,7 +81,7 @@ writeall(int fd, const void *buf, size_t len)
 static bool
 recordid(struct node *n)
 {
-	uint32_t buf[MAX_RECORD], sz;
+	uint32_t sz;
 
 	if (n->id != -1)
 		return false;
@@ -88,13 +89,13 @@ recordid(struct node *n)
 		errx(1, "too many nodes");
 	n->id = entrieslen++;
 	sz = (n->path->n + 7) & ~3;
-	if (sz + 4 >= sizeof(buf))
+	if (sz + 4 >= MAX_RECORD_SIZE)
 		errx(1, "ID record too large");
-	buf[0] = sz;
-	memcpy(&buf[1], n->path->s, n->path->n);
-	memset((char *)&buf[1] + n->path->n, 0, sz - n->path->n - 4);
-	buf[sz / 4] = ~n->id;
-	writeall(depsfd, buf, 4 + sz);
+	depsbuf[0] = sz;
+	memcpy(&depsbuf[1], n->path->s, n->path->n);
+	memset((char *)&depsbuf[1] + n->path->n, 0, sz - n->path->n - 4);
+	depsbuf[sz / 4] = ~n->id;
+	writeall(depsfd, depsbuf, 4 + sz);
 
 	return true;
 }
@@ -102,24 +103,23 @@ recordid(struct node *n)
 static void
 recorddeps(struct node *out, struct nodearray *deps, uint32_t mtime)
 {
-	uint32_t buf[MAX_RECORD], sz;
+	uint32_t sz;
 	size_t i;
 
 	sz = 8 + deps->len * 4;
-	if (sz + 4 >= sizeof(buf))
+	if (sz + 4 >= MAX_RECORD_SIZE)
 		errx(1, "deps record too large");
-	buf[0] = sz | 0x80000000;
-	buf[1] = out->id;
-	buf[2] = mtime;
+	depsbuf[0] = sz | 0x80000000;
+	depsbuf[1] = out->id;
+	depsbuf[2] = mtime;
 	for (i = 0; i < deps->len; ++i)
-		buf[3 + i] = deps->node[i]->id;
-	writeall(depsfd, buf, 4 + sz);
+		depsbuf[3 + i] = deps->node[i]->id;
+	writeall(depsfd, depsbuf, 4 + sz);
 }
 
 void
 depsinit(int dirfd)
 {
-	uint32_t buf[MAX_RECORD];
 	FILE *f;
 	uint32_t ver, sz, id;
 	size_t len, i, j, nrecord;
@@ -132,6 +132,8 @@ depsinit(int dirfd)
 	/* XXX: when ninja hits a bad record, it truncates the log to the last
 	 * good record. perhaps we should do the same. */
 
+	if (!depsbuf)
+		depsbuf = xmalloc(MAX_RECORD_SIZE);
 	if (depsfd != -1)
 		close(depsfd);
 	entrieslen = 0;
@@ -141,13 +143,13 @@ depsinit(int dirfd)
 	f = fdopen(depsfd, "r");
 	if (!f)
 		goto rewrite;
-	if (!fgets((char *)buf, sizeof(buf), f))
+	if (!fgets((char *)depsbuf, sizeof(depsheader), f))
 		goto rewrite;
 	if (fread(&ver, sizeof(ver), 1, f) != 1) {
 		warn("deps read failed");
 		goto rewrite;
 	}
-	if (strcmp((char *)buf, "# ninjadeps\n") != 0) {
+	if (strcmp((char *)depsbuf, depsheader) != 0) {
 		warnx("invalid deps header");
 		goto rewrite;
 	}
@@ -160,11 +162,11 @@ depsinit(int dirfd)
 			break;
 		isdep = sz & 0x80000000;
 		sz &= 0x7fffffff;
-		if (sz > sizeof(buf)) {
+		if (sz > MAX_RECORD_SIZE) {
 			warnx("deps record too large");
 			goto rewrite;
 		}
-		if (fread(buf, sz, 1, f) != 1) {
+		if (fread(depsbuf, sz, 1, f) != 1) {
 			warn("deps read failed");
 			goto rewrite;
 		}
@@ -178,13 +180,13 @@ depsinit(int dirfd)
 				goto rewrite;
 			}
 			sz -= 8;
-			id = buf[0];
+			id = depsbuf[0];
 			if (id >= entrieslen) {
 				warnx("invalid node ID: %" PRIu32, id);
 				goto rewrite;
 			}
 			entry = &entries[id];
-			entry->mtime = buf[1];
+			entry->mtime = depsbuf[1];
 			e = entry->node->gen;
 			if (!e || !edgevar(e, "deps"))
 				continue;
@@ -193,7 +195,7 @@ depsinit(int dirfd)
 			entry->deps.len = sz;
 			entry->deps.node = xmalloc(sz * sizeof(n));
 			for (i = 0; i < sz; ++i) {
-				id = buf[2 + i];
+				id = depsbuf[2 + i];
 				if (id >= entrieslen) {
 					warnx("invalid node ID: %" PRIu32, id);
 					goto rewrite;
@@ -205,7 +207,7 @@ depsinit(int dirfd)
 				warnx("invalid size, must larger than 4: %" PRIu32, sz);
 				goto rewrite;
 			}
-			if (entrieslen != ~buf[sz / 4 - 1]) {
+			if (entrieslen != ~depsbuf[sz / 4 - 1]) {
 				warnx("corrupt deps log, bad checksum");
 				goto rewrite;
 			}
@@ -214,10 +216,10 @@ depsinit(int dirfd)
 				goto rewrite;
 			}
 			len = sz - 4;
-			while (((char *)buf)[len - 1] == '\0')
+			while (((char *)depsbuf)[len - 1] == '\0')
 				--len;
 			path = mkstr(len);
-			memcpy(path->s, buf, len);
+			memcpy(path->s, depsbuf, len);
 			path->s[len] = '\0';
 
 			n = mknode(path);
@@ -245,9 +247,9 @@ rewrite:
 	depsfd = openat(dirfd, depstmpname, O_WRONLY | O_TRUNC | O_CREAT, 0666);
 	if (depsfd < 0)
 		err(1, "open %s", depstmpname);
-	memcpy(buf, depsheader, 12);
-	buf[3] = depsver;
-	writeall(depsfd, buf, 16);
+	memcpy(depsbuf, depsheader, 12);
+	depsbuf[3] = depsver;
+	writeall(depsfd, depsbuf, 16);
 
 	/* reset ID for all current entries */
 	for (i = 0; i < entrieslen; ++i)
