@@ -93,6 +93,7 @@ loginit(int dirfd)
 			continue;
 		}
 	}
+	free(line);
 	if (ferror(logfile))
 		warnx("log read failed");
 	if (nline <= 100 || nline <= 3 * nentry)
