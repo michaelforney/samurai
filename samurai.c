@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -114,8 +115,8 @@ main(int argc, char *argv[])
 		buildopts.maxfail = strtol(EARGF(usage()), &end, 10);
 		if (*end)
 			errx(1, "invalid -k parameter");
-		if (buildopts.maxfail == 0)
-			buildopts.maxfail = -1;
+		if (buildopts.maxfail <= 0)
+			buildopts.maxfail = INT_MAX;
 		break;
 	case 't':
 		tool = toolget(EARGF(usage()));

@@ -457,7 +457,7 @@ build(void)
 	nstarted = 0;
 	for (;;) {
 		/* start ready edges */
-		while (work && numjobs != buildopts.maxjobs && numfail != buildopts.maxfail) {
+		while (work && numjobs < buildopts.maxjobs && numfail < buildopts.maxfail) {
 			e = work;
 			work = work->worknext;
 			if (e->rule == &phonyrule) {
