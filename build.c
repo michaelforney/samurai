@@ -436,12 +436,14 @@ done:
 void
 build(void)
 {
-	struct job jobs[buildopts.maxjobs];
-	struct pollfd fds[buildopts.maxjobs];
+	struct job *jobs;
+	struct pollfd *fds;
 	size_t i;
 	int j, next = 0, numjobs = 0, numfail = 0;
 	struct edge *e;
 
+	jobs = xmalloc(buildopts.maxjobs * sizeof(jobs[0]));
+	fds = xmalloc(buildopts.maxjobs * sizeof(fds[0]));
 	for (j = 0; j < buildopts.maxjobs; ++j) {
 		jobs[j].buf.data = NULL;
 		jobs[j].buf.len = 0;
@@ -495,6 +497,8 @@ build(void)
 	}
 	for (j = 0; j < buildopts.maxjobs; ++j)
 		free(jobs[j].buf.data);
+	free(jobs);
+	free(fds);
 	if (numfail > 0) {
 		if (numfail < buildopts.maxfail)
 			errx(1, "cannot make progress due to previous errors");
