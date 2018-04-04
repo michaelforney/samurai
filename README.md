@@ -17,3 +17,6 @@ It is largely feature-complete and supports most of the same options as ninja.
 ## Requirements
 
 samurai requires various POSIX.1-2008 interfaces.
+
+On macOS, you will need to add `-D st_mtim=st_mtimespec` to `CFLAGS` since
+it does not define the `st_mtim` member of `struct stat`.
