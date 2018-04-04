@@ -108,14 +108,14 @@ clean(int argc, char *argv[])
 	return ret;
 }
 
-static struct tool tools[] = {
+static const struct tool tools[] = {
 	{"clean", clean},
 };
 
-struct tool *
+const struct tool *
 toolget(const char *name)
 {
-	struct tool *t;
+	const struct tool *t;
 	size_t i;
 
 	t = NULL;
