@@ -3,4 +3,4 @@ struct tool {
 	int (*run)(int, char *[]);
 };
 
-struct tool *toolget(const char *);
+const struct tool *toolget(const char *);

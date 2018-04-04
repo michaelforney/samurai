@@ -88,7 +88,7 @@ int
 main(int argc, char *argv[])
 {
 	char *manifest = "build.ninja";
-	struct tool *tool = NULL;
+	const struct tool *tool = NULL;
 	struct node *n;
 	int builddirfd, tries;
 	char *end;

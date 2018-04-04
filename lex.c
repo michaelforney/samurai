@@ -26,7 +26,7 @@ char *lexident;
 static struct buffer buf;
 
 /* must stay in sorted order */
-static struct keyword keywords[] = {
+static const struct keyword keywords[] = {
 	{"build",    BUILD},
 	{"default",  DEFAULT},
 	{"include",  INCLUDE},
