@@ -1,7 +1,7 @@
 struct node;
 
 struct buildoptions {
-	int maxjobs, maxfail;
+	size_t maxjobs, maxfail;
 	_Bool verbose, explain;
 };
 

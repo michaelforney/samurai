@@ -21,8 +21,9 @@ struct job {
 	struct string *cmd;
 	struct edge *edge;
 	struct buffer buf;
+	size_t next;
 	pid_t pid;
-	int fd, next;
+	int fd;
 	bool failed;
 };
 
@@ -438,19 +439,18 @@ build(void)
 {
 	struct job *jobs;
 	struct pollfd *fds;
-	size_t i;
-	int j, next = 0, numjobs = 0, numfail = 0;
+	size_t i, next = 0, numjobs = 0, numfail = 0;
 	struct edge *e;
 
 	jobs = xmalloc(buildopts.maxjobs * sizeof(jobs[0]));
 	fds = xmalloc(buildopts.maxjobs * sizeof(fds[0]));
-	for (j = 0; j < buildopts.maxjobs; ++j) {
-		jobs[j].buf.data = NULL;
-		jobs[j].buf.len = 0;
-		jobs[j].buf.cap = 0;
-		jobs[j].next = j + 1;
-		fds[j].fd = -1;
-		fds[j].events = POLLIN;
+	for (i = 0; i < buildopts.maxjobs; ++i) {
+		jobs[i].buf.data = NULL;
+		jobs[i].buf.len = 0;
+		jobs[i].buf.cap = 0;
+		jobs[i].next = i + 1;
+		fds[i].fd = -1;
+		fds[i].events = POLLIN;
 	}
 
 	if (!work)
@@ -483,20 +483,20 @@ build(void)
 		do {
 			if (poll(fds, buildopts.maxjobs, -1) < 0)
 				err(1, "poll");
-			for (j = 0; j < buildopts.maxjobs; ++j) {
-				if (!fds[j].revents || jobwork(&jobs[j]))
+			for (i = 0; i < buildopts.maxjobs; ++i) {
+				if (!fds[i].revents || jobwork(&jobs[i]))
 					continue;
 				--numjobs;
-				jobs[j].next = next;
-				fds[j].fd = -1;
-				next = j;
-				if (jobs[j].failed)
+				jobs[i].next = next;
+				fds[i].fd = -1;
+				next = i;
+				if (jobs[i].failed)
 					++numfail;
 			}
 		} while (numjobs == buildopts.maxjobs);
 	}
-	for (j = 0; j < buildopts.maxjobs; ++j)
-		free(jobs[j].buf.data);
+	for (i = 0; i < buildopts.maxjobs; ++i)
+		free(jobs[i].buf.data);
 	free(jobs);
 	free(fds);
 	if (numfail > 0) {
