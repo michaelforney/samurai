@@ -45,7 +45,7 @@ openbuilddir(void)
 		if (mkdir(builddir->s, 0777) < 0)
 			err(1, "mkdir %s", builddir->s);
 	}
-	fd = open(builddir->s, O_RDONLY | O_DIRECTORY);
+	fd = open(builddir->s, O_RDONLY);
 	if (fd < 0)
 		err(1, "open %s", builddir->s);
 
