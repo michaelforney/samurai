@@ -437,21 +437,10 @@ done:
 void
 build(void)
 {
-	struct job *jobs;
-	struct pollfd *fds;
-	size_t i, next = 0, numjobs = 0, numfail = 0;
+	struct job *jobs = NULL;
+	struct pollfd *fds = NULL;
+	size_t i, next = 0, jobslen = 0, numjobs = 0, numfail = 0;
 	struct edge *e;
-
-	jobs = xmalloc(buildopts.maxjobs * sizeof(jobs[0]));
-	fds = xmalloc(buildopts.maxjobs * sizeof(fds[0]));
-	for (i = 0; i < buildopts.maxjobs; ++i) {
-		jobs[i].buf.data = NULL;
-		jobs[i].buf.len = 0;
-		jobs[i].buf.cap = 0;
-		jobs[i].next = i + 1;
-		fds[i].fd = -1;
-		fds[i].events = POLLIN;
-	}
 
 	if (!work)
 		warnx("nothing to do");
@@ -466,6 +455,21 @@ build(void)
 				for (i = 0; i < e->nout; ++i)
 					nodedone(e->out[i], false);
 				continue;
+			}
+			if (next == jobslen) {
+				jobslen = jobslen ? jobslen * 2 : 8;
+				if (jobslen > buildopts.maxjobs)
+					jobslen = buildopts.maxjobs;
+				jobs = xrealloc(jobs, jobslen * sizeof(jobs[0]));
+				fds = xrealloc(fds, jobslen * sizeof(fds[0]));
+				for (i = next; i < jobslen; ++i) {
+					jobs[i].buf.data = NULL;
+					jobs[i].buf.len = 0;
+					jobs[i].buf.cap = 0;
+					jobs[i].next = i + 1;
+					fds[i].fd = -1;
+					fds[i].events = POLLIN;
+				}
 			}
 			fds[next].fd = jobstart(&jobs[next], e);
 			if (fds[next].fd < 0) {
@@ -495,7 +499,7 @@ build(void)
 			}
 		} while (numjobs == buildopts.maxjobs);
 	}
-	for (i = 0; i < buildopts.maxjobs; ++i)
+	for (i = 0; i < jobslen; ++i)
 		free(jobs[i].buf.data);
 	free(jobs);
 	free(fds);
