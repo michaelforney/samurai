@@ -83,7 +83,11 @@ nodestat(struct node *n)
 			err(1, "stat %s", n->path->s);
 		n->mtime = MTIME_MISSING;
 	} else {
+#ifdef __APPLE__
+		n->mtime = (int64_t)st.st_mtime * 1000000000 + st.st_mtimensec;
+#else
 		n->mtime = (int64_t)st.st_mtim.tv_sec * 1000000000 + st.st_mtim.tv_nsec;
+#endif
 	}
 }
 
