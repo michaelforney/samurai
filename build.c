@@ -58,11 +58,6 @@ isdirty(struct node *n, struct node *newest, bool generator, bool restat)
 			warnx("explain %s: missing", n->path->s);
 		return true;
 	}
-	if (n->logmtime == MTIME_MISSING) {
-		if (buildopts.explain)
-			warnx("explain %s: no record in .ninja_log", n->path->s);
-		return true;
-	}
 	if (isnewer(newest, n) && !restat) {
 		if (buildopts.explain) {
 			warnx("explain %s: older than input '%s': %" PRId64 " vs %" PRId64,
@@ -70,7 +65,13 @@ isdirty(struct node *n, struct node *newest, bool generator, bool restat)
 		}
 		return true;
 	}
-	if (newest && n->logmtime < newest->mtime / 1000000000) {
+	if (n->logmtime == MTIME_MISSING) {
+		if (!generator) {
+			if (buildopts.explain)
+				warnx("explain %s: no record in .ninja_log", n->path->s);
+			return true;
+		}
+	} else if (newest && n->logmtime < newest->mtime / 1000000000) {
 		if (buildopts.explain) {
 			warnx("explain %s: recorded mtime is older than input '%s': %" PRId64 " vs %" PRId64,
 			      n->path->s, newest->path->s, n->logmtime, newest->mtime / 1000000000);
