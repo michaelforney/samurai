@@ -483,22 +483,18 @@ build(void)
 		}
 		if (numjobs == 0)
 			break;
-
-		/* wait for job to finish */
-		do {
-			if (poll(fds, buildopts.maxjobs, -1) < 0)
-				err(1, "poll");
-			for (i = 0; i < buildopts.maxjobs; ++i) {
-				if (!fds[i].revents || jobwork(&jobs[i]))
-					continue;
-				--numjobs;
-				jobs[i].next = next;
-				fds[i].fd = -1;
-				next = i;
-				if (jobs[i].failed)
-					++numfail;
-			}
-		} while (numjobs == buildopts.maxjobs);
+		if (poll(fds, jobslen, -1) < 0)
+			err(1, "poll");
+		for (i = 0; i < jobslen; ++i) {
+			if (!fds[i].revents || jobwork(&jobs[i]))
+				continue;
+			--numjobs;
+			jobs[i].next = next;
+			fds[i].fd = -1;
+			next = i;
+			if (jobs[i].failed)
+				++numfail;
+		}
 	}
 	for (i = 0; i < jobslen; ++i)
 		free(jobs[i].buf.data);
