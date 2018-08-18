@@ -18,8 +18,6 @@
 #include "tool.h"
 #include "util.h"
 
-#define NINJA_VERSION "1.8.2"
-
 char *argv0;
 
 static void
@@ -99,11 +97,10 @@ main(int argc, char *argv[])
 	ARGBEGIN {
 	case '-':
 		if (strcmp(&argv[0][1], "version") == 0) {
-			puts(NINJA_VERSION);
-			exit(0);
-		} else {
-			usage();
+			puts(ninjaversion);
+			return 0;
 		}
+		usage();
 		break;
 	case 'C':
 		if (chdir(EARGF(usage())) < 0)

@@ -8,6 +8,7 @@
 #include "parse.h"
 #include "util.h"
 
+const char *ninjaversion = "1.8.2";
 struct node **deftarg;
 size_t ndeftarg;
 
@@ -203,10 +204,8 @@ parsepool(struct environment *env)
 static void
 checkversion(const char *ver)
 {
-	static const char supported[] = "1.8";
-
-	if (strcmp(ver, supported) > 0)
-		errx(1, "ninja_required_version is newer than %s: %s", supported, ver);
+	if (strcmp(ver, ninjaversion) > 0)
+		errx(1, "ninja_required_version is newer than %s: %s", ninjaversion, ver);
 }
 
 void
