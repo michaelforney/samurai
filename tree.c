@@ -77,15 +77,14 @@ treefind(struct treenode *n, const char *k)
 {
 	int c;
 
-	if (!n)
-		return NULL;
-	c = strcmp(k, n->name);
-	if (c < 0)
-		return treefind(n->left, k);
-	if (c > 0)
-		return treefind(n->right, k);
+	while (n) {
+		c = strcmp(k, n->name);
+		if (c == 0)
+			return n->value;
+		n = c < 0 ? n->left : n->right;
+	}
 
-	return n->value;
+	return NULL;
 }
 
 void *
