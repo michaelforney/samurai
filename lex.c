@@ -162,6 +162,16 @@ whitespace(void)
 		++lexfile->p;
 }
 
+static void
+crlf(void)
+{
+	char c;
+
+	c = fileget(lexfile);
+	if (c != '\n')
+		errx(1, "expected '\\n' after '\\r', saw %d", c);
+}
+
 int
 next(void)
 {
@@ -180,6 +190,9 @@ again:
 		for (;;) {
 			c = fileget(f);
 			switch (c) {
+			case '\r':
+				crlf();
+				/* fallthrough */
 			case '\n':
 				c = fileget(f);
 				/* fallthrough */
@@ -195,6 +208,9 @@ again:
 			t = PIPE;
 		}
 		break;
+	case '\r':
+		crlf();
+		/* fallthrough */
 	case '\n':
 		t = NEWLINE;
 		break;
@@ -300,6 +316,9 @@ escape(struct evalstringpart ***end)
 			errx(1, "'%c' is not allowed in variable name", c);
 		addstringpart(end, true);
 		break;
+	case '\r':
+		crlf();
+		/* fallthrough */
 	case '\n':
 		whitespace();
 		break;
@@ -337,6 +356,7 @@ readstr(bool path)
 				break;
 			}
 			goto out;
+		case '\r':
 		case '\n':
 		case EOF:
 			goto out;
