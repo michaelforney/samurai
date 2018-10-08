@@ -108,7 +108,7 @@ parseedge(struct environment *env)
 		canonpath(s);
 		*n = mknode(s);
 		if ((*n)->gen)
-			errx(1, "multiple rules generate '%s'", (*n)->path->s);
+			warnx("multiple rules generate '%s'", (*n)->path->s);
 		(*n)->gen = e;
 	}
 
