@@ -61,7 +61,8 @@ parseedge(struct environment *env)
 	struct evalstring *out, *in, *str, **end;
 	char *var;
 	struct string *s;
-	struct node **n;
+	struct node *n;
+	size_t i;
 
 	e = mkedge(env);
 
@@ -101,24 +102,31 @@ parseedge(struct environment *env)
 	}
 
 	e->out = xmalloc(e->nout * sizeof(*n));
-	for (n = e->out; out; out = str, ++n) {
+	for (i = 0; i < e->nout; out = str) {
 		str = out->next;
 		s = enveval(e->env, out);
 		delstr(out);
 		canonpath(s);
-		*n = mknode(s);
-		if ((*n)->gen)
-			errx(1, "multiple rules generate '%s'", (*n)->path->s);
-		(*n)->gen = e;
+		n = mknode(s);
+		if (n->gen) {
+			warnx("multiple rules generate '%s'", n->path->s);
+			--e->nout;
+			if (i < e->outimpidx)
+				--e->outimpidx;
+		} else {
+			n->gen = e;
+			e->out[i] = n;
+			++i;
+		}
 	}
 
 	e->in = xmalloc(e->nin * sizeof(*n));
-	for (n = e->in; in; in = str, ++n) {
+	for (i = 0; i < e->nin; in = str, ++i) {
 		str = in->next;
 		s = enveval(e->env, in);
 		delstr(in);
 		canonpath(s);
-		*n = mknode(s);
+		e->in[i] = mknode(s);
 	}
 
 	s = edgevar(e, "pool");
