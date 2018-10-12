@@ -75,12 +75,23 @@ builddefault(void)
 }
 
 static void
-debug(const char *mode)
+debugflag(const char *flag)
 {
-	if (strcmp(mode, "explain") == 0)
+	if (strcmp(flag, "explain") == 0)
 		buildopts.explain = true;
 	else
-		errx(1, "unknown debug mode: %s", mode);
+		errx(1, "unknown debug flag: %s", flag);
+}
+
+static void
+warnflag(const char *flag)
+{
+	if (strcmp(flag, "dupbuild=err") == 0)
+		parseopts.dupbuilderr = true;
+	else if (strcmp(flag, "dupbuild=warn") == 0)
+		parseopts.dupbuilderr = false;
+	else
+		errx(1, "unknown warning flag: %s", flag);
 }
 
 int
@@ -107,7 +118,7 @@ main(int argc, char *argv[])
 			err(1, "chdir");
 		break;
 	case 'd':
-		debug(EARGF(usage()));
+		debugflag(EARGF(usage()));
 		break;
 	case 'f':
 		manifest = EARGF(usage());
@@ -129,6 +140,9 @@ main(int argc, char *argv[])
 		goto argdone;
 	case 'v':
 		buildopts.verbose = true;
+		break;
+	case 'w':
+		warnflag(EARGF(usage()));
 		break;
 	default:
 		usage();

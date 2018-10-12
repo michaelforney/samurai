@@ -8,6 +8,7 @@
 #include "parse.h"
 #include "util.h"
 
+struct parseoptions parseopts;
 const char *ninjaversion = "1.8.2";
 struct node **deftarg;
 size_t ndeftarg;
@@ -109,6 +110,8 @@ parseedge(struct environment *env)
 		canonpath(s);
 		n = mknode(s);
 		if (n->gen) {
+			if (parseopts.dupbuilderr)
+				errx(1, "multiple rules generate '%s'", n->path->s);
 			warnx("multiple rules generate '%s'", n->path->s);
 			--e->nout;
 			if (i < e->outimpidx)

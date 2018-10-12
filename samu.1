@@ -1,4 +1,4 @@
-.Dd February 27, 2018
+.Dd October 11, 2018
 .Dt SAMU 1
 .Os
 .Sh NAME
@@ -7,10 +7,11 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl C Ar dir
-.Op Fl d Ar debugmode
+.Op Fl d Ar debugflag
 .Op Fl f Ar buildfile
 .Op Fl j Ar maxjobs
 .Op Fl k Ar maxfail
+.Op Fl w Ar warnflag=action
 .Op Fl v
 .Op Ar target...
 .Nm
@@ -56,7 +57,7 @@ before building.
 .It Fl d
 Enable debug output.
 If
-.Ar debugmode
+.Ar debugflag
 is
 .Cm explain ,
 print messages explaining why outputs were dirty.
@@ -76,6 +77,24 @@ If not positive, allow any number of job failures.
 .It Fl v
 Print full commands instead of just
 .Sy description .
+.It Fl w
+Control how certain errors are handled.
+If
+.Ar warnflag
+is
+.Cm dupbuild ,
+.Ar action
+specifies what to do if an output is listed in multiple build edges.
+If
+.Ar action
+is
+.Cm err ,
+treat it like an error and fail.
+If
+.Ar action
+is
+.Cm warn ,
+only print a diagnostic message.
 .It Fl t
 Instead of building, invoke a subtool.
 All arguments and flags after the subtool are interpreted by the subtool.
