@@ -14,7 +14,7 @@
 #include <stdint.h>
 
 struct platformprocess {
-	uint64_t impl[4];
+	uint64_t impl[8];
 };
 
 struct job;

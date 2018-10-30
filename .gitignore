@@ -1,6 +1,12 @@
 *.o
 *.o.d
 .*.sw*
+
+*.obj
+*.ilk
+*.pdb
+*.exe
+
 /samu
 /.ninja_deps
 /.ninja_log

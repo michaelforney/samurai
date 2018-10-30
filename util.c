@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 #include "util.h"
 
-extern char *argv0;
+char *argv0;
 
 static void
 vwarn(int errnum, const char *fmt, va_list ap)
