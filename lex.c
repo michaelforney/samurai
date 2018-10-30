@@ -5,14 +5,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include "lex.h"
 #include "util.h"
 
 struct file {
 	const char *path;
-	int fd;
-	char buf[8<<10], *p, *end;
+	FILE *file;
+	char buf[8<<10], *cursor, *end;
 	int tok;
 };
 
@@ -60,10 +59,10 @@ mkfile(const char *path)
 	f = xmalloc(sizeof(*f));
 	f->path = path;
 	f->tok = 0;
-	f->p = f->buf;
+	f->cursor = f->buf;
 	f->end = f->buf;
-	f->fd = open(path, O_RDONLY);
-	if (f->fd < 0)
+	f->file = fopen(path, "r");
+	if (f->file == NULL)
 		err(1, "open %s", path);
 
 	return f;
@@ -72,36 +71,34 @@ mkfile(const char *path)
 void
 fileclose(struct file *f)
 {
-	close(f->fd);
+	fclose(f->file);
 	free(f);
 }
 
 static void
 fileread(struct file *f)
 {
-	ssize_t n;
-
-	n = read(f->fd, f->buf, sizeof(f->buf));
-	if (n < 0)
-		err(1, "read");
-	f->p = f->buf;
+	size_t n = fread(f->buf, 1, sizeof(f->buf), f->file);
+	if (ferror(f->file))
+		err(1, "fread");
+	f->cursor = f->buf;
 	f->end = f->buf + n;
 }
 
 static inline int
 filepeek(struct file *f)
 {
-	if (f->p == f->end)
+	if (f->cursor == f->end)
 		fileread(f);
-	return f->p < f->end ? *f->p : EOF;
+	return f->cursor < f->end ? *f->cursor : EOF;
 }
 
 static inline int
 fileget(struct file *f)
 {
-	if (f->p == f->end)
+	if (f->cursor == f->end)
 		fileread(f);
-	return f->p < f->end ? *f->p++ : EOF;
+	return f->cursor < f->end ? *f->cursor++ : EOF;
 }
 
 static int
@@ -159,7 +156,7 @@ static void
 whitespace(void)
 {
 	while (filepeek(lexfile) == ' ')
-		++lexfile->p;
+		++lexfile->cursor;
 }
 
 static void
@@ -202,7 +199,7 @@ again:
 		}
 	case '|':
 		if (filepeek(f) == '|') {
-			++f->p;
+			++f->cursor;
 			t = PIPE2;
 		} else {
 			t = PIPE;
@@ -225,10 +222,10 @@ again:
 			c = filepeek(f);
 			if (c != ' ')
 				break;
-			++f->p;
+			++f->cursor;
 		}
 		if (c == '#' || c == '\n') {
-			++f->p;
+			++f->cursor;
 			goto again;
 		}
 		t = INDENT;
@@ -241,7 +238,7 @@ again:
 			errx(1, "invalid character: %d", c);
 		bufadd(&buf, c);
 		while (isvar(filepeek(f)))
-			bufadd(&buf, *f->p++);
+			bufadd(&buf, *f->cursor++);
 		bufadd(&buf, '\0');
 		t = keyword(buf.data);
 		if (!t) {
@@ -329,7 +326,7 @@ escape(struct evalstringpart ***end)
 			addstringpart(end, false);
 		bufadd(&buf, c);
 		while (issimplevar(filepeek(f)))
-			bufadd(&buf, *f->p++);
+			bufadd(&buf, *f->cursor++);
 		addstringpart(end, true);
 	}
 }
@@ -345,14 +342,14 @@ readstr(bool path)
 	for (;;) {
 		switch (filepeek(f)) {
 		case '$':
-			++f->p;
+			++f->cursor;
 			escape(&end);
 			break;
 		case ':':
 		case '|':
 		case ' ':
 			if (!path) {
-				bufadd(&buf, *f->p++);
+				bufadd(&buf, *f->cursor++);
 				break;
 			}
 			goto out;
@@ -361,7 +358,7 @@ readstr(bool path)
 		case EOF:
 			goto out;
 		default:
-			bufadd(&buf, *f->p++);
+			bufadd(&buf, *f->cursor++);
 		}
 	}
 out:
@@ -400,7 +397,7 @@ readident(void)
 {
 	buf.len = 0;
 	while (isvar(filepeek(lexfile)))
-		bufadd(&buf, *lexfile->p++);
+		bufadd(&buf, *lexfile->cursor++);
 	if (!buf.len)
 		errx(1, "bad identifier");
 	whitespace();

@@ -1,3 +1,8 @@
+#pragma once
+
+#include <stdbool.h>
+#include <stddef.h>
+
 struct buffer {
 	char *data;
 	size_t len, cap;
@@ -33,4 +38,4 @@ void canonpath(struct string *);
 /* creates all the parent directories of the given path */
 int makedirs(struct string *);
 /* write a new file with the given name and contents */
-int writefile(const char *, struct string *);
+bool writefile(const char *, struct string *);

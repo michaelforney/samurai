@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include "util.h"
 
 extern char *argv0;
@@ -225,31 +224,22 @@ makedirs(struct string *path)
 	return ret;
 }
 
-int
+bool
 writefile(const char *name, struct string *s)
 {
-	int fd, ret;
-	const char *p;
-	size_t n;
-	ssize_t nw;
-
-	fd = creat(name, 0666);
-	if (fd < 0) {
-		warn("creat %s", name);
-		return -1;
+	FILE *file = fopen(name, "w");
+	if (file == NULL) {
+		warn("fopen %s", name);
+		return false;
 	}
-	ret = 0;
-	if (s) {
-		for (p = s->s, n = s->n; n > 0; p += nw, n -= nw) {
-			nw = write(fd, p, n);
-			if (nw <= 0) {
-				warn("write");
-				ret = -1;
-				break;
-			}
-		}
-	}
-	close(fd);
 
-	return ret;
+	bool ok = true;
+	if (s != NULL) {
+		size_t nw = fwrite(s->s, 1, s->n, file);
+		if (nw != s->n || ferror(file))
+			ok = false;
+	}
+	fclose(file);
+
+	return ok;
 }

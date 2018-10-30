@@ -12,6 +12,7 @@ OBJ=\
 	lex.o\
 	log.o\
 	parse.o\
+	platform.o\
 	samurai.o\
 	tool.o\
 	tree.o\
