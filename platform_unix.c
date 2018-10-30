@@ -150,7 +150,6 @@ initplatform(size_t maxjobs)
 {
 	pollfds = malloc(maxjobs * sizeof(pollfds[0]));
 	for (size_t i = 0; i < maxjobs; i++) {
-		pollfds[i].fd = -1;
 		pollfds[i].events = POLLIN;
 	}
 }
