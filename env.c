@@ -2,7 +2,6 @@
 #include <string.h>
 #include "env.h"
 #include "graph.h"
-#include "lex.h"
 #include "tree.h"
 #include "util.h"
 

@@ -12,7 +12,6 @@
 #include "deps.h"
 #include "env.h"
 #include "graph.h"
-#include "lex.h"
 #include "log.h"
 #include "parse.h"
 #include "tool.h"
@@ -175,9 +174,7 @@ retry:
 	parseinit();
 
 	/* parse the manifest */
-	lexfile = mkfile(manifest);
-	parse(rootenv);
-	fileclose(lexfile);
+	parse(manifest, rootenv);
 
 	if (tool)
 		return tool->run(argc, argv);

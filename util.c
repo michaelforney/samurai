@@ -131,6 +131,24 @@ mkstr(size_t n)
 }
 
 void
+delevalstr(struct evalstring *str)
+{
+	struct evalstringpart *p, *next;
+
+	if (!str)
+		return;
+	for (p = str->parts; p; p = next) {
+		next = p->next;
+		if (p->var)
+			free(p->var);
+		else
+			free(p->str);
+		free(p);
+	}
+	free(str);
+}
+
+void
 canonpath(struct string *path)
 {
 	char *component[60];
