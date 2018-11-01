@@ -9,10 +9,10 @@ OBJ=\
 	deps.o\
 	graph.o\
 	htab.o\
-	lex.o\
 	log.o\
 	parse.o\
 	samurai.o\
+	scan.o\
 	tool.o\
 	tree.o\
 	util.o
