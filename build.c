@@ -15,6 +15,7 @@
 #include "env.h"
 #include "graph.h"
 #include "log.h"
+#include "os.h"
 #include "util.h"
 
 struct job {

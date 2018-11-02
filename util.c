@@ -1,12 +1,11 @@
 #include <errno.h>
-#include <fcntl.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#include "os.h"
 #include "util.h"
 
 extern char *argv0;
@@ -226,71 +225,23 @@ canonpath(struct string *path)
 }
 
 int
-makedirs(struct string *path)
-{
-	int ret;
-	struct stat st;
-	char *s, *end;
-	bool missing;
-
-	ret = 0;
-	missing = false;
-	end = path->s + path->n;
-	for (s = end - 1; s > path->s; --s) {
-		if (*s != '/')
-			continue;
-		*s = '\0';
-		if (stat(path->s, &st) == 0)
-			break;
-		if (errno != ENOENT) {
-			warn("stat %s", path->s);
-			ret = -1;
-			break;
-		}
-		missing = true;
-	}
-	if (s > path->s)
-		*s = '/';
-	if (!missing)
-		return ret;
-	for (++s; s < end; ++s) {
-		if (*s != '\0')
-			continue;
-		if (ret == 0 && mkdir(path->s, 0777) < 0 && errno != EEXIST) {
-			warn("mkdir %s", path->s);
-			ret = -1;
-		}
-		*s = '/';
-	}
-
-	return ret;
-}
-
-int
 writefile(const char *name, struct string *s)
 {
-	int fd, ret;
-	const char *p;
-	size_t n;
-	ssize_t nw;
+	FILE *f;
+	int ret;
 
-	fd = creat(name, 0666);
-	if (fd < 0) {
-		warn("creat %s", name);
+	f = fopen(name, "w");
+	if (!f) {
+		warn("open %s", name);
 		return -1;
 	}
-	ret = 0;
-	if (s) {
-		for (p = s->s, n = s->n; n > 0; p += nw, n -= nw) {
-			nw = write(fd, p, n);
-			if (nw <= 0) {
-				warn("write");
-				ret = -1;
-				break;
-			}
-		}
-	}
-	close(fd);
+	if (s)
+		fwrite(s->s, 1, s->n, f);
+	fflush(f);
+	ret = ferror(f) ? -1 : 0;
+	if (ret < 0)
+		warn("write %s", name);
+	fclose(f);
 
 	return ret;
 }

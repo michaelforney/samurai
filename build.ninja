@@ -1,3 +1,4 @@
+os = posix
 cc = cc
 cflags = -Wall -Wextra -std=c99 -pedantic
 
@@ -20,6 +21,7 @@ build scan.o: cc scan.c
 build tool.o: cc tool.c
 build tree.o: cc tree.c
 build util.o: cc util.c
-build samu: link build.o deps.o env.o graph.o htab.o log.o parse.o samurai.o scan.o tool.o tree.o util.o
+build $os.o: cc $os.c
+build samu: link build.o deps.o env.o graph.o htab.o log.o parse.o samurai.o scan.o tool.o tree.o util.o $os.o
 
 default samu
