@@ -5,13 +5,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include "arg.h"
 #include "build.h"
 #include "deps.h"
 #include "env.h"
 #include "graph.h"
 #include "log.h"
+#include "os.h"
 #include "parse.h"
 #include "tool.h"
 #include "util.h"
@@ -107,8 +107,7 @@ main(int argc, char *argv[])
 		usage();
 		break;
 	case 'C':
-		if (chdir(EARGF(usage())) < 0)
-			err(1, "chdir");
+		changedir(EARGF(usage()));
 		break;
 	case 'd':
 		debugflag(EARGF(usage()));
