@@ -33,6 +33,7 @@ void *xmalloc(size_t);
 void *xrealloc(void *, size_t);
 void *xcalloc(size_t, size_t);
 char *xstrdup(const char *, size_t);
+int xasprintf(char **, const char *, ...);
 
 /* append a byte to a buffer */
 void bufadd(struct buffer *buf, char c);
