@@ -10,6 +10,7 @@
 #include <spawn.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -189,47 +190,6 @@ changedir(const char *dir)
 {
 	if (chdir(dir) < 0)
 		err(1, "chdir %s", dir);
-}
-
-int
-makedirs(struct string *path)
-{
-	int ret;
-	struct stat st;
-	char *s, *end;
-	bool missing;
-
-	ret = 0;
-	missing = false;
-	end = path->s + path->n;
-	for (s = end - 1; s > path->s; --s) {
-		if (*s != '/')
-			continue;
-		*s = '\0';
-		if (stat(path->s, &st) == 0)
-			break;
-		if (errno != ENOENT) {
-			warn("stat %s", path->s);
-			ret = -1;
-			break;
-		}
-		missing = true;
-	}
-	if (s > path->s)
-		*s = '/';
-	if (!missing)
-		return ret;
-	for (++s; s < end; ++s) {
-		if (*s != '\0')
-			continue;
-		if (ret == 0 && mkdir(path->s, 0777) < 0 && errno != EEXIST) {
-			warn("mkdir %s", path->s);
-			ret = -1;
-		}
-		*s = '/';
-	}
-
-	return ret;
 }
 
 int64_t
