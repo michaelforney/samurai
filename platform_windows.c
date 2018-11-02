@@ -69,7 +69,7 @@ platformprocess impltoprocess(struct implplatformprocess impl)
 	return p;
 }
 
-static void
+static DWORD
 pipethread(void *data)
 {
 	struct implplatformprocess impl = *(struct implplatformprocess *)data;
@@ -88,6 +88,8 @@ pipethread(void *data)
 		if (err == ERROR_BROKEN_PIPE)
 			break;
 	}
+
+	return 0;
 }
 
 bool
@@ -199,7 +201,7 @@ waitexit(struct job *j)
 			warngle("GetExitCodeProcess");
 		} else {
 			if (status != 0) {
-				warn("job failed: %s", j->cmd->s);
+				warnx("job failed: %s (%u)", j->cmd->s, status);
 			} else {
 				ok = true;
 			}
