@@ -5,7 +5,7 @@ struct parseoptions {
 };
 
 void parseinit(void);
-void parse(struct environment *env);
+void parse(const char *, struct environment *);
 
 extern struct parseoptions parseopts;
 

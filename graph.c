@@ -1,13 +1,12 @@
-#define _POSIX_C_SOURCE 200809L
 #include <ctype.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 #include "env.h"
 #include "graph.h"
 #include "htab.h"
+#include "os.h"
 #include "util.h"
 
 static struct hashtable *allnodes;
@@ -76,19 +75,7 @@ nodeget(char *path)
 void
 nodestat(struct node *n)
 {
-	struct stat st;
-
-	if (stat(n->path->s, &st) < 0) {
-		if (errno != ENOENT)
-			err(1, "stat %s", n->path->s);
-		n->mtime = MTIME_MISSING;
-	} else {
-#ifdef __APPLE__
-		n->mtime = (int64_t)st.st_mtime * 1000000000 + st.st_mtimensec;
-#else
-		n->mtime = (int64_t)st.st_mtim.tv_sec * 1000000000 + st.st_mtim.tv_nsec;
-#endif
-	}
+	n->mtime = querymtime(n->path->s);
 }
 
 void

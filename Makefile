@@ -1,5 +1,6 @@
 .POSIX:
 
+OS=posix
 PREFIX=/usr/local
 MANDIR=$(PREFIX)/share/man
 ALL_CFLAGS=$(CFLAGS) -Wall -Wextra -std=c99 -pedantic
@@ -9,14 +10,15 @@ OBJ=\
 	deps.o\
 	graph.o\
 	htab.o\
-	lex.o\
 	log.o\
 	parse.o\
 	platform.o\
 	samurai.o\
+	scan.o\
 	tool.o\
 	tree.o\
-	util.o
+	util.o\
+	$(OS).o
 
 .c.o:
 	$(CC) $(ALL_CFLAGS) -c -o $@ $<

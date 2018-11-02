@@ -1,11 +1,11 @@
 #include <errno.h>
-#include <fcntl.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
+#include "os.h"
 #include "util.h"
 
 char *argv0;
@@ -108,6 +108,29 @@ xstrdup(const char *s, size_t n)
 	return r;
 }
 
+int
+xasprintf(char **s, const char *fmt, ...)
+{
+	va_list ap;
+	int ret;
+	size_t n;
+
+	va_start(ap, fmt);
+	ret = vsnprintf(NULL, 0, fmt, ap);
+	va_end(ap);
+	if (ret < 0)
+		err(1, "vsnprintf");
+	n = ret + 1;
+	*s = xmalloc(n);
+	va_start(ap, fmt);
+	ret = vsnprintf(*s, n, fmt, ap);
+	va_end(ap);
+	if (ret < 0 || (size_t)ret >= n)
+		err(1, "vsnprintf");
+
+	return ret;
+}
+
 void
 bufadd(struct buffer *buf, char c)
 {
@@ -127,6 +150,24 @@ mkstr(size_t n)
 	str->n = n;
 
 	return str;
+}
+
+void
+delevalstr(struct evalstring *str)
+{
+	struct evalstringpart *p, *next;
+
+	if (!str)
+		return;
+	for (p = str->parts; p; p = next) {
+		next = p->next;
+		if (p->var)
+			free(p->var);
+		else
+			free(p->str);
+		free(p);
+	}
+	free(str);
 }
 
 void
@@ -181,47 +222,6 @@ canonpath(struct string *path)
 		*--d = '\0';
 	}
 	path->n = d - path->s;
-}
-
-int
-makedirs(struct string *path)
-{
-	int ret;
-	struct stat st;
-	char *s, *end;
-	bool missing;
-
-	ret = 0;
-	missing = false;
-	end = path->s + path->n;
-	for (s = end - 1; s > path->s; --s) {
-		if (*s != '/')
-			continue;
-		*s = '\0';
-		if (stat(path->s, &st) == 0)
-			break;
-		if (errno != ENOENT) {
-			warn("stat %s", path->s);
-			ret = -1;
-			break;
-		}
-		missing = true;
-	}
-	if (s > path->s)
-		*s = '/';
-	if (!missing)
-		return ret;
-	for (++s; s < end; ++s) {
-		if (*s != '\0')
-			continue;
-		if (ret == 0 && mkdir(path->s, 0777) < 0 && errno != EEXIST) {
-			warn("mkdir %s", path->s);
-			ret = -1;
-		}
-		*s = '/';
-	}
-
-	return ret;
 }
 
 bool

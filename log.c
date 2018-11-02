@@ -1,11 +1,7 @@
-#define _POSIX_C_SOURCE 200809L
-#include <fcntl.h>
 #include <inttypes.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "htab.h"
 #include "graph.h"
 #include "log.h"
 #include "util.h"
@@ -33,36 +29,46 @@ nextfield(char **end)
 }
 
 void
-loginit(int dirfd)
+loginit(const char *builddir)
 {
-	int fd, ver;
-	char *line = NULL, *p, *s;
-	size_t sz = 0, nline, nentry, i;
+	int ver;
+	char *logpath = (char *)logname, *logtmppath = (char *)logtmpname, *p, *s;
+	size_t nline, nentry, i;
 	struct edge *e;
 	struct node *n;
 	int64_t mtime;
+	struct buffer buf = {0};
 
 	nline = 0;
 	nentry = 0;
 
 	if (logfile)
 		fclose(logfile);
-	fd = openat(dirfd, logname, O_RDWR | O_APPEND);
-	if (fd < 0)
-		goto rewrite;
-	logfile = fdopen(fd, "a+");
+	if (builddir)
+		xasprintf(&logpath, "%s/%s", builddir, logname);
+	logfile = fopen(logpath, "a+");
 	if (!logfile)
 		goto rewrite;
-	if (getline(&line, &sz, logfile) < 0)
-		goto rewrite;
-	if (sscanf(line, logfmt, &ver) < 1)
+	if (fscanf(logfile, logfmt, &ver) < 1)
 		goto rewrite;
 	if (ver != logver)
 		goto rewrite;
 
-	while (getline(&line, &sz, logfile) >= 0) {
+	for (;;) {
+		if (buf.cap - buf.len < BUFSIZ) {
+			buf.cap = buf.cap ? buf.cap * 2 : BUFSIZ;
+			buf.data = xrealloc(buf.data, buf.cap);
+		}
+		buf.data[buf.cap - 2] = '\0';
+		if (!fgets(buf.data + buf.len, buf.cap - buf.len, logfile))
+			break;
+		if (buf.data[buf.cap - 2] && buf.data[buf.cap - 2] != '\n') {
+			buf.len = buf.cap - 1;
+			continue;
+		}
 		++nline;
-		p = line;
+		p = buf.data;
+		buf.len = 0;
 		if (!nextfield(&p))  /* start time */
 			continue;
 		if (!nextfield(&p))  /* end time */
@@ -93,21 +99,23 @@ loginit(int dirfd)
 			continue;
 		}
 	}
-	free(line);
+	free(buf.data);
 	if (ferror(logfile))
 		warnx("log read failed");
-	if (nline <= 100 || nline <= 3 * nentry)
+	if (nline <= 100 || nline <= 3 * nentry) {
+		if (builddir)
+			free(logpath);
 		return;
+	}
 
 rewrite:
 	if (logfile)
 		fclose(logfile);
-	fd = openat(dirfd, logtmpname, O_WRONLY | O_TRUNC | O_CREAT, 0666);
-	if (fd < 0)
-		err(1, "open %s", logtmpname);
-	logfile = fdopen(fd, "w");
+	if (builddir)
+		xasprintf(&logtmppath, "%s/%s", builddir, logtmpname);
+	logfile = fopen(logtmppath, "w");
 	if (!logfile)
-		err(1, "fdopen");
+		err(1, "open %s", logtmppath);
 	fprintf(logfile, logfmt, logver);
 	if (nentry > 0) {
 		for (e = alledges; e; e = e->allnext) {
@@ -122,8 +130,12 @@ rewrite:
 	fflush(logfile);
 	if (ferror(logfile))
 		errx(1, "log file write failed");
-	if (renameat(dirfd, logtmpname, dirfd, logname) < 0)
+	if (rename(logtmppath, logpath) < 0)
 		err(1, "log file rename failed");
+	if (builddir) {
+		free(logpath);
+		free(logtmppath);
+	}
 }
 
 void

@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include "env.h"
 #include "graph.h"
-#include "lex.h"
 #include "parse.h"
+#include "scan.h"
 #include "util.h"
 
 struct parseoptions parseopts;
@@ -22,26 +22,25 @@ parseinit(void)
 }
 
 static void
-parselet(struct evalstring **val)
+parselet(struct scanner *s, struct evalstring **val)
 {
-	expect(EQUALS);
-	*val = readstr(false);
-	expect(NEWLINE);
+	scanchar(s, '=');
+	*val = scanstring(s, false);
+	scannewline(s);
 }
 
 static void
-parserule(struct environment *env)
+parserule(struct scanner *s, struct environment *env)
 {
 	struct rule *r;
 	char *var;
 	struct evalstring *val;
 
-	r = mkrule(readident());
-	expect(NEWLINE);
-	while (peek() == INDENT) {
-		next();
-		var = readident();
-		parselet(&val);
+	r = mkrule(scanname(s));
+	scannewline(s);
+	while (scanindent(s)) {
+		var = scanname(s);
+		parselet(s, &val);
 		ruleaddvar(r, var, val);
 	}
 	envaddrule(env, r);
@@ -56,59 +55,61 @@ pushstr(struct evalstring ***end, struct evalstring *str)
 }
 
 static void
-parseedge(struct environment *env)
+parseedge(struct scanner *s, struct environment *env)
 {
 	struct edge *e;
 	struct evalstring *out, *in, *str, **end;
-	char *var;
-	struct string *s;
+	char *name;
+	struct string *val;
 	struct node *n;
 	size_t i;
+	int p;
 
 	e = mkedge(env);
 
-	for (out = NULL, end = &out; (str = readstr(true)); ++e->nout)
+	for (out = NULL, end = &out; (str = scanstring(s, true)); ++e->nout)
 		pushstr(&end, str);
 	e->outimpidx = e->nout;
-	if (peek() == PIPE) {
-		for (next(); (str = readstr(true)); ++e->nout)
+	if (scanpipe(s, 1)) {
+		for (; (str = scanstring(s, true)); ++e->nout)
 			pushstr(&end, str);
 	}
-	expect(COLON);
-	lexident = readident();
-	e->rule = envrule(env, lexident);
+	scanchar(s, ':');
+	name = scanname(s);
+	e->rule = envrule(env, name);
 	if (!e->rule)
-		errx(1, "undefined rule: %s", lexident);
-	free(lexident);
-	for (in = NULL, end = &in; (str = readstr(true)); ++e->nin)
+		errx(1, "undefined rule: %s", name);
+	free(name);
+	for (in = NULL, end = &in; (str = scanstring(s, true)); ++e->nin)
 		pushstr(&end, str);
 	e->inimpidx = e->nin;
-	if (peek() == PIPE) {
-		for (next(); (str = readstr(true)); ++e->nin)
+	p = scanpipe(s, 1|2);
+	if (p == 1) {
+		for (; (str = scanstring(s, true)); ++e->nin)
 			pushstr(&end, str);
+		p = scanpipe(s, 2);
 	}
 	e->inorderidx = e->nin;
-	if (peek() == PIPE2) {
-		for (next(); (str = readstr(true)); ++e->nin)
+	if (p == 2) {
+		for (; (str = scanstring(s, true)); ++e->nin)
 			pushstr(&end, str);
 	}
-	expect(NEWLINE);
-	while (peek() == INDENT) {
-		next();
-		var = readident();
-		parselet(&str);
-		s = enveval(env, str);
-		envaddvar(e->env, var, s);
-		delstr(str);
+	scannewline(s);
+	while (scanindent(s)) {
+		name = scanname(s);
+		parselet(s, &str);
+		val = enveval(env, str);
+		envaddvar(e->env, name, val);
+		delevalstr(str);
 	}
 
 	e->out = xmalloc(e->nout * sizeof(*n));
 	for (i = 0; i < e->nout; out = str) {
 		str = out->next;
-		s = enveval(e->env, out);
-		delstr(out);
-		canonpath(s);
-		n = mknode(s);
+		val = enveval(e->env, out);
+		delevalstr(out);
+		canonpath(val);
+		n = mknode(val);
 		if (n->gen) {
 			if (parseopts.dupbuilderr)
 				errx(1, "multiple rules generate '%s'", n->path->s);
@@ -126,84 +127,79 @@ parseedge(struct environment *env)
 	e->in = xmalloc(e->nin * sizeof(*n));
 	for (i = 0; i < e->nin; in = str, ++i) {
 		str = in->next;
-		s = enveval(e->env, in);
-		delstr(in);
-		canonpath(s);
-		e->in[i] = mknode(s);
+		val = enveval(e->env, in);
+		delevalstr(in);
+		canonpath(val);
+		e->in[i] = mknode(val);
 	}
 
-	s = edgevar(e, "pool");
-	if (s)
-		e->pool = poolget(s->s);
+	val = edgevar(e, "pool");
+	if (val)
+		e->pool = poolget(val->s);
 }
 
 static void
-parseinclude(struct environment *env, bool newscope)
+parseinclude(struct scanner *s, struct environment *env, bool newscope)
 {
-	struct file *old = lexfile;
 	struct evalstring *str;
 	struct string *path;
 
-	str = readstr(true);
+	str = scanstring(s, true);
 	if (!str)
-		errx(1, "expected include path");
-	expect(NEWLINE);
+		scanerror(s, "expected include path");
+	scannewline(s);
 	path = enveval(env, str);
-	delstr(str);
+	delevalstr(str);
 
-	lexfile = mkfile(path->s);
 	if (newscope)
 		env = mkenv(env);
-	parse(env);
-	fileclose(lexfile);
+	parse(path->s, env);
 	free(path);
-	lexfile = old;
 }
 
 static void
-parsedefault(struct environment *env)
+parsedefault(struct scanner *s, struct environment *env)
 {
 	struct evalstring *targ, *str, **end;
 	struct string *path;
 	struct node *n;
 	size_t ntarg;
 
-	for (targ = NULL, ntarg = 0, end = &targ; (str = readstr(true)); ++ntarg)
+	for (targ = NULL, ntarg = 0, end = &targ; (str = scanstring(s, true)); ++ntarg)
 		pushstr(&end, str);
 	deftarg = xrealloc(deftarg, (ndeftarg + ntarg) * sizeof(*deftarg));
 	for (; targ; targ = str) {
 		str = targ->next;
 		path = enveval(env, targ);
-		delstr(targ);
+		delevalstr(targ);
 		n = nodeget(path->s);
 		if (!n)
 			errx(1, "unknown target '%s'", path->s);
 		free(path);
 		deftarg[ndeftarg++] = n;
 	}
-	expect(NEWLINE);
+	scannewline(s);
 }
 
 static void
-parsepool(struct environment *env)
+parsepool(struct scanner *s, struct environment *env)
 {
 	struct pool *p;
 	struct evalstring *val;
-	struct string *s;
+	struct string *str;
 	char *var, *end;
 
-	p = mkpool(readident());
-	expect(NEWLINE);
-	while (peek() == INDENT) {
-		next();
-		var = readident();
-		parselet(&val);
+	p = mkpool(scanname(s));
+	scannewline(s);
+	while (scanindent(s)) {
+		var = scanname(s);
+		parselet(s, &val);
 		if (strcmp(var, "depth") == 0) {
-			s = enveval(env, val);
-			p->maxjobs = strtol(s->s, &end, 10);
+			str = enveval(env, val);
+			p->maxjobs = strtol(str->s, &end, 10);
 			if (*end)
-				errx(1, "invalid pool depth: %s", s->s);
-			free(s);
+				errx(1, "invalid pool depth: %s", str->s);
+			free(str);
 		} else {
 			errx(1, "unexpected pool variable: %s", var);
 		}
@@ -220,47 +216,45 @@ checkversion(const char *ver)
 }
 
 void
-parse(struct environment *env)
+parse(const char *name, struct environment *env)
 {
-	int c;
+	struct scanner *s;
 	char *var;
 	struct string *val;
 	struct evalstring *str;
 
+	s = mkscanner(name);
 	for (;;) {
-		c = next();
-		switch (c) {
+		switch (scankeyword(s, &var)) {
 		case RULE:
-			parserule(env);
+			parserule(s, env);
 			break;
 		case BUILD:
-			parseedge(env);
+			parseedge(s, env);
 			break;
 		case INCLUDE:
-		case SUBNINJA:
-			parseinclude(env, c == SUBNINJA);
+			parseinclude(s, env, false);
 			break;
-		case IDENT:
-			var = lexident;
-			parselet(&str);
+		case SUBNINJA:
+			parseinclude(s, env, true);
+			break;
+		case NAME:
+			parselet(s, &str);
 			val = enveval(env, str);
 			if (strcmp(var, "ninja_required_version") == 0)
 				checkversion(val->s);
 			envaddvar(env, var, val);
-			delstr(str);
+			delevalstr(str);
 			break;
 		case DEFAULT:
-			parsedefault(env);
+			parsedefault(s, env);
 			break;
 		case POOL:
-			parsepool(env);
+			parsepool(s, env);
 			break;
 		case EOF:
 			return;
-		case NEWLINE:
-			break;
-		default:
-			errx(1, "unexpected token: %s", tokstr(c));
 		}
 	}
+	delscanner(s);
 }

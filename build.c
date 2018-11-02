@@ -7,6 +7,7 @@
 #include "env.h"
 #include "graph.h"
 #include "log.h"
+#include "os.h"
 #include "util.h"
 #include "platform.h"
 

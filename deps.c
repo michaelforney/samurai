@@ -1,12 +1,9 @@
-#define _POSIX_C_SOURCE 200809L
 #include <ctype.h>
-#include <fcntl.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include "build.h"
 #include "deps.h"
 #include "env.h"
@@ -58,25 +55,10 @@ static const char depsname[] = ".ninja_deps";
 static const char depstmpname[] = ".ninja_deps.tmp";
 static const char depsheader[] = "# ninjadeps\n";
 static const uint32_t depsver = 3;
-static int depsfd = -1;
+static FILE *depsfile;
 static uint32_t *depsbuf;
 static struct entry *entries;
 static size_t entrieslen, entriescap;
-
-static void
-writeall(int fd, const void *buf, size_t len)
-{
-	const char *p = buf;
-	ssize_t n;
-
-	while (len) {
-		n = write(fd, p, len);
-		if (n <= 0)
-			err(1, "write");
-		p += n;
-		len -= n;
-	}
-}
 
 static bool
 recordid(struct node *n)
@@ -95,7 +77,7 @@ recordid(struct node *n)
 	memcpy(&depsbuf[1], n->path->s, n->path->n);
 	memset((char *)&depsbuf[1] + n->path->n, 0, sz - n->path->n - 4);
 	depsbuf[sz / 4] = ~n->id;
-	writeall(depsfd, depsbuf, 4 + sz);
+	fwrite(depsbuf, 4 + sz, 1, depsfile);
 
 	return true;
 }
@@ -114,13 +96,13 @@ recorddeps(struct node *out, struct nodearray *deps, uint32_t mtime)
 	depsbuf[2] = mtime;
 	for (i = 0; i < deps->len; ++i)
 		depsbuf[3 + i] = deps->node[i]->id;
-	writeall(depsfd, depsbuf, 4 + sz);
+	fwrite(depsbuf, 4 + sz, 1, depsfile);
 }
 
 void
-depsinit(int dirfd)
+depsinit(const char *builddir)
 {
-	FILE *f;
+	char *depspath = (char *)depsname, *depstmppath = (char *)depstmpname;
 	uint32_t ver, sz, id;
 	size_t len, i, j, nrecord;
 	bool isdep;
@@ -134,18 +116,17 @@ depsinit(int dirfd)
 
 	if (!depsbuf)
 		depsbuf = xmalloc(MAX_RECORD_SIZE);
-	if (depsfd != -1)
-		close(depsfd);
+	if (depsfile)
+		fclose(depsfile);
 	entrieslen = 0;
-	depsfd = openat(dirfd, depsname, O_RDONLY);
-	if (depsfd < 0)
+	if (builddir)
+		xasprintf(&depspath, "%s/%s", builddir, depsname);
+	depsfile = fopen(depspath, "a+");
+	if (!depsfile)
+		err(1, "open %s", depspath);
+	if (!fgets((char *)depsbuf, sizeof(depsheader), depsfile))
 		goto rewrite;
-	f = fdopen(depsfd, "r");
-	if (!f)
-		goto rewrite;
-	if (!fgets((char *)depsbuf, sizeof(depsheader), f))
-		goto rewrite;
-	if (fread(&ver, sizeof(ver), 1, f) != 1) {
+	if (fread(&ver, sizeof(ver), 1, depsfile) != 1) {
 		warn("deps read failed");
 		goto rewrite;
 	}
@@ -158,7 +139,7 @@ depsinit(int dirfd)
 		goto rewrite;
 	}
 	for (nrecord = 0;; ++nrecord) {
-		if (fread(&sz, sizeof(sz), 1, f) != 1)
+		if (fread(&sz, sizeof(sz), 1, depsfile) != 1)
 			break;
 		isdep = sz & 0x80000000;
 		sz &= 0x7fffffff;
@@ -166,7 +147,7 @@ depsinit(int dirfd)
 			warnx("deps record too large");
 			goto rewrite;
 		}
-		if (fread(depsbuf, sz, 1, f) != 1) {
+		if (fread(depsbuf, sz, 1, depsfile) != 1) {
 			warn("deps read failed");
 			goto rewrite;
 		}
@@ -231,25 +212,25 @@ depsinit(int dirfd)
 			entries[entrieslen++] = (struct entry){.node = n};
 		}
 	}
-	if (ferror(f)) {
+	if (ferror(depsfile)) {
 		warn("deps read failed");
 		goto rewrite;
 	}
-	fclose(f);
 	if (nrecord <= 1000 || nrecord < 3 * entrieslen) {
-		depsfd = openat(dirfd, depsname, O_WRONLY | O_APPEND);
-		if (depsfd < 0)
-			err(1, "open %s", depsname);
+		if (builddir)
+			free(depspath);
 		return;
 	}
 
 rewrite:
-	depsfd = openat(dirfd, depstmpname, O_WRONLY | O_TRUNC | O_CREAT, 0666);
-	if (depsfd < 0)
-		err(1, "open %s", depstmpname);
-	memcpy(depsbuf, depsheader, 12);
-	depsbuf[3] = depsver;
-	writeall(depsfd, depsbuf, 16);
+	fclose(depsfile);
+	if (builddir)
+		xasprintf(&depstmppath, "%s/%s", builddir, depstmpname);
+	depsfile = fopen(depstmppath, "w");
+	if (!depsfile)
+		err(1, "open %s", depstmppath);
+	fwrite(depsheader, 1, sizeof(depsheader) - 1, depsfile);
+	fwrite(&depsver, 1, sizeof(depsver), depsfile);
 
 	/* reset ID for all current entries */
 	for (i = 0; i < entrieslen; ++i)
@@ -271,8 +252,21 @@ rewrite:
 		recorddeps(entry->node, &entry->deps, entry->mtime);
 	}
 	free(oldentries);
-	if (renameat(dirfd, depstmpname, dirfd, depsname) < 0)
+	if (rename(depstmppath, depspath) < 0)
 		err(1, "deps file rename failed");
+	if (builddir) {
+		free(depstmppath);
+		free(depspath);
+	}
+}
+
+void
+depsclose(void)
+{
+	fflush(depsfile);
+	if (ferror(depsfile))
+		errx(1, "deps file write failed");
+	fclose(depsfile);
 }
 
 static struct nodearray *

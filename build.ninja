@@ -13,11 +13,11 @@ build deps.o: cc deps.c
 build env.o: cc env.c
 build graph.o: cc graph.c
 build htab.o: cc htab.c
-build lex.o: cc lex.c
 build log.o: cc log.c
 build parse.o: cc parse.c
 build platform.o: cc platform.c
 build samurai.o: cc samurai.c
+build scan.o: cc scan.c
 build tool.o: cc tool.c
 build tree.o: cc tree.c
 build util.o: cc util.c

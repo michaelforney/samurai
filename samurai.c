@@ -1,19 +1,17 @@
 #define _POSIX_C_SOURCE 200809L
 #include <errno.h>
-#include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include "arg.h"
 #include "build.h"
 #include "deps.h"
 #include "env.h"
 #include "graph.h"
-#include "lex.h"
 #include "log.h"
+#include "os.h"
 #include "parse.h"
 #include "tool.h"
 #include "util.h"
@@ -27,16 +25,15 @@ usage(void)
 	exit(2);
 }
 
-static int
-openbuilddir(void)
+static char *
+getbuilddir(void)
 {
 	struct string *builddir;
 	struct stat st;
-	int fd;
 
 	builddir = envvar(rootenv, "builddir");
 	if (!builddir)
-		return AT_FDCWD;
+		return NULL;
 	if (stat(builddir->s, &st) < 0) {
 		if (errno != ENOENT)
 			err(1, "stat %s", builddir->s);
@@ -45,11 +42,7 @@ openbuilddir(void)
 		if (mkdir(builddir->s, 0777) < 0)
 			err(1, "mkdir %s", builddir->s);
 	}
-	fd = open(builddir->s, O_RDONLY);
-	if (fd < 0)
-		err(1, "open %s", builddir->s);
-
-	return fd;
+	return builddir->s;
 }
 
 static void
@@ -97,10 +90,10 @@ warnflag(const char *flag)
 int
 main(int argc, char *argv[])
 {
-	char *manifest = "build.ninja";
+	char *builddir, *manifest = "build.ninja";
 	const struct tool *tool = NULL;
 	struct node *n;
-	int builddirfd, tries;
+	int tries;
 	char *end;
 
 	argv0 = strrchr(argv[0], '/');
@@ -114,8 +107,7 @@ main(int argc, char *argv[])
 		usage();
 		break;
 	case 'C':
-		if (chdir(EARGF(usage())) < 0)
-			err(1, "chdir");
+		changedir(EARGF(usage()));
 		break;
 	case 'd':
 		debugflag(EARGF(usage()));
@@ -175,19 +167,15 @@ retry:
 	parseinit();
 
 	/* parse the manifest */
-	lexfile = mkfile(manifest);
-	parse(rootenv);
-	fileclose(lexfile);
+	parse(manifest, rootenv);
 
 	if (tool)
 		return tool->run(argc, argv);
 
 	/* load the build log */
-	builddirfd = openbuilddir();
-	loginit(builddirfd);
-	depsinit(builddirfd);
-	if (builddirfd != AT_FDCWD)
-		close(builddirfd);
+	builddir = getbuilddir();
+	loginit(builddir);
+	depsinit(builddir);
 
 	/* rebuild the manifest if it's dirty */
 	n = nodeget(manifest);
@@ -214,6 +202,7 @@ retry:
 	}
 	build();
 	logclose();
+	depsclose();
 
 	return 0;
 }
