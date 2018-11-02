@@ -278,7 +278,7 @@ makedirs(struct string *path)
 		if (*s != '\0')
 			continue;
 		if (ret == 0 && !createdir(path->s)) {
-			warn("makedir %s", path->s);
+			warn("createdir %s", path->s);
 			ret = -1;
 		}
 		*s = '/';
