@@ -203,6 +203,7 @@ retry:
 	}
 	build();
 	logclose();
+	depsclose();
 
 	return 0;
 }
