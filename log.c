@@ -1,11 +1,8 @@
 #define _POSIX_C_SOURCE 200809L
-#include <fcntl.h>
 #include <inttypes.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "htab.h"
 #include "graph.h"
 #include "log.h"
 #include "util.h"
@@ -33,10 +30,10 @@ nextfield(char **end)
 }
 
 void
-loginit(int dirfd)
+loginit(const char *builddir)
 {
-	int fd, ver;
-	char *line = NULL, *p, *s;
+	int ver;
+	char *logpath = (char *)logname, *logtmppath = (char *)logtmpname, *line = NULL, *p, *s;
 	size_t sz = 0, nline, nentry, i;
 	struct edge *e;
 	struct node *n;
@@ -47,10 +44,9 @@ loginit(int dirfd)
 
 	if (logfile)
 		fclose(logfile);
-	fd = openat(dirfd, logname, O_RDWR | O_APPEND);
-	if (fd < 0)
-		goto rewrite;
-	logfile = fdopen(fd, "a+");
+	if (builddir)
+		xasprintf(&logpath, "%s/%s", builddir, logname);
+	logfile = fopen(logpath, "a+");
 	if (!logfile)
 		goto rewrite;
 	if (getline(&line, &sz, logfile) < 0)
@@ -96,18 +92,20 @@ loginit(int dirfd)
 	free(line);
 	if (ferror(logfile))
 		warnx("log read failed");
-	if (nline <= 100 || nline <= 3 * nentry)
+	if (nline <= 100 || nline <= 3 * nentry) {
+		if (builddir)
+			free(logpath);
 		return;
+	}
 
 rewrite:
 	if (logfile)
 		fclose(logfile);
-	fd = openat(dirfd, logtmpname, O_WRONLY | O_TRUNC | O_CREAT, 0666);
-	if (fd < 0)
-		err(1, "open %s", logtmpname);
-	logfile = fdopen(fd, "w");
+	if (builddir)
+		xasprintf(&logtmppath, "%s/%s", builddir, logtmpname);
+	logfile = fopen(logtmppath, "w");
 	if (!logfile)
-		err(1, "fdopen");
+		err(1, "open %s", logtmppath);
 	fprintf(logfile, logfmt, logver);
 	if (nentry > 0) {
 		for (e = alledges; e; e = e->allnext) {
@@ -122,8 +120,12 @@ rewrite:
 	fflush(logfile);
 	if (ferror(logfile))
 		errx(1, "log file write failed");
-	if (renameat(dirfd, logtmpname, dirfd, logname) < 0)
+	if (rename(logtmppath, logpath) < 0)
 		err(1, "log file rename failed");
+	if (builddir) {
+		free(logpath);
+		free(logtmppath);
+	}
 }
 
 void

@@ -109,6 +109,29 @@ xstrdup(const char *s, size_t n)
 	return r;
 }
 
+int
+xasprintf(char **s, const char *fmt, ...)
+{
+	va_list ap;
+	int ret;
+	size_t n;
+
+	va_start(ap, fmt);
+	ret = vsnprintf(NULL, 0, fmt, ap);
+	va_end(ap);
+	if (ret < 0)
+		err(1, "vsnprintf");
+	n = ret + 1;
+	*s = xmalloc(n);
+	va_start(ap, fmt);
+	ret = vsnprintf(*s, n, fmt, ap);
+	va_end(ap);
+	if (ret < 0 || (size_t)ret >= n)
+		err(1, "vsnprintf");
+
+	return ret;
+}
+
 void
 bufadd(struct buffer *buf, char c)
 {

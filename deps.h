@@ -1,5 +1,5 @@
 struct edge;
 
-void depsinit(int);
+void depsinit(const char *);
 void depsload(struct edge *);
 void depsrecord(struct edge *);
