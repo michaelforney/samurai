@@ -1,4 +1,3 @@
-#define _POSIX_C_SOURCE 200809L
 #include <errno.h>
 #include <inttypes.h>
 #include <stdio.h>
@@ -34,11 +33,12 @@ void
 loginit(const char *builddir)
 {
 	int ver;
-	char *logpath = (char *)logname, *logtmppath = (char *)logtmpname, *line = NULL, *p, *s;
-	size_t sz = 0, nline, nentry, i;
+	char *logpath = (char *)logname, *logtmppath = (char *)logtmpname, *p, *s;
+	size_t nline, nentry, i;
 	struct edge *e;
 	struct node *n;
 	int64_t mtime;
+	struct buffer buf = {0};
 
 	nline = 0;
 	nentry = 0;
@@ -54,16 +54,26 @@ loginit(const char *builddir)
 		goto rewrite;
 	}
 	setvbuf(logfile, NULL, _IOLBF, 0);
-	if (getline(&line, &sz, logfile) < 0)
-		goto rewrite;
-	if (sscanf(line, logfmt, &ver) < 1)
+	if (fscanf(logfile, logfmt, &ver) < 1)
 		goto rewrite;
 	if (ver != logver)
 		goto rewrite;
 
-	while (getline(&line, &sz, logfile) >= 0) {
+	for (;;) {
+		if (buf.cap - buf.len < BUFSIZ) {
+			buf.cap = buf.cap ? buf.cap * 2 : BUFSIZ;
+			buf.data = xreallocarray(buf.data, buf.cap, 1);
+		}
+		buf.data[buf.cap - 2] = '\0';
+		if (!fgets(buf.data + buf.len, buf.cap - buf.len, logfile))
+			break;
+		if (buf.data[buf.cap - 2] && buf.data[buf.cap - 2] != '\n') {
+			buf.len = buf.cap - 1;
+			continue;
+		}
 		++nline;
-		p = line;
+		p = buf.data;
+		buf.len = 0;
 		if (!nextfield(&p))  /* start time */
 			continue;
 		if (!nextfield(&p))  /* end time */
@@ -94,7 +104,7 @@ loginit(const char *builddir)
 			continue;
 		}
 	}
-	free(line);
+	free(buf.data);
 	if (ferror(logfile)) {
 		warn("build log read:");
 		goto rewrite;
