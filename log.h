@@ -1,5 +1,5 @@
 struct node;
 
-void loginit(int);
+void loginit(const char *);
 void logclose(void);
 void logrecord(struct node *);

@@ -118,8 +118,9 @@ recorddeps(struct node *out, struct nodearray *deps, uint32_t mtime)
 }
 
 void
-depsinit(int dirfd)
+depsinit(const char *builddir)
 {
+	char *depspath = (char *)depsname, *depstmppath = (char *)depstmpname;
 	FILE *f;
 	uint32_t ver, sz, id;
 	size_t len, i, j, nrecord;
@@ -137,7 +138,9 @@ depsinit(int dirfd)
 	if (depsfd != -1)
 		close(depsfd);
 	entrieslen = 0;
-	depsfd = openat(dirfd, depsname, O_RDONLY);
+	if (builddir)
+		xasprintf(&depspath, "%s/%s", builddir, depsname);
+	depsfd = open(depspath, O_RDONLY);
 	if (depsfd < 0)
 		goto rewrite;
 	f = fdopen(depsfd, "r");
@@ -237,16 +240,20 @@ depsinit(int dirfd)
 	}
 	fclose(f);
 	if (nrecord <= 1000 || nrecord < 3 * entrieslen) {
-		depsfd = openat(dirfd, depsname, O_WRONLY | O_APPEND);
+		depsfd = open(depspath, O_WRONLY | O_APPEND);
 		if (depsfd < 0)
-			err(1, "open %s", depsname);
+			err(1, "open %s", depspath);
+		if (builddir)
+			free(depspath);
 		return;
 	}
 
 rewrite:
-	depsfd = openat(dirfd, depstmpname, O_WRONLY | O_TRUNC | O_CREAT, 0666);
+	if (builddir)
+		xasprintf(&depstmppath, "%s/%s", builddir, depstmpname);
+	depsfd = open(depstmppath, O_WRONLY | O_TRUNC | O_CREAT, 0666);
 	if (depsfd < 0)
-		err(1, "open %s", depstmpname);
+		err(1, "open %s", depstmppath);
 	memcpy(depsbuf, depsheader, 12);
 	depsbuf[3] = depsver;
 	writeall(depsfd, depsbuf, 16);
@@ -271,8 +278,12 @@ rewrite:
 		recorddeps(entry->node, &entry->deps, entry->mtime);
 	}
 	free(oldentries);
-	if (renameat(dirfd, depstmpname, dirfd, depsname) < 0)
+	if (rename(depstmppath, depspath) < 0)
 		err(1, "deps file rename failed");
+	if (builddir) {
+		free(depstmppath);
+		free(depspath);
+	}
 }
 
 static struct nodearray *
