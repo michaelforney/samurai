@@ -1,14 +1,18 @@
 #include "platform.h"
 #include "build.h"
+#include "graph.h"
+#include "util.h"
 
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <signal.h>
 #include <spawn.h>
-#include <stddef.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -178,4 +182,94 @@ waitforjobs(const struct job *jobs, size_t n)
 
 	errx(1, "poll returned when it shouldn't have!");
 	return 0;
+}
+
+void
+changedir(const char *dir)
+{
+	if (chdir(dir) < 0)
+		err(1, "chdir %s", dir);
+}
+
+int
+makedirs(struct string *path)
+{
+	int ret;
+	struct stat st;
+	char *s, *end;
+	bool missing;
+
+	ret = 0;
+	missing = false;
+	end = path->s + path->n;
+	for (s = end - 1; s > path->s; --s) {
+		if (*s != '/')
+			continue;
+		*s = '\0';
+		if (stat(path->s, &st) == 0)
+			break;
+		if (errno != ENOENT) {
+			warn("stat %s", path->s);
+			ret = -1;
+			break;
+		}
+		missing = true;
+	}
+	if (s > path->s)
+		*s = '/';
+	if (!missing)
+		return ret;
+	for (++s; s < end; ++s) {
+		if (*s != '\0')
+			continue;
+		if (ret == 0 && mkdir(path->s, 0777) < 0 && errno != EEXIST) {
+			warn("mkdir %s", path->s);
+			ret = -1;
+		}
+		*s = '/';
+	}
+
+	return ret;
+}
+
+int64_t
+querymtime(const char *name)
+{
+	struct stat st;
+
+	if (stat(name, &st) < 0) {
+		if (errno != ENOENT)
+			err(1, "stat %s", name);
+		return MTIME_MISSING;
+	}
+#ifdef __APPLE__
+	return (int64_t)st.st_mtime * 1000000000 + st.st_mtimensec;
+#else
+	return (int64_t)st.st_mtim.tv_sec * 1000000000 + st.st_mtim.tv_nsec;
+#endif
+}
+
+bool
+createdir(const char *path)
+{
+	return mkdir(path, 0777) == 0 || errno == EEXIST;
+}
+
+/*int
+direxists(const char *path)
+{
+	struct stat st;
+	if (stat(path->s, &st) == 0)
+		return 1;
+	if (errno == ENOENT)
+		return 0;
+
+	warn("stat %s", path);
+	return -1;
+}*/
+
+bool
+renamereplace(const char *oldpath, const char *newpath)
+{
+	return rename(oldpath, newpath) == 0;
 }

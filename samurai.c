@@ -11,8 +11,8 @@
 #include "env.h"
 #include "graph.h"
 #include "log.h"
-#include "os.h"
 #include "parse.h"
+#include "platform.h"
 #include "tool.h"
 #include "util.h"
 
@@ -38,9 +38,7 @@ getbuilddir(void)
 		if (errno != ENOENT)
 			err(1, "stat %s", builddir->s);
 		if (makedirs(builddir) < 0)
-			exit(1);
-		if (mkdir(builddir->s, 0777) < 0)
-			err(1, "mkdir %s", builddir->s);
+			err(1, "makedirs %s", builddir->s);
 	}
 	return builddir->s;
 }

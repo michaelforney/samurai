@@ -1,6 +1,7 @@
 #include "platform.h"
 #include "arg.h"
 #include "build.h"
+#include "graph.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -250,4 +251,48 @@ waitforjobs(const struct job *jobs, size_t n)
 	assert(r < WAIT_OBJECT_0 + n);
 
 	return r - WAIT_OBJECT_0;
+}
+
+void
+changedir(const char *dir)
+{
+	if (SetCurrentDirectory(dir) == 0)
+		err(1, "SetCurrentDirectory %s", dir);
+}
+
+int64_t
+querymtime(const char *name)
+{
+	DWORD share = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+	HANDLE f = CreateFileA(name, 0, share, NULL, OPEN_EXISTING, 0, NULL);
+	if (f == INVALID_HANDLE_VALUE) {
+		if (GetLastError() == ERROR_FILE_NOT_FOUND)
+			return MTIME_MISSING;
+		errgle(1, "CreateFileA %s", name);
+	}
+
+	FILETIME w;
+	if (GetFileTime(f, NULL, NULL, &w) == 0)
+		errgle(1, "GetFileTime %s", name);
+
+	CloseHandle(f);
+
+	int64_t ns = (((int64_t)w.dwHighDateTime << 32) | w.dwLowDateTime) * 100;
+	return ns - INT64_C(11644473600000000000);
+}
+
+bool
+createdir(const char *path)
+{
+	return CreateDirectoryA(path, NULL) != 0 || GetLastError() == ERROR_ALREADY_EXISTS;
+}
+
+bool
+renamereplace(const char *oldpath, const char *newpath)
+{
+	if (MoveFileExA(oldpath, newpath, MOVEFILE_REPLACE_EXISTING) != 0)
+		return true;
+	warngle("MoveFileExA(%s, %s)", oldpath, newpath);
+	return true; // TODO...
+	return false;
 }

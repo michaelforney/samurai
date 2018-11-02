@@ -30,3 +30,14 @@ bool waitexit(struct job *j);
 void killprocess(struct platformprocess p);
 
 size_t waitforjobs(const struct job *jobs, size_t n);
+
+/* changes the working directory to the given path */
+void changedir(const char *);
+/* queries the mtime of a file in nanoseconds since the UNIX epoch */
+int64_t querymtime(const char *);
+/* create a directory */
+bool createdir(const char *);
+/* check if a directory exists. returns -1 on error, 0 if it doesn't exist, 1 if it does */
+/* int direxists(const char *); */
+/* rename oldpath to newpath, replacing newpath if it exists */
+bool renamereplace(const char *oldpath, const char *newpath);

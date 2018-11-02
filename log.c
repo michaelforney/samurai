@@ -4,6 +4,7 @@
 #include <string.h>
 #include "graph.h"
 #include "log.h"
+#include "platform.h"
 #include "util.h"
 
 static FILE *logfile;
@@ -130,7 +131,8 @@ rewrite:
 	fflush(logfile);
 	if (ferror(logfile))
 		errx(1, "log file write failed");
-	if (rename(logtmppath, logpath) < 0)
+	printf( "replacing\n" );
+	if (!renamereplace(logtmppath, logpath))
 		err(1, "log file rename failed");
 	if (builddir) {
 		free(logpath);

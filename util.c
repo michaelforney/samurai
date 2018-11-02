@@ -5,7 +5,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include "os.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include "platform.h"
 #include "util.h"
 
 char *argv0;
@@ -242,4 +244,45 @@ writefile(const char *name, struct string *s)
 	fclose(file);
 
 	return ok;
+}
+
+int
+makedirs(struct string *path)
+{
+	int ret;
+	struct stat st;
+	char *s, *end;
+	bool missing;
+
+	ret = 0;
+	missing = false;
+	end = path->s + path->n;
+	for (s = end - 1; s > path->s; --s) {
+		if (*s != '/')
+			continue;
+		*s = '\0';
+		if (stat(path->s, &st) == 0)
+			break;
+		if (errno != ENOENT) {
+			warn("stat %s", path->s);
+			ret = -1;
+			break;
+		}
+		missing = true;
+	}
+	if (s > path->s)
+		*s = '/';
+	if (!missing)
+		return ret;
+	for (++s; s < end; ++s) {
+		if (*s != '\0')
+			continue;
+		if (ret == 0 && !createdir(path->s)) {
+			warn("makedir %s", path->s);
+			ret = -1;
+		}
+		*s = '/';
+	}
+
+	return ret;
 }

@@ -55,3 +55,6 @@ void delevalstr(struct evalstring *);
 void canonpath(struct string *);
 /* write a new file with the given name and contents */
 bool writefile(const char *, struct string *);
+
+/* creates all the parent directories of the given path */
+int makedirs(struct string *);

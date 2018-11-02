@@ -6,7 +6,7 @@
 #include "env.h"
 #include "graph.h"
 #include "htab.h"
-#include "os.h"
+#include "platform.h"
 #include "util.h"
 
 static struct hashtable *allnodes;
