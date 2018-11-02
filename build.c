@@ -16,6 +16,7 @@
 #include "env.h"
 #include "graph.h"
 #include "log.h"
+#include "os.h"
 #include "util.h"
 
 struct job {
@@ -288,7 +289,7 @@ jobstart(struct job *j, struct edge *e)
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
 		if (n->mtime == MTIME_MISSING) {
-			if (makedirs(n->path, true) < 0)
+			if (osmkdirs(n->path, true) < 0)
 				goto err0;
 		}
 	}

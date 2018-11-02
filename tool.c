@@ -1,14 +1,13 @@
-#define _POSIX_C_SOURCE 200809L
 #include <errno.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include "arg.h"
 #include "env.h"
 #include "graph.h"
+#include "os.h"
 #include "parse.h"
 #include "tool.h"
 #include "util.h"
@@ -194,7 +193,7 @@ printquoted(const char *s, size_t n, bool join)
 static int
 compdb(int argc, char *argv[])
 {
-	char dir[PATH_MAX], *p;
+	char dir[1024], *p;
 	struct edge *e;
 	struct string *cmd, *rspfile, *content;
 	bool expandrsp = false, first = true;
@@ -210,8 +209,7 @@ compdb(int argc, char *argv[])
 		return 2;
 	} ARGEND
 
-	if (!getcwd(dir, sizeof(dir)))
-		fatal("getcwd:");
+	osgetcwd(dir, sizeof(dir));
 
 	putchar('[');
 	for (e = alledges; e; e = e->allnext) {

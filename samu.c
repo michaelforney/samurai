@@ -1,16 +1,15 @@
-#define _POSIX_C_SOURCE 200809L
 #include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>  /* for chdir */
 #include "arg.h"
 #include "build.h"
 #include "deps.h"
 #include "env.h"
 #include "graph.h"
 #include "log.h"
+#include "os.h"
 #include "parse.h"
 #include "tool.h"
 #include "util.h"
@@ -32,7 +31,7 @@ getbuilddir(void)
 	builddir = envvar(rootenv, "builddir");
 	if (!builddir)
 		return NULL;
-	if (makedirs(builddir, false) < 0)
+	if (osmkdirs(builddir, false) < 0)
 		exit(1);
 	return builddir->s;
 }
@@ -164,8 +163,7 @@ main(int argc, char *argv[])
 	case 'C':
 		arg = EARGF(usage());
 		warn("entering directory '%s'", arg);
-		if (chdir(arg) < 0)
-			fatal("chdir:");
+		oschdir(arg);
 		break;
 	case 'd':
 		debugflag(EARGF(usage()));
