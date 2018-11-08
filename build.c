@@ -58,7 +58,7 @@ isdirty(struct node *n, struct node *newest, bool generator, bool restat)
 			warnx("explain %s: missing", n->path->s);
 		return true;
 	}
-	if (isnewer(newest, n) && !restat) {
+	if (isnewer(newest, n) && (!restat || n->logmtime == MTIME_MISSING)) {
 		if (buildopts.explain) {
 			warnx("explain %s: older than input '%s': %" PRId64 " vs %" PRId64,
 			      n->path->s, newest->path->s, n->mtime, newest->mtime);
