@@ -71,7 +71,7 @@ grow(struct hashtable *ht, int sz)
 	ht->hashes = xcalloc(sz, sizeof(ht->hashes[0]));
 
 	for (i = 0; i < oldsz; i++) {
-		if (oldh[i])
+		if (oldk[i])
 			*htput(ht, oldk[i]) = oldv[i];
 	}
 
