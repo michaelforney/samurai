@@ -109,15 +109,14 @@ xreallocarray(void *p, size_t n, size_t m)
 }
 
 char *
-xstrdup(const char *s, size_t n)
+xmemdup(const char *s, size_t n)
 {
-	char *r;
+	char *p;
 
-	r = xmalloc(n + 1);
-	memcpy(r, s, n);
-	r[n] = '\0';
+	p = xmalloc(n);
+	memcpy(p, s, n);
 
-	return r;
+	return p;
 }
 
 void

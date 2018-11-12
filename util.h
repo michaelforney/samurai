@@ -32,7 +32,7 @@ void err(int, const char *, ...);
 void *xmalloc(size_t);
 void *xcalloc(size_t, size_t);
 void *xreallocarray(void *, size_t, size_t);
-char *xstrdup(const char *, size_t);
+char *xmemdup(const char *, size_t);
 
 /* append a byte to a buffer */
 void bufadd(struct buffer *buf, char c);
