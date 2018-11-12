@@ -193,7 +193,7 @@ depsinit(int dirfd)
 			sz /= 4;
 			free(entry->deps.node);
 			entry->deps.len = sz;
-			entry->deps.node = xmalloc(sz * sizeof(n));
+			entry->deps.node = xreallocarray(NULL, sz, sizeof(n));
 			for (i = 0; i < sz; ++i) {
 				id = depsbuf[2 + i];
 				if (id >= entrieslen) {
@@ -225,7 +225,7 @@ depsinit(int dirfd)
 			n = mknode(path);
 			if (entrieslen >= entriescap) {
 				entriescap = entriescap ? entriescap * 2 : 1024;
-				entries = xrealloc(entries, entriescap * sizeof(entries[0]));
+				entries = xreallocarray(entries, entriescap, sizeof(entries[0]));
 			}
 			n->id = entrieslen;
 			entries[entrieslen++] = (struct entry){.node = n};
@@ -255,7 +255,7 @@ rewrite:
 	for (i = 0; i < entrieslen; ++i)
 		entries[i].node->id = -1;
 	/* save a temporary copy of the old entries */
-	oldentries = xmalloc(entrieslen * sizeof(entries[0]));
+	oldentries = xreallocarray(NULL, entrieslen, sizeof(entries[0]));
 	memcpy(oldentries, entries, entrieslen * sizeof(entries[0]));
 
 	len = entrieslen;
@@ -343,7 +343,7 @@ depsparse(const char *name, struct string *out)
 			if (buf.len > 0) {
 				if (deps.len == depscap) {
 					depscap = deps.node ? depscap * 2 : 32;
-					deps.node = xrealloc(deps.node, depscap * sizeof(deps.node[0]));
+					deps.node = xreallocarray(deps.node, depscap, sizeof(deps.node[0]));
 				}
 				path = mkstr(buf.len);
 				memcpy(path->s, buf.data, buf.len);

@@ -461,8 +461,8 @@ build(void)
 				jobslen = jobslen ? jobslen * 2 : 8;
 				if (jobslen > buildopts.maxjobs)
 					jobslen = buildopts.maxjobs;
-				jobs = xrealloc(jobs, jobslen * sizeof(jobs[0]));
-				fds = xrealloc(fds, jobslen * sizeof(fds[0]));
+				jobs = xreallocarray(jobs, jobslen, sizeof(jobs[0]));
+				fds = xreallocarray(fds, jobslen, sizeof(fds[0]));
 				for (i = next; i < jobslen; ++i) {
 					jobs[i].buf.data = NULL;
 					jobs[i].buf.len = 0;

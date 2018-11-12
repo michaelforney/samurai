@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -76,16 +77,6 @@ xmalloc(size_t n)
 }
 
 void *
-xrealloc(void *p, size_t n)
-{
-	p = realloc(p, n);
-	if (!p)
-		err(1, "realloc");
-
-	return p;
-}
-
-void *
 xcalloc(size_t n, size_t sz)
 {
 	void *p;
@@ -93,6 +84,26 @@ xcalloc(size_t n, size_t sz)
 	p = calloc(n, sz);
 	if (!p)
 		err(1, "calloc");
+
+	return p;
+}
+
+static void *
+reallocarray(void *p, size_t n, size_t m)
+{
+	if (m && n > SIZE_MAX / m) {
+		errno = ENOMEM;
+		return NULL;
+	}
+	return realloc(p, n * m);
+}
+
+void *
+xreallocarray(void *p, size_t n, size_t m)
+{
+	p = reallocarray(p, n, m);
+	if (!p)
+		err(1, "reallocarray");
 
 	return p;
 }
@@ -114,7 +125,9 @@ bufadd(struct buffer *buf, char c)
 {
 	if (buf->len >= buf->cap) {
 		buf->cap = buf->cap ? buf->cap * 2 : 1<<8;
-		buf->data = xrealloc(buf->data, buf->cap);
+		buf->data = realloc(buf->data, buf->cap);
+		if (!buf->data)
+			err(1, "realloc");
 	}
 	buf->data[buf->len++] = c;
 }
