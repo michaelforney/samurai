@@ -23,9 +23,10 @@ mkht(size_t sz)
 	ht = xmalloc(sizeof(*ht));
 	ht->nelt = 0;
 	ht->sz = sz;
-	ht->keys = xcalloc(sz, sizeof(ht->keys[0]));
-	ht->vals = xcalloc(sz, sizeof(ht->vals[0]));
-	ht->hashes = xcalloc(sz, sizeof(ht->hashes[0]));
+	ht->keys = xreallocarray(NULL, sz, sizeof(ht->keys[0]));
+	memset(ht->keys, 0, sz * sizeof(ht->keys[0]));
+	ht->vals = xreallocarray(NULL, sz, sizeof(ht->vals[0]));
+	ht->hashes = xreallocarray(NULL, sz, sizeof(ht->hashes[0]));
 
 	return ht;
 }
@@ -66,9 +67,10 @@ grow(struct hashtable *ht, int sz)
 
 	ht->nelt = 0;
 	ht->sz = sz;
-	ht->keys = xcalloc(sz, sizeof(ht->keys[0]));
-	ht->vals = xcalloc(sz, sizeof(ht->vals[0]));
-	ht->hashes = xcalloc(sz, sizeof(ht->hashes[0]));
+	ht->keys = xreallocarray(NULL, sz, sizeof(ht->keys[0]));
+	memset(ht->keys, 0, sz * sizeof(ht->keys[0]));
+	ht->vals = xreallocarray(NULL, sz, sizeof(ht->vals[0]));
+	ht->hashes = xreallocarray(NULL, sz, sizeof(ht->hashes[0]));
 
 	for (i = 0; i < oldsz; i++) {
 		if (oldk[i])
@@ -104,6 +106,7 @@ htput(struct hashtable *ht, const char *k)
 	ht->nelt++;
 	ht->hashes[i] = h;
 	ht->keys[i] = k;
+	ht->vals[i] = NULL;
 
 	return &ht->vals[i];
 }

@@ -76,18 +76,6 @@ xmalloc(size_t n)
 	return p;
 }
 
-void *
-xcalloc(size_t n, size_t sz)
-{
-	void *p;
-
-	p = calloc(n, sz);
-	if (!p)
-		err(1, "calloc");
-
-	return p;
-}
-
 static void *
 reallocarray(void *p, size_t n, size_t m)
 {

@@ -30,7 +30,6 @@ void errx(int, const char *, ...);
 void err(int, const char *, ...);
 
 void *xmalloc(size_t);
-void *xcalloc(size_t, size_t);
 void *xreallocarray(void *, size_t, size_t);
 char *xmemdup(const char *, size_t);
 
