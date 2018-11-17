@@ -47,7 +47,7 @@ void delevalstr(struct evalstring *);
 /* canonicalizes the given path by removing duplicate slashes, and
  * folding '/.' and 'foo/..' */
 void canonpath(struct string *);
-/* creates all the parent directories of the given path */
-int makedirs(struct string *);
+/* make a directory (or parent directory of a file) recursively */
+int makedirs(struct string *, _Bool);
 /* write a new file with the given name and contents */
 int writefile(const char *, struct string *);

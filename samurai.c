@@ -4,8 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#include <unistd.h>  /* for chdir */
 #include "arg.h"
 #include "build.h"
 #include "deps.h"
@@ -29,19 +28,12 @@ static char *
 getbuilddir(void)
 {
 	struct string *builddir;
-	struct stat st;
 
 	builddir = envvar(rootenv, "builddir");
 	if (!builddir)
 		return NULL;
-	if (stat(builddir->s, &st) < 0) {
-		if (errno != ENOENT)
-			err(1, "stat %s", builddir->s);
-		if (makedirs(builddir) < 0)
-			exit(1);
-		if (mkdir(builddir->s, 0777) < 0)
-			err(1, "mkdir %s", builddir->s);
-	}
+	if (makedirs(builddir, false) < 0)
+		exit(1);
 	return builddir->s;
 }
 
