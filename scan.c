@@ -279,7 +279,7 @@ void
 scanchar(struct scanner *s, int c)
 {
 	if (s->chr != c)
-		scanerror(s, "expected '%c'");
+		scanerror(s, "expected '%c'", c);
 	next(s);
 	space(s);
 }
