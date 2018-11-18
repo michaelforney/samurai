@@ -232,10 +232,8 @@ makedirs(struct string *path, bool parent)
 	int ret;
 	struct stat st;
 	char *s, *end;
-	bool missing;
 
 	ret = 0;
-	missing = false;
 	end = path->s + path->n;
 	for (s = end - parent; s > path->s; --s) {
 		if (*s != '/' && *s)
@@ -248,13 +246,10 @@ makedirs(struct string *path, bool parent)
 			ret = -1;
 			break;
 		}
-		missing = true;
 	}
 	if (s > path->s && s < end)
 		*s = '/';
-	if (!missing)
-		return ret;
-	for (++s; s <= end - parent; ++s) {
+	while (++s <= end - parent) {
 		if (*s != '\0')
 			continue;
 		if (ret == 0 && mkdir(path->s, 0777) < 0 && errno != EEXIST) {
