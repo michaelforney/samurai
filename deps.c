@@ -252,6 +252,7 @@ rewrite:
 		recorddeps(entry->node, &entry->deps, entry->mtime);
 	}
 	free(oldentries);
+	remove(depspath);
 	if (rename(depstmppath, depspath) < 0)
 		err(1, "deps file rename failed");
 	if (builddir) {

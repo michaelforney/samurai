@@ -130,6 +130,7 @@ rewrite:
 	fflush(logfile);
 	if (ferror(logfile))
 		errx(1, "log file write failed");
+	remove(logpath);
 	if (rename(logtmppath, logpath) < 0)
 		err(1, "log file rename failed");
 	if (builddir) {
