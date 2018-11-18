@@ -1,3 +1,4 @@
+#define _C99_SOURCE
 #include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
