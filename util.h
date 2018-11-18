@@ -30,9 +30,9 @@ void errx(int, const char *, ...);
 void err(int, const char *, ...);
 
 void *xmalloc(size_t);
-void *xrealloc(void *, size_t);
-void *xcalloc(size_t, size_t);
-char *xstrdup(const char *, size_t);
+void *xrealloc(void *p, size_t n);
+void *xreallocarray(void *, size_t, size_t);
+char *xmemdup(const char *, size_t);
 int xasprintf(char **, const char *, ...);
 
 /* append a byte to a buffer */

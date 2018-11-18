@@ -84,28 +84,35 @@ xrealloc(void *p, size_t n)
 	return p;
 }
 
-void *
-xcalloc(size_t n, size_t sz)
+static void *
+reallocarray(void *p, size_t n, size_t m)
 {
-	void *p;
+	if (m && n > SIZE_MAX / m) {
+		errno = ENOMEM;
+		return NULL;
+	}
+	return realloc(p, n * m);
+}
 
-	p = calloc(n, sz);
+void *
+xreallocarray(void *p, size_t n, size_t m)
+{
+	p = reallocarray(p, n, m);
 	if (!p)
-		err(1, "calloc");
+		err(1, "reallocarray");
 
 	return p;
 }
 
 char *
-xstrdup(const char *s, size_t n)
+xmemdup(const char *s, size_t n)
 {
-	char *r;
+	char *p;
 
-	r = xmalloc(n + 1);
-	memcpy(r, s, n);
-	r[n] = '\0';
+	p = xmalloc(n);
+	memcpy(p, s, n);
 
-	return r;
+	return p;
 }
 
 int

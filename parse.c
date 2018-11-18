@@ -103,7 +103,7 @@ parseedge(struct scanner *s, struct environment *env)
 		delevalstr(str);
 	}
 
-	e->out = xmalloc(e->nout * sizeof(*n));
+	e->out = xreallocarray(NULL, e->nout, sizeof(*n));
 	for (i = 0; i < e->nout; out = str) {
 		str = out->next;
 		val = enveval(e->env, out);
@@ -124,7 +124,7 @@ parseedge(struct scanner *s, struct environment *env)
 		}
 	}
 
-	e->in = xmalloc(e->nin * sizeof(*n));
+	e->in = xreallocarray(NULL, e->nin, sizeof(*n));
 	for (i = 0; i < e->nin; in = str, ++i) {
 		str = in->next;
 		val = enveval(e->env, in);
@@ -167,7 +167,7 @@ parsedefault(struct scanner *s, struct environment *env)
 
 	for (targ = NULL, ntarg = 0, end = &targ; (str = scanstring(s, true)); ++ntarg)
 		pushstr(&end, str);
-	deftarg = xrealloc(deftarg, (ndeftarg + ntarg) * sizeof(*deftarg));
+	deftarg = xreallocarray(deftarg, ndeftarg + ntarg, sizeof(*deftarg));
 	for (; targ; targ = str) {
 		str = targ->next;
 		path = enveval(env, targ);

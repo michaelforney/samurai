@@ -118,7 +118,7 @@ nodeuse(struct node *n, struct edge *e)
 {
 	/* allocate in powers of two */
 	if (!(n->nuse & (n->nuse - 1)))
-		n->use = xrealloc(n->use, (n->nuse ? n->nuse * 2 : 1) * sizeof(e));
+		n->use = xreallocarray(n->use, n->nuse ? n->nuse * 2 : 1, sizeof(e));
 	n->use[n->nuse++] = e;
 }
 
@@ -193,7 +193,7 @@ edgeadddeps(struct edge *e, struct node **deps, size_t ndeps)
 		if (!n->gen)
 			n->gen = mkphony(n);
 	}
-	e->in = xrealloc(e->in, (e->nin + ndeps) * sizeof(e->in[0]));
+	e->in = xreallocarray(e->in, e->nin + ndeps, sizeof(e->in[0]));
 	order = e->in + e->inorderidx;
 	norder = e->nin - e->inorderidx;
 	memmove(order + ndeps, order, norder * sizeof(e->in[0]));

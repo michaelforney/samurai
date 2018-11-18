@@ -16,18 +16,16 @@ changedir(const char *dir)
 }
 
 int
-makedirs(struct string *path)
+makedirs(struct string *path, bool parent)
 {
 	int ret;
 	struct stat st;
 	char *s, *end;
-	bool missing;
 
 	ret = 0;
-	missing = false;
 	end = path->s + path->n;
-	for (s = end - 1; s > path->s; --s) {
-		if (*s != '/')
+	for (s = end - parent; s > path->s; --s) {
+		if (*s != '/' && *s)
 			continue;
 		*s = '\0';
 		if (stat(path->s, &st) == 0)
@@ -37,20 +35,18 @@ makedirs(struct string *path)
 			ret = -1;
 			break;
 		}
-		missing = true;
 	}
-	if (s > path->s)
+	if (s > path->s && s < end)
 		*s = '/';
-	if (!missing)
-		return ret;
-	for (++s; s < end; ++s) {
+	while (++s <= end - parent) {
 		if (*s != '\0')
 			continue;
 		if (ret == 0 && mkdir(path->s, 0777) < 0 && errno != EEXIST) {
 			warn("mkdir %s", path->s);
 			ret = -1;
 		}
-		*s = '/';
+		if (s < end)
+			*s = '/';
 	}
 
 	return ret;

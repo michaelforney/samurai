@@ -98,6 +98,7 @@ name(struct scanner *s)
 	}
 	if (!buf.len)
 		scanerror(s, "expected name");
+	bufadd(&buf, '\0');
 	space(s);
 }
 
@@ -145,7 +146,6 @@ scankeyword(struct scanner *s, char **var)
 			return EOF;
 		default:
 			name(s);
-			bufadd(&buf, '\0');
 			while (low <= high) {
 				mid = (low + high) / 2;
 				cmp = strcmp(buf.data, keywords[mid].name);
@@ -156,7 +156,7 @@ scankeyword(struct scanner *s, char **var)
 				else
 					low = mid + 1;
 			}
-			*var = xstrdup(buf.data, buf.len - 1);
+			*var = xmemdup(buf.data, buf.len);
 			return VARIABLE;
 		}
 	}
@@ -166,7 +166,7 @@ char *
 scanname(struct scanner *s)
 {
 	name(s);
-	return xstrdup(buf.data, buf.len);
+	return xmemdup(buf.data, buf.len);
 }
 
 static void
@@ -178,7 +178,8 @@ addstringpart(struct evalstringpart ***end, bool var)
 	p->next = NULL;
 	**end = p;
 	if (var) {
-		p->var = xstrdup(buf.data, buf.len);
+		bufadd(&buf, '\0');
+		p->var = xmemdup(buf.data, buf.len);
 	} else {
 		p->var = NULL;
 		p->str = mkstr(buf.len);
@@ -278,7 +279,7 @@ void
 scanchar(struct scanner *s, int c)
 {
 	if (s->chr != c)
-		scanerror(s, "expected '%c'");
+		scanerror(s, "expected '%c'", c);
 	next(s);
 	space(s);
 }
