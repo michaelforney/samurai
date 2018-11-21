@@ -211,6 +211,7 @@ escape(struct scanner *s, struct evalstringpart ***end)
 		}
 		if (s->chr != '}')
 			scanerror(s, "invalid variable name");
+		next(s);
 		addstringpart(end, true);
 		break;
 	case '\r':
