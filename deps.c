@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <errno.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -127,9 +128,12 @@ depsinit(const char *builddir)
 	buf = xmalloc(cap);
 	if (builddir)
 		xasprintf(&depspath, "%s/%s", builddir, depsname);
-	depsfile = fopen(depspath, "a+");
-	if (!depsfile)
-		err(1, "open %s", depspath);
+	depsfile = fopen(depspath, "r+");
+	if (!depsfile) {
+		if (errno != ENOENT)
+			err(1, "open %s", depspath);
+		goto rewrite;
+	}
 	if (!fgets((char *)buf, sizeof(depsheader), depsfile))
 		goto rewrite;
 	if (fread(&ver, sizeof(ver), 1, depsfile) != 1) {
@@ -237,7 +241,8 @@ depsinit(const char *builddir)
 
 rewrite:
 	free(buf);
-	fclose(depsfile);
+	if (depsfile)
+		fclose(depsfile);
 	if (builddir)
 		xasprintf(&depstmppath, "%s/%s", builddir, depstmpname);
 	depsfile = fopen(depstmppath, "w");

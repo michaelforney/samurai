@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
+#include <errno.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,9 +47,12 @@ loginit(const char *builddir)
 		fclose(logfile);
 	if (builddir)
 		xasprintf(&logpath, "%s/%s", builddir, logname);
-	logfile = fopen(logpath, "a+");
-	if (!logfile)
+	logfile = fopen(logpath, "r+");
+	if (!logfile) {
+		if (errno != ENOENT)
+			err(1, "open %s", logpath);
 		goto rewrite;
+	}
 	if (getline(&line, &sz, logfile) < 0)
 		goto rewrite;
 	if (sscanf(line, logfmt, &ver) < 1)
