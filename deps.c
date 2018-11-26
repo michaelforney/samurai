@@ -109,7 +109,7 @@ void
 depsinit(const char *builddir)
 {
 	char *depspath = (char *)depsname, *depstmppath = (char *)depstmpname;
-	uint32_t *buf, ver, sz, id;
+	uint32_t *buf, cap, ver, sz, id;
 	size_t len, i, j, nrecord;
 	bool isdep;
 	struct string *path;
@@ -120,10 +120,11 @@ depsinit(const char *builddir)
 	/* XXX: when ninja hits a bad record, it truncates the log to the last
 	 * good record. perhaps we should do the same. */
 
-	buf = xmalloc(MAX_RECORD_SIZE);
 	if (depsfile)
 		fclose(depsfile);
 	entrieslen = 0;
+	cap = BUFSIZ;
+	buf = xmalloc(cap);
 	if (builddir)
 		xasprintf(&depspath, "%s/%s", builddir, depsname);
 	depsfile = fopen(depspath, "a+");
@@ -151,6 +152,12 @@ depsinit(const char *builddir)
 		if (sz > MAX_RECORD_SIZE) {
 			warnx("deps record too large");
 			goto rewrite;
+		}
+		if (sz > cap) {
+			do cap *= 2;
+			while (sz > cap);
+			free(buf);
+			buf = xmalloc(cap);
 		}
 		if (fread(buf, sz, 1, depsfile) != 1) {
 			warn("deps read failed");
