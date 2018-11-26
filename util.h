@@ -24,10 +24,8 @@ struct evalstringpart {
 
 #define LEN(a) (sizeof(a) / sizeof((a)[0]))
 
-void warnx(const char *, ...);
 void warn(const char *, ...);
-void errx(int, const char *, ...);
-void err(int, const char *, ...);
+void fatal(const char *, ...);
 
 void *xmalloc(size_t);
 void *xreallocarray(void *, size_t, size_t);

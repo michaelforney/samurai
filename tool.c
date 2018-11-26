@@ -14,7 +14,7 @@ cleannode(struct node *n)
 	if (remove(n->path->s) == 0) {
 		printf("remove %s\n", n->path->s);
 	} else if (errno != ENOENT) {
-		warn("remove %s", n->path->s);
+		warn("remove %s:", n->path->s);
 		return -1;
 	}
 
@@ -64,11 +64,11 @@ clean(int argc, char *argv[])
 
 	if (cleanrule) {
 		if (!argc)
-			errx(1, "expected a rule to clean");
+			fatal("expected a rule to clean");
 		for (; *argv; ++argv) {
 			r = envrule(rootenv, *argv);
 			if (!r) {
-				warnx("unknown rule: %s", *argv);
+				warn("unknown rule: %s", *argv);
 				ret = 1;
 				continue;
 			}
@@ -85,7 +85,7 @@ clean(int argc, char *argv[])
 		for (; *argv; ++argv) {
 			n = nodeget(*argv, 0);
 			if (!n) {
-				warnx("unknown target: %s", *argv);
+				warn("unknown target: %s", *argv);
 				ret = 1;
 				continue;
 			}
@@ -126,7 +126,7 @@ toolget(const char *name)
 		}
 	}
 	if (!t)
-		errx(1, "unknown tool: %s", name);
+		fatal("unknown tool: %s", name);
 
 	return t;
 }

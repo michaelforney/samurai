@@ -65,7 +65,7 @@ static void
 depswrite(const void *p, size_t n, size_t m)
 {
 	if (fwrite(p, n, m, depsfile) != m)
-		err(1, "deps log write");
+		fatal("deps log write:");
 }
 
 static bool
@@ -76,11 +76,11 @@ recordid(struct node *n)
 	if (n->id != -1)
 		return false;
 	if (entrieslen == INT32_MAX)
-		errx(1, "too many nodes");
+		fatal("too many nodes");
 	n->id = entrieslen++;
 	sz = (n->path->n + 7) & ~3;
 	if (sz + 4 >= MAX_RECORD_SIZE)
-		errx(1, "ID record too large");
+		fatal("ID record too large");
 	depswrite(&sz, 4, 1);
 	depswrite(n->path->s, 1, n->path->n);
 	depswrite((char [4]){0}, 1, sz - n->path->n - 4);
@@ -98,7 +98,7 @@ recorddeps(struct node *out, struct nodearray *deps, int64_t mtime)
 
 	sz = 12 + deps->len * 4;
 	if (sz + 4 >= MAX_RECORD_SIZE)
-		errx(1, "deps record too large");
+		fatal("deps record too large");
 	sz |= 0x80000000;
 	depswrite(&sz, 4, 1);
 	depswrite(&out->id, 4, 1);
@@ -135,21 +135,21 @@ depsinit(const char *builddir)
 	depsfile = fopen(depspath, "r+");
 	if (!depsfile) {
 		if (errno != ENOENT)
-			err(1, "open %s", depspath);
+			fatal("open %s:", depspath);
 		goto rewrite;
 	}
 	if (!fgets((char *)buf, sizeof(depsheader), depsfile))
 		goto rewrite;
 	if (fread(&ver, sizeof(ver), 1, depsfile) != 1) {
-		warn("deps log read");
+		warn("deps log read:");
 		goto rewrite;
 	}
 	if (strcmp((char *)buf, depsheader) != 0) {
-		warnx("invalid deps log header");
+		warn("invalid deps log header");
 		goto rewrite;
 	}
 	if (ver != depsver) {
-		warnx("unknown deps log version");
+		warn("unknown deps log version");
 		goto rewrite;
 	}
 	for (nrecord = 0;; ++nrecord) {
@@ -158,7 +158,7 @@ depsinit(const char *builddir)
 		isdep = sz & 0x80000000;
 		sz &= 0x7fffffff;
 		if (sz > MAX_RECORD_SIZE) {
-			warnx("deps record too large");
+			warn("deps record too large");
 			goto rewrite;
 		}
 		if (sz > cap) {
@@ -168,22 +168,22 @@ depsinit(const char *builddir)
 			buf = xmalloc(cap);
 		}
 		if (fread(buf, sz, 1, depsfile) != 1) {
-			warn("deps log read");
+			warn("deps log read:");
 			goto rewrite;
 		}
 		if (sz % 4) {
-			warnx("invalid size, must be multiple of 4: %" PRIu32, sz);
+			warn("invalid size, must be multiple of 4: %" PRIu32, sz);
 			goto rewrite;
 		}
 		if (isdep) {
 			if (sz < 12) {
-				warnx("invalid size, must be at least 12: %" PRIu32, sz);
+				warn("invalid size, must be at least 12: %" PRIu32, sz);
 				goto rewrite;
 			}
 			sz -= 12;
 			id = buf[0];
 			if (id >= entrieslen) {
-				warnx("invalid node ID: %" PRIu32, id);
+				warn("invalid node ID: %" PRIu32, id);
 				goto rewrite;
 			}
 			entry = &entries[id];
@@ -198,22 +198,22 @@ depsinit(const char *builddir)
 			for (i = 0; i < sz; ++i) {
 				id = buf[3 + i];
 				if (id >= entrieslen) {
-					warnx("invalid node ID: %" PRIu32, id);
+					warn("invalid node ID: %" PRIu32, id);
 					goto rewrite;
 				}
 				entry->deps.node[i] = entries[id].node;
 			}
 		} else {
 			if (sz <= 4) {
-				warnx("invalid size, must larger than 4: %" PRIu32, sz);
+				warn("invalid size, must larger than 4: %" PRIu32, sz);
 				goto rewrite;
 			}
 			if (entrieslen != ~buf[sz / 4 - 1]) {
-				warnx("corrupt deps log, bad checksum");
+				warn("corrupt deps log, bad checksum");
 				goto rewrite;
 			}
 			if (entrieslen == INT32_MAX) {
-				warnx("too many nodes in deps log");
+				warn("too many nodes in deps log");
 				goto rewrite;
 			}
 			len = sz - 4;
@@ -233,7 +233,7 @@ depsinit(const char *builddir)
 		}
 	}
 	if (ferror(depsfile)) {
-		warn("deps log read");
+		warn("deps log read:");
 		goto rewrite;
 	}
 	if (nrecord <= 1000 || nrecord < 3 * entrieslen) {
@@ -251,7 +251,7 @@ rewrite:
 		xasprintf(&depstmppath, "%s/%s", builddir, depstmpname);
 	depsfile = fopen(depstmppath, "w");
 	if (!depsfile)
-		err(1, "open %s", depstmppath);
+		fatal("open %s:", depstmppath);
 	depswrite(depsheader, 1, sizeof(depsheader) - 1);
 	depswrite(&depsver, 1, sizeof(depsver));
 
@@ -276,9 +276,9 @@ rewrite:
 	}
 	free(oldentries);
 	if (fflush(depsfile) < 0)
-		err(1, "deps log flush");
+		fatal("deps log flush:");
 	if (rename(depstmppath, depspath) < 0)
-		err(1, "deps log rename");
+		fatal("deps log rename:");
 	if (builddir) {
 		free(depstmppath);
 		free(depspath);
@@ -289,7 +289,7 @@ void
 depsclose(void)
 {
 	if (fflush(depsfile) < 0)
-		err(1, "deps log flush");
+		fatal("deps log flush:");
 	fclose(depsfile);
 }
 
@@ -343,7 +343,7 @@ depsparse(const char *name)
 			case '$':
 				c = getc(f);
 				if (c != '$') {
-					warnx("bad depfile: contains variable reference");
+					warn("bad depfile: contains variable reference");
 					goto err;
 				}
 				break;
@@ -353,7 +353,7 @@ depsparse(const char *name)
 		}
 		if (sawcolon) {
 			if (!isspace(c) && c != EOF) {
-				warnx("bad depfile: '%c' is not a valid target character", c);
+				warn("bad depfile: '%c' is not a valid target character", c);
 				goto err;
 			}
 			if (buf.len > 0) {
@@ -379,7 +379,7 @@ depsparse(const char *name)
 			if (c == EOF)
 				break;
 			if (c != ':') {
-				warnx("bad depfile: expected ':', saw '%c'", c);
+				warn("bad depfile: expected ':', saw '%c'", c);
 				goto err;
 			}
 			if (!out) {
@@ -387,7 +387,7 @@ depsparse(const char *name)
 				memcpy(out->s, buf.data, buf.len);
 				out->s[buf.len] = '\0';
 			} else if (out->n != buf.len || memcmp(buf.data, out->s, buf.len) != 0) {
-				warnx("bad depfile: multiple outputs: %.*s != %s", (int)buf.len, buf.data, out->s);
+				warn("bad depfile: multiple outputs: %.*s != %s", (int)buf.len, buf.data, out->s);
 				goto err;
 			}
 			sawcolon = true;
@@ -397,7 +397,7 @@ depsparse(const char *name)
 			c = getc(f);
 			if (c == '\\') {
 				if (getc(f) != '\n') {
-					warnx("bad depfile: '\\' only allowed before newline");
+					warn("bad depfile: '\\' only allowed before newline");
 					goto err;
 				}
 			} else if (!isblank(c)) {
@@ -406,7 +406,7 @@ depsparse(const char *name)
 		}
 	}
 	if (ferror(f)) {
-		warn("depfile read");
+		warn("depfile read:");
 		goto err;
 	}
 	fclose(f);
@@ -430,14 +430,14 @@ depsload(struct edge *e)
 		if (n->id != -1 && n->mtime <= entries[n->id].mtime)
 			deps = &entries[n->id].deps;
 		else if (buildopts.explain)
-			warnx("explain %s: missing or outdated record in .ninja_deps", n->path->s);
+			warn("explain %s: missing or outdated record in .ninja_deps", n->path->s);
 	} else {
 		depfile = edgevar(e, "depfile");
 		if (!depfile)
 			return;
 		deps = depsparse(depfile->s);
 		if (buildopts.explain && !deps)
-			warnx("explain %s: missing or invalid dep file", n->path->s);
+			warn("explain %s: missing or invalid dep file", n->path->s);
 	}
 	if (deps) {
 		edgeadddeps(e, deps->node, deps->len);
@@ -461,12 +461,12 @@ depsrecord(struct edge *e)
 	if (!deptype || deptype->n == 0)
 		return;
 	if (strcmp(deptype->s, "gcc") != 0) {
-		warnx("unsuported deps type: %s", deptype->s);
+		warn("unsuported deps type: %s", deptype->s);
 		return;
 	}
 	depfile = edgevar(e, "depfile");
 	if (!depfile || depfile->n == 0) {
-		warnx("deps but no depfile");
+		warn("deps but no depfile");
 		return;
 	}
 	out = e->out[0];
@@ -495,6 +495,6 @@ depsrecord(struct edge *e)
 	if (update) {
 		recorddeps(out, deps, out->mtime);
 		if (fflush(depsfile) < 0)
-			err(1, "deps log flush");
+			fatal("deps log flush:");
 	}
 }

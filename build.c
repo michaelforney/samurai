@@ -50,31 +50,31 @@ isdirty(struct node *n, struct node *newest, bool generator, bool restat)
 		if (e->nin > 0 || n->mtime != MTIME_MISSING)
 			return false;
 		if (buildopts.explain)
-			warnx("explain %s: phony and no inputs", n->path->s);
+			warn("explain %s: phony and no inputs", n->path->s);
 		return true;
 	}
 	if (n->mtime == MTIME_MISSING) {
 		if (buildopts.explain)
-			warnx("explain %s: missing", n->path->s);
+			warn("explain %s: missing", n->path->s);
 		return true;
 	}
 	if (isnewer(newest, n) && (!restat || n->logmtime == MTIME_MISSING)) {
 		if (buildopts.explain) {
-			warnx("explain %s: older than input '%s': %" PRId64 " vs %" PRId64,
-			      n->path->s, newest->path->s, n->mtime, newest->mtime);
+			warn("explain %s: older than input '%s': %" PRId64 " vs %" PRId64,
+			     n->path->s, newest->path->s, n->mtime, newest->mtime);
 		}
 		return true;
 	}
 	if (n->logmtime == MTIME_MISSING) {
 		if (!generator) {
 			if (buildopts.explain)
-				warnx("explain %s: no record in .ninja_log", n->path->s);
+				warn("explain %s: no record in .ninja_log", n->path->s);
 			return true;
 		}
 	} else if (newest && n->logmtime < newest->mtime) {
 		if (buildopts.explain) {
-			warnx("explain %s: recorded mtime is older than input '%s': %" PRId64 " vs %" PRId64,
-			      n->path->s, newest->path->s, n->logmtime, newest->mtime);
+			warn("explain %s: recorded mtime is older than input '%s': %" PRId64 " vs %" PRId64,
+			     n->path->s, newest->path->s, n->logmtime, newest->mtime);
 		}
 		return true;
 	}
@@ -84,7 +84,7 @@ isdirty(struct node *n, struct node *newest, bool generator, bool restat)
 	if (e->hash == n->hash)
 		return false;
 	if (buildopts.explain)
-		warnx("explain %s: command line changed", n->path->s);
+		warn("explain %s: command line changed", n->path->s);
 	return true;
 }
 
@@ -117,12 +117,12 @@ buildadd(struct node *n)
 		if (n->mtime == MTIME_UNKNOWN)
 			nodestat(n);
 		if (n->mtime == MTIME_MISSING)
-			errx(1, "file is missing and not created by any action: '%s'", n->path->s);
+			fatal("file is missing and not created by any action: '%s'", n->path->s);
 		n->dirty = false;
 		return;
 	}
 	if (e->flags & FLAG_CYCLE)
-		errx(1, "dependency cycle involving '%s'", n->path->s);
+		fatal("dependency cycle involving '%s'", n->path->s);
 	if (e->flags & FLAG_WORK)
 		return;
 	e->flags |= FLAG_CYCLE | FLAG_WORK;
@@ -164,9 +164,9 @@ buildadd(struct node *n)
 			n = e->out[i];
 			if (buildopts.explain && !n->dirty) {
 				if (e->flags & FLAG_DIRTY_IN)
-					warnx("explain %s: input is dirty", n->path->s);
+					warn("explain %s: input is dirty", n->path->s);
 				else if (e->flags & FLAG_DIRTY_OUT)
-					warnx("explain %s: output of generating action is dirty", n->path->s);
+					warn("explain %s: output of generating action is dirty", n->path->s);
 			}
 			n->dirty = true;
 		}
@@ -209,13 +209,13 @@ jobstart(struct job *j, struct edge *e)
 	}
 
 	if (pipe(fd) < 0) {
-		warn("pipe");
+		warn("pipe:");
 		goto err1;
 	}
 	j->edge = e;
 	j->cmd = edgevar(e, "command");
 	if (!j->cmd) {
-		warnx("rule '%s' has no command", e->rule->name);
+		warn("rule '%s' has no command", e->rule->name);
 		goto err2;
 	}
 	j->fd = fd[0];
@@ -229,33 +229,33 @@ jobstart(struct job *j, struct edge *e)
 	}
 
 	if ((errno = posix_spawn_file_actions_init(&actions))) {
-		warn("posix_spawn_file_actions_init");
+		warn("posix_spawn_file_actions_init:");
 		goto err2;
 	}
 	if ((errno = posix_spawn_file_actions_addclose(&actions, fd[0]))) {
-		warn("posix_spawn_file_actions_addclose");
+		warn("posix_spawn_file_actions_addclose:");
 		goto err3;
 	}
 	if (e->pool != &consolepool) {
 		if ((errno = posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0))) {
-			warn("posix_spawn_file_actions_addopen");
+			warn("posix_spawn_file_actions_addopen:");
 			goto err3;
 		}
 		if ((errno = posix_spawn_file_actions_adddup2(&actions, fd[1], 1))) {
-			warn("posix_spawn_file_actions_adddup2");
+			warn("posix_spawn_file_actions_adddup2:");
 			goto err3;
 		}
 		if ((errno = posix_spawn_file_actions_adddup2(&actions, fd[1], 2))) {
-			warn("posix_spawn_file_actions_adddup2");
+			warn("posix_spawn_file_actions_adddup2:");
 			goto err3;
 		}
 		if ((errno = posix_spawn_file_actions_addclose(&actions, fd[1]))) {
-			warn("posix_spawn_file_actions_addclose");
+			warn("posix_spawn_file_actions_addclose:");
 			goto err3;
 		}
 	}
 	if ((errno = posix_spawn(&j->pid, argv[0], &actions, NULL, argv, environ))) {
-		warn("posix_spawn %s", j->cmd->s);
+		warn("posix_spawn %s:", j->cmd->s);
 		goto err3;
 	}
 	posix_spawn_file_actions_destroy(&actions);
@@ -376,19 +376,19 @@ jobdone(struct job *j)
 	int status;
 
 	if (waitpid(j->pid, &status, 0) < 0) {
-		warn("waitpid %d", j->pid);
+		warn("waitpid %d:", j->pid);
 		j->failed = true;
 	} else if (WIFEXITED(status)) {
 		if (WEXITSTATUS(status) != 0) {
-			warnx("job failed: %s", j->cmd->s);
+			warn("job failed: %s", j->cmd->s);
 			j->failed = true;
 		}
 	} else if (WIFSIGNALED(status)) {
-		warnx("job terminated due to signal %d: %s", WTERMSIG(status), j->cmd->s);
+		warn("job terminated due to signal %d: %s", WTERMSIG(status), j->cmd->s);
 		j->failed = true;
 	} else {
 		/* cannot happen according to POSIX */
-		warnx("job status unknown: %s", j->cmd->s);
+		warn("job status unknown: %s", j->cmd->s);
 		j->failed = true;
 	}
 	close(j->fd);
@@ -411,7 +411,7 @@ jobwork(struct job *j)
 		newcap = j->buf.cap + BUFSIZ;
 		newdata = realloc(j->buf.data, newcap);
 		if (!newdata) {
-			warn("realloc");
+			warn("realloc:");
 			goto kill;
 		}
 		j->buf.cap = newcap;
@@ -424,7 +424,7 @@ jobwork(struct job *j)
 	}
 	if (n == 0)
 		goto done;
-	warn("read");
+	warn("read:");
 
 kill:
 	kill(j->pid, SIGTERM);
@@ -444,7 +444,7 @@ build(void)
 	struct edge *e;
 
 	if (!work)
-		warnx("nothing to do");
+		warn("nothing to do");
 
 	nstarted = 0;
 	for (;;) {
@@ -474,7 +474,7 @@ build(void)
 			}
 			fds[next].fd = jobstart(&jobs[next], e);
 			if (fds[next].fd < 0) {
-				warnx("job failed to start");
+				warn("job failed to start");
 				++numfail;
 			} else {
 				next = jobs[next].next;
@@ -484,7 +484,7 @@ build(void)
 		if (numjobs == 0)
 			break;
 		if (poll(fds, jobslen, -1) < 0)
-			err(1, "poll");
+			fatal("poll:");
 		for (i = 0; i < jobslen; ++i) {
 			if (!fds[i].revents || jobwork(&jobs[i]))
 				continue;
@@ -502,11 +502,11 @@ build(void)
 	free(fds);
 	if (numfail > 0) {
 		if (numfail < buildopts.maxfail)
-			errx(1, "cannot make progress due to previous errors");
+			fatal("cannot make progress due to previous errors");
 		else if (numfail > 1)
-			errx(1, "subcommands failed");
+			fatal("subcommands failed");
 		else
-			errx(1, "subcommand failed");
+			fatal("subcommand failed");
 	}
 	ntotal = 0;  /* reset in case we just rebuilt the manifest */
 }

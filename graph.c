@@ -87,7 +87,7 @@ nodestat(struct node *n)
 
 	if (stat(n->path->s, &st) < 0) {
 		if (errno != ENOENT)
-			err(1, "stat %s", n->path->s);
+			fatal("stat %s:", n->path->s);
 		n->mtime = MTIME_MISSING;
 	} else {
 #ifdef __APPLE__
@@ -172,7 +172,7 @@ edgehash(struct edge *e)
 	e->flags |= FLAG_HASH;
 	cmd = edgevar(e, "command");
 	if (!cmd)
-		errx(1, "rule has no command: %s", e->rule->name);
+		fatal("rule has no command: %s", e->rule->name);
 	rsp = edgevar(e, "rspfile_content");
 	if (rsp && rsp->n > 0) {
 		s = mkstr(cmd->n + sizeof(sep) - 1 + rsp->n);

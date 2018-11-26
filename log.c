@@ -20,7 +20,7 @@ nextfield(char **end)
 	char *s = *end;
 
 	if (!*s) {
-		warnx("corrupt build log: missing field");
+		warn("corrupt build log: missing field");
 		return NULL;
 	}
 	*end += strcspn(*end, "\t\n");
@@ -50,7 +50,7 @@ loginit(const char *builddir)
 	logfile = fopen(logpath, "r+");
 	if (!logfile) {
 		if (errno != ENOENT)
-			err(1, "open %s", logpath);
+			fatal("open %s:", logpath);
 		goto rewrite;
 	}
 	if (getline(&line, &sz, logfile) < 0)
@@ -72,7 +72,7 @@ loginit(const char *builddir)
 			continue;
 		mtime = strtoll(s, &s, 10);
 		if (*s) {
-			warnx("corrupt build log: invalid mtime");
+			warn("corrupt build log: invalid mtime");
 			continue;
 		}
 		s = nextfield(&p);  /* output path */
@@ -89,13 +89,13 @@ loginit(const char *builddir)
 			continue;
 		n->hash = strtoull(s, &s, 16);
 		if (*s) {
-			warnx("corrupt build log: invalid hash for %s", n->path->s);
+			warn("corrupt build log: invalid hash for %s", n->path->s);
 			continue;
 		}
 	}
 	free(line);
 	if (ferror(logfile)) {
-		warn("build log read");
+		warn("build log read:");
 		goto rewrite;
 	}
 	if (nline <= 100 || nline <= 3 * nentry) {
@@ -111,7 +111,7 @@ rewrite:
 		xasprintf(&logtmppath, "%s/%s", builddir, logtmpname);
 	logfile = fopen(logtmppath, "w");
 	if (!logfile)
-		err(1, "open %s", logtmppath);
+		fatal("open %s:", logtmppath);
 	fprintf(logfile, logfmt, logver);
 	if (nentry > 0) {
 		for (e = alledges; e; e = e->allnext) {
@@ -125,9 +125,9 @@ rewrite:
 	}
 	fflush(logfile);
 	if (ferror(logfile))
-		errx(1, "build log write failed");
+		fatal("build log write failed");
 	if (rename(logtmppath, logpath) < 0)
-		err(1, "build log rename");
+		fatal("build log rename:");
 	if (builddir) {
 		free(logpath);
 		free(logtmppath);
@@ -139,7 +139,7 @@ logclose(void)
 {
 	fflush(logfile);
 	if (ferror(logfile))
-		errx(1, "build log write failed");
+		fatal("build log write failed");
 	fclose(logfile);
 }
 

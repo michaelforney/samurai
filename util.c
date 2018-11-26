@@ -14,13 +14,16 @@
 extern char *argv0;
 
 static void
-vwarn(int errnum, const char *fmt, va_list ap)
+vwarn(const char *fmt, va_list ap)
 {
 	fprintf(stderr, "%s: ", argv0);
 	vfprintf(stderr, fmt, ap);
-	if (errnum)
-		fprintf(stderr, ": %s", strerror(errnum));
-	fputc('\n', stderr);
+	if (fmt[0] && fmt[strlen(fmt)] == ':') {
+		putc(' ', stderr);
+		perror(NULL);
+	} else {
+		putc('\n', stderr);
+	}
 }
 
 void
@@ -29,40 +32,19 @@ warn(const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	vwarn(errno, fmt, ap);
+	vwarn(fmt, ap);
 	va_end(ap);
 }
 
 void
-warnx(const char *fmt, ...)
+fatal(const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
-	vwarn(0, fmt, ap);
+	vwarn(fmt, ap);
 	va_end(ap);
-}
-
-void
-err(int status, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	vwarn(errno, fmt, ap);
-	va_end(ap);
-	exit(status);
-}
-
-void
-errx(int status, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	vwarn(0, fmt, ap);
-	va_end(ap);
-	exit(status);
+	exit(1);
 }
 
 void *
@@ -72,7 +54,7 @@ xmalloc(size_t n)
 
 	p = malloc(n);
 	if (!p)
-		err(1, "malloc");
+		fatal("malloc:");
 
 	return p;
 }
@@ -92,7 +74,7 @@ xreallocarray(void *p, size_t n, size_t m)
 {
 	p = reallocarray(p, n, m);
 	if (!p)
-		err(1, "reallocarray");
+		fatal("reallocarray:");
 
 	return p;
 }
@@ -119,14 +101,14 @@ xasprintf(char **s, const char *fmt, ...)
 	ret = vsnprintf(NULL, 0, fmt, ap);
 	va_end(ap);
 	if (ret < 0)
-		err(1, "vsnprintf");
+		fatal("vsnprintf:");
 	n = ret + 1;
 	*s = xmalloc(n);
 	va_start(ap, fmt);
 	ret = vsnprintf(*s, n, fmt, ap);
 	va_end(ap);
 	if (ret < 0 || (size_t)ret >= n)
-		err(1, "vsnprintf");
+		fatal("vsnprintf:");
 
 	return ret;
 }
@@ -138,7 +120,7 @@ bufadd(struct buffer *buf, char c)
 		buf->cap = buf->cap ? buf->cap * 2 : 1<<8;
 		buf->data = realloc(buf->data, buf->cap);
 		if (!buf->data)
-			err(1, "realloc");
+			fatal("realloc:");
 	}
 	buf->data[buf->len++] = c;
 }
@@ -211,7 +193,7 @@ canonpath(struct string *path)
 			}
 		}
 		if (n == LEN(component))
-			errx(1, "path has too many components: %s", path->s);
+			fatal("path has too many components: %s", path->s);
 		component[n++] = d;
 		while (*s != '/' && *s != '\0')
 			*d++ = *s++;
@@ -242,7 +224,7 @@ makedirs(struct string *path, bool parent)
 		if (stat(path->s, &st) == 0)
 			break;
 		if (errno != ENOENT) {
-			warn("stat %s", path->s);
+			warn("stat %s:", path->s);
 			ret = -1;
 			break;
 		}
@@ -253,7 +235,7 @@ makedirs(struct string *path, bool parent)
 		if (*s != '\0')
 			continue;
 		if (ret == 0 && mkdir(path->s, 0777) < 0 && errno != EEXIST) {
-			warn("mkdir %s", path->s);
+			warn("mkdir %s:", path->s);
 			ret = -1;
 		}
 		if (s < end)
@@ -273,7 +255,7 @@ writefile(const char *name, struct string *s)
 
 	fd = creat(name, 0666);
 	if (fd < 0) {
-		warn("creat %s", name);
+		warn("creat %s:", name);
 		return -1;
 	}
 	ret = 0;
@@ -281,7 +263,7 @@ writefile(const char *name, struct string *s)
 		for (p = s->s, n = s->n; n > 0; p += nw, n -= nw) {
 			nw = write(fd, p, n);
 			if (nw <= 0) {
-				warn("write");
+				warn("write:");
 				ret = -1;
 				break;
 			}

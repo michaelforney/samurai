@@ -80,7 +80,7 @@ parseedge(struct scanner *s, struct environment *env)
 	name = scanname(s);
 	e->rule = envrule(env, name);
 	if (!e->rule)
-		errx(1, "undefined rule: %s", name);
+		fatal("undefined rule: %s", name);
 	free(name);
 	for (in = NULL, end = &in; (str = scanstring(s, true)); ++e->nin)
 		pushstr(&end, str);
@@ -112,8 +112,8 @@ parseedge(struct scanner *s, struct environment *env)
 		n = mknode(val);
 		if (n->gen) {
 			if (!parseopts.dupbuildwarn)
-				errx(1, "multiple rules generate '%s'", n->path->s);
-			warnx("multiple rules generate '%s'", n->path->s);
+				fatal("multiple rules generate '%s'", n->path->s);
+			warn("multiple rules generate '%s'", n->path->s);
 			--e->nout;
 			if (i < e->outimpidx)
 				--e->outimpidx;
@@ -172,7 +172,7 @@ parsedefault(struct scanner *s, struct environment *env)
 		canonpath(path);
 		n = nodeget(path->s, path->n);
 		if (!n)
-			errx(1, "unknown target '%s'", path->s);
+			fatal("unknown target '%s'", path->s);
 		free(path);
 		deftarg[ndeftarg++] = n;
 	}
@@ -196,21 +196,21 @@ parsepool(struct scanner *s, struct environment *env)
 			str = enveval(env, val);
 			p->maxjobs = strtol(str->s, &end, 10);
 			if (*end)
-				errx(1, "invalid pool depth: %s", str->s);
+				fatal("invalid pool depth: %s", str->s);
 			free(str);
 		} else {
-			errx(1, "unexpected pool variable: %s", var);
+			fatal("unexpected pool variable: %s", var);
 		}
 	}
 	if (!p->maxjobs)
-		errx(1, "pool has no depth: %s", p->name);
+		fatal("pool has no depth: %s", p->name);
 }
 
 static void
 checkversion(const char *ver)
 {
 	if (strcmp(ver, ninjaversion) > 0)
-		errx(1, "ninja_required_version is newer than %s: %s", ninjaversion, ver);
+		fatal("ninja_required_version is newer than %s: %s", ninjaversion, ver);
 }
 
 void

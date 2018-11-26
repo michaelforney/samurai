@@ -121,7 +121,7 @@ void
 envaddrule(struct environment *env, struct rule *r)
 {
 	if (treeinsert(&env->rules, r->name, r))
-		errx(1, "rule %s already defined", r->name);
+		fatal("rule %s already defined", r->name);
 }
 
 struct rule *
@@ -225,7 +225,7 @@ static void
 addpool(struct pool *p)
 {
 	if (treeinsert(&pools, p->name, p))
-		errx(1, "pool redefined: %s", p->name);
+		fatal("pool redefined: %s", p->name);
 }
 
 struct pool *
@@ -250,7 +250,7 @@ poolget(char *name)
 
 	p = treefind(pools, name);
 	if (!p)
-		errx(1, "unknown pool: %s", name);
+		fatal("unknown pool: %s", name);
 
 	return p;
 }

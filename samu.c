@@ -65,7 +65,7 @@ debugflag(const char *flag)
 	if (strcmp(flag, "explain") == 0)
 		buildopts.explain = true;
 	else
-		errx(1, "unknown debug flag: %s", flag);
+		fatal("unknown debug flag: %s", flag);
 }
 
 static void
@@ -76,7 +76,7 @@ warnflag(const char *flag)
 	else if (strcmp(flag, "dupbuild=warn") == 0)
 		parseopts.dupbuildwarn = true;
 	else
-		errx(1, "unknown warning flag: %s", flag);
+		fatal("unknown warning flag: %s", flag);
 }
 
 int
@@ -104,7 +104,7 @@ main(int argc, char *argv[])
 		break;
 	case 'C':
 		if (chdir(EARGF(usage())) < 0)
-			err(1, "chdir");
+			fatal("chdir:");
 		break;
 	case 'd':
 		debugflag(EARGF(usage()));
@@ -115,13 +115,13 @@ main(int argc, char *argv[])
 	case 'j':
 		num = strtol(EARGF(usage()), &end, 10);
 		if (*end || num < 0)
-			errx(1, "invalid -j parameter");
+			fatal("invalid -j parameter");
 		buildopts.maxjobs = num > 0 ? num : -1;
 		break;
 	case 'k':
 		num = strtol(EARGF(usage()), &end, 10);
 		if (*end)
-			errx(1, "invalid -k parameter");
+			fatal("invalid -k parameter");
 		buildopts.maxfail = num > 0 ? num : -1;
 		break;
 	case 't':
@@ -181,7 +181,7 @@ retry:
 		if (n->dirty) {
 			build();
 			if (++tries > 100)
-				errx(1, "manifest '%s' dirty after 100 tries", manifest);
+				fatal("manifest '%s' dirty after 100 tries", manifest);
 			goto retry;
 		}
 	}
@@ -191,7 +191,7 @@ retry:
 		for (; *argv; ++argv) {
 			n = nodeget(*argv, 0);
 			if (!n)
-				errx(1, "unknown target: '%s'", *argv);
+				fatal("unknown target: '%s'", *argv);
 			buildadd(n);
 		}
 	} else {

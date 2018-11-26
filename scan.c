@@ -17,7 +17,7 @@ scaninit(struct scanner *s, const char *path)
 	s->col = 1;
 	s->f = fopen(path, "r");
 	if (!s->f)
-		err(1, "open %s", path);
+		fatal("open %s:", path);
 	s->chr = getc(s->f);
 }
 
