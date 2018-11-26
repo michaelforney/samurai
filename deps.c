@@ -56,7 +56,6 @@ static const char depstmpname[] = ".ninja_deps.tmp";
 static const char depsheader[] = "# ninjadeps\n";
 static const uint32_t depsver = 3;
 static FILE *depsfile;
-static uint32_t *depsbuf;
 static struct entry *entries;
 static size_t entrieslen, entriescap;
 
@@ -70,7 +69,7 @@ depswrite(const void *p, size_t n, size_t m)
 static bool
 recordid(struct node *n)
 {
-	uint32_t sz;
+	uint32_t sz, chk;
 
 	if (n->id != -1)
 		return false;
@@ -80,11 +79,11 @@ recordid(struct node *n)
 	sz = (n->path->n + 7) & ~3;
 	if (sz + 4 >= MAX_RECORD_SIZE)
 		errx(1, "ID record too large");
-	depsbuf[0] = sz;
-	memcpy(&depsbuf[1], n->path->s, n->path->n);
-	memset((char *)&depsbuf[1] + n->path->n, 0, sz - n->path->n - 4);
-	depsbuf[sz / 4] = ~n->id;
-	depswrite(depsbuf, 4 + sz, 1);
+	depswrite(&sz, 4, 1);
+	depswrite(n->path->s, 1, n->path->n);
+	depswrite((char [4]){0}, 1, sz - n->path->n - 4);
+	chk = ~n->id;
+	depswrite(&chk, 4, 1);
 
 	return true;
 }
@@ -98,19 +97,19 @@ recorddeps(struct node *out, struct nodearray *deps, uint32_t mtime)
 	sz = 8 + deps->len * 4;
 	if (sz + 4 >= MAX_RECORD_SIZE)
 		errx(1, "deps record too large");
-	depsbuf[0] = sz | 0x80000000;
-	depsbuf[1] = out->id;
-	depsbuf[2] = mtime;
+	sz |= 0x80000000;
+	depswrite(&sz, 4, 1);
+	depswrite(&out->id, 4, 1);
+	depswrite(&mtime, 4, 1);
 	for (i = 0; i < deps->len; ++i)
-		depsbuf[3 + i] = deps->node[i]->id;
-	depswrite(depsbuf, 4 + sz, 1);
+		depswrite(&deps->node[i]->id, 4, 1);
 }
 
 void
 depsinit(const char *builddir)
 {
 	char *depspath = (char *)depsname, *depstmppath = (char *)depstmpname;
-	uint32_t ver, sz, id;
+	uint32_t *buf, ver, sz, id;
 	size_t len, i, j, nrecord;
 	bool isdep;
 	struct string *path;
@@ -121,8 +120,7 @@ depsinit(const char *builddir)
 	/* XXX: when ninja hits a bad record, it truncates the log to the last
 	 * good record. perhaps we should do the same. */
 
-	if (!depsbuf)
-		depsbuf = xmalloc(MAX_RECORD_SIZE);
+	buf = xmalloc(MAX_RECORD_SIZE);
 	if (depsfile)
 		fclose(depsfile);
 	entrieslen = 0;
@@ -131,13 +129,13 @@ depsinit(const char *builddir)
 	depsfile = fopen(depspath, "a+");
 	if (!depsfile)
 		err(1, "open %s", depspath);
-	if (!fgets((char *)depsbuf, sizeof(depsheader), depsfile))
+	if (!fgets((char *)buf, sizeof(depsheader), depsfile))
 		goto rewrite;
 	if (fread(&ver, sizeof(ver), 1, depsfile) != 1) {
 		warn("deps read failed");
 		goto rewrite;
 	}
-	if (strcmp((char *)depsbuf, depsheader) != 0) {
+	if (strcmp((char *)buf, depsheader) != 0) {
 		warnx("invalid deps header");
 		goto rewrite;
 	}
@@ -154,7 +152,7 @@ depsinit(const char *builddir)
 			warnx("deps record too large");
 			goto rewrite;
 		}
-		if (fread(depsbuf, sz, 1, depsfile) != 1) {
+		if (fread(buf, sz, 1, depsfile) != 1) {
 			warn("deps read failed");
 			goto rewrite;
 		}
@@ -168,13 +166,13 @@ depsinit(const char *builddir)
 				goto rewrite;
 			}
 			sz -= 8;
-			id = depsbuf[0];
+			id = buf[0];
 			if (id >= entrieslen) {
 				warnx("invalid node ID: %" PRIu32, id);
 				goto rewrite;
 			}
 			entry = &entries[id];
-			entry->mtime = depsbuf[1];
+			entry->mtime = buf[1];
 			e = entry->node->gen;
 			if (!e || !edgevar(e, "deps"))
 				continue;
@@ -183,7 +181,7 @@ depsinit(const char *builddir)
 			entry->deps.len = sz;
 			entry->deps.node = xreallocarray(NULL, sz, sizeof(n));
 			for (i = 0; i < sz; ++i) {
-				id = depsbuf[2 + i];
+				id = buf[2 + i];
 				if (id >= entrieslen) {
 					warnx("invalid node ID: %" PRIu32, id);
 					goto rewrite;
@@ -195,7 +193,7 @@ depsinit(const char *builddir)
 				warnx("invalid size, must larger than 4: %" PRIu32, sz);
 				goto rewrite;
 			}
-			if (entrieslen != ~depsbuf[sz / 4 - 1]) {
+			if (entrieslen != ~buf[sz / 4 - 1]) {
 				warnx("corrupt deps log, bad checksum");
 				goto rewrite;
 			}
@@ -204,10 +202,10 @@ depsinit(const char *builddir)
 				goto rewrite;
 			}
 			len = sz - 4;
-			while (((char *)depsbuf)[len - 1] == '\0')
+			while (((char *)buf)[len - 1] == '\0')
 				--len;
 			path = mkstr(len);
-			memcpy(path->s, depsbuf, len);
+			memcpy(path->s, buf, len);
 			path->s[len] = '\0';
 
 			n = mknode(path);
@@ -226,10 +224,12 @@ depsinit(const char *builddir)
 	if (nrecord <= 1000 || nrecord < 3 * entrieslen) {
 		if (builddir)
 			free(depspath);
+		free(buf);
 		return;
 	}
 
 rewrite:
+	free(buf);
 	fclose(depsfile);
 	if (builddir)
 		xasprintf(&depstmppath, "%s/%s", builddir, depstmpname);
