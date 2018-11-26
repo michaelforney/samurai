@@ -94,8 +94,10 @@ loginit(const char *builddir)
 		}
 	}
 	free(line);
-	if (ferror(logfile))
+	if (ferror(logfile)) {
 		warn("build log read");
+		goto rewrite;
+	}
 	if (nline <= 100 || nline <= 3 * nentry) {
 		if (builddir)
 			free(logpath);
