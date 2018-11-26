@@ -133,15 +133,15 @@ depsinit(const char *builddir)
 	if (!fgets((char *)buf, sizeof(depsheader), depsfile))
 		goto rewrite;
 	if (fread(&ver, sizeof(ver), 1, depsfile) != 1) {
-		warn("deps read failed");
+		warn("deps log read");
 		goto rewrite;
 	}
 	if (strcmp((char *)buf, depsheader) != 0) {
-		warnx("invalid deps header");
+		warnx("invalid deps log header");
 		goto rewrite;
 	}
 	if (ver != depsver) {
-		warnx("unknown deps version");
+		warnx("unknown deps log version");
 		goto rewrite;
 	}
 	for (nrecord = 0;; ++nrecord) {
@@ -160,7 +160,7 @@ depsinit(const char *builddir)
 			buf = xmalloc(cap);
 		}
 		if (fread(buf, sz, 1, depsfile) != 1) {
-			warn("deps read failed");
+			warn("deps log read");
 			goto rewrite;
 		}
 		if (sz % 4) {
@@ -225,7 +225,7 @@ depsinit(const char *builddir)
 		}
 	}
 	if (ferror(depsfile)) {
-		warn("deps read failed");
+		warn("deps log read");
 		goto rewrite;
 	}
 	if (nrecord <= 1000 || nrecord < 3 * entrieslen) {
@@ -269,7 +269,7 @@ rewrite:
 	if (fflush(depsfile) < 0)
 		err(1, "deps log flush");
 	if (rename(depstmppath, depspath) < 0)
-		err(1, "deps file rename failed");
+		err(1, "deps log rename");
 	if (builddir) {
 		free(depstmppath);
 		free(depspath);
@@ -391,7 +391,7 @@ depsparse(const char *name, struct string *out)
 		ungetc(c, f);
 	}
 	if (ferror(f)) {
-		warnx("depfile read failed");
+		warn("depfile read");
 		goto err;
 	}
 	fclose(f);
