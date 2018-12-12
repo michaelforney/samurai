@@ -74,6 +74,8 @@ parseedge(struct scanner *s, struct environment *env)
 		for (; (str = scanstring(s, true)); ++e->nout)
 			pushstr(&end, str);
 	}
+	if (e->nout == 0)
+		scanerror(s, "expected output path");
 	scanchar(s, ':');
 	name = scanname(s);
 	e->rule = envrule(env, name);
