@@ -376,7 +376,7 @@ depsparse(const char *name, struct string *out)
 				goto err;
 			}
 			if (out->n != buf.len || memcmp(buf.data, out->s, buf.len) != 0) {
-				warnx("bad depfile: output doesn't match $out: %s != %s", buf.data, out->s);
+				warnx("bad depfile: output doesn't match $out: %.*s != %s", (int)buf.len, buf.data, out->s);
 				goto err;
 			}
 			sawcolon = true;
