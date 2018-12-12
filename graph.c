@@ -143,7 +143,9 @@ mkedge(struct environment *parent)
 	e = xmalloc(sizeof(*e));
 	e->env = mkenv(parent);
 	e->pool = NULL;
+	e->out = NULL;
 	e->nout = 0;
+	e->in = NULL;
 	e->nin = 0;
 	e->flags = 0;
 	e->allnext = alledges;
