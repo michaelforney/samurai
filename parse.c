@@ -253,8 +253,8 @@ parse(const char *name, struct environment *env)
 			delevalstr(str);
 			break;
 		case EOF:
+			scanclose(&s);
 			return;
 		}
 	}
-	scanclose(&s);
 }
