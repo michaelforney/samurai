@@ -203,12 +203,8 @@ escape(struct scanner *s, struct evalstringpart ***end)
 	case '{':
 		if (buf.len > 0)
 			addstringpart(end, false);
-		for (;;) {
-			next(s);
-			if (!isvar(s->chr))
-				break;
+		while (isvar(next(s)))
 			bufadd(&buf, s->chr);
-		}
 		if (s->chr != '}')
 			scanerror(s, "invalid variable name");
 		next(s);
