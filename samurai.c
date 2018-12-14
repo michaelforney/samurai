@@ -95,8 +95,11 @@ main(int argc, char *argv[])
 		if (strcmp(arg, "version") == 0) {
 			puts(ninjaversion);
 			return 0;
+		} else if (strcmp(arg, "verbose") == 0) {
+			buildopts.verbose = true;
+		} else {
+			usage();
 		}
-		usage();
 		break;
 	case 'C':
 		if (chdir(EARGF(usage())) < 0)
