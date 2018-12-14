@@ -111,7 +111,7 @@ parseedge(struct scanner *s, struct environment *env)
 		canonpath(val);
 		n = mknode(val);
 		if (n->gen) {
-			if (parseopts.dupbuilderr)
+			if (!parseopts.dupbuildwarn)
 				errx(1, "multiple rules generate '%s'", n->path->s);
 			warnx("multiple rules generate '%s'", n->path->s);
 			--e->nout;

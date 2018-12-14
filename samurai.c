@@ -72,9 +72,9 @@ static void
 warnflag(const char *flag)
 {
 	if (strcmp(flag, "dupbuild=err") == 0)
-		parseopts.dupbuilderr = true;
+		parseopts.dupbuildwarn = false;
 	else if (strcmp(flag, "dupbuild=warn") == 0)
-		parseopts.dupbuilderr = false;
+		parseopts.dupbuildwarn = true;
 	else
 		errx(1, "unknown warning flag: %s", flag);
 }

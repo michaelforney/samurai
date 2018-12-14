@@ -1,7 +1,7 @@
 struct environment;
 
 struct parseoptions {
-	_Bool dupbuilderr;
+	_Bool dupbuildwarn;
 };
 
 void parseinit(void);
