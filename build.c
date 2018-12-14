@@ -71,10 +71,10 @@ isdirty(struct node *n, struct node *newest, bool generator, bool restat)
 				warnx("explain %s: no record in .ninja_log", n->path->s);
 			return true;
 		}
-	} else if (newest && n->logmtime < newest->mtime / 1000000000) {
+	} else if (newest && n->logmtime < newest->mtime) {
 		if (buildopts.explain) {
 			warnx("explain %s: recorded mtime is older than input '%s': %" PRId64 " vs %" PRId64,
-			      n->path->s, newest->path->s, n->logmtime, newest->mtime / 1000000000);
+			      n->path->s, newest->path->s, n->logmtime, newest->mtime);
 		}
 		return true;
 	}
@@ -319,7 +319,7 @@ shouldprune(struct edge *e, struct node *n, int64_t old)
 			newest = in;
 	}
 	if (newest)
-		n->logmtime = newest->mtime / 1000000000;
+		n->logmtime = newest->mtime;
 
 	return true;
 }
@@ -355,7 +355,7 @@ edgedone(struct edge *e)
 		n = e->out[i];
 		old = n->mtime;
 		nodestat(n);
-		n->logmtime = n->mtime == MTIME_MISSING ? 0 : n->mtime / 1000000000;
+		n->logmtime = n->mtime == MTIME_MISSING ? 0 : n->mtime;
 		nodedone(n, restat && shouldprune(e, n, old));
 	}
 	rspfile = edgevar(e, "rspfile");

@@ -32,10 +32,11 @@ n). The remaining bytes of the record specify the path of the node, padded with
 NUL bytes to the next 4-byte boundary (start of the checksum value).
 
 A dependency record contains a list of dependencies for the edge that built a
-particular node. The first 4-byte integer is the node ID. The second 4-byte
-integer is the UNIX mtime of the node when it was built. Following this is a
-sequence of 4-byte integers specifying the IDs of the dependency nodes for this
-edge, which will have been specified previously in node records.
+particular node. The first 4-byte integer is the node ID. The second and third
+4-byte integers are the low and high 32-bits of the UNIX mtime (in nanoseconds)
+of the node when it was built. Following this is a sequence of 4-byte integers
+specifying the IDs of the dependency nodes for this edge, which will have been
+specified previously in node records.
 */
 
 /* maximum record size (in bytes) */
@@ -49,13 +50,13 @@ struct nodearray {
 struct entry {
 	struct node *node;
 	struct nodearray deps;
-	uint32_t mtime;
+	int64_t mtime;
 };
 
 static const char depsname[] = ".ninja_deps";
 static const char depstmpname[] = ".ninja_deps.tmp";
 static const char depsheader[] = "# ninjadeps\n";
-static const uint32_t depsver = 3;
+static const uint32_t depsver = 4;
 static FILE *depsfile;
 static struct entry *entries;
 static size_t entrieslen, entriescap;
@@ -90,18 +91,21 @@ recordid(struct node *n)
 }
 
 static void
-recorddeps(struct node *out, struct nodearray *deps, uint32_t mtime)
+recorddeps(struct node *out, struct nodearray *deps, int64_t mtime)
 {
-	uint32_t sz;
+	uint32_t sz, m;
 	size_t i;
 
-	sz = 8 + deps->len * 4;
+	sz = 12 + deps->len * 4;
 	if (sz + 4 >= MAX_RECORD_SIZE)
 		errx(1, "deps record too large");
 	sz |= 0x80000000;
 	depswrite(&sz, 4, 1);
 	depswrite(&out->id, 4, 1);
-	depswrite(&mtime, 4, 1);
+	m = mtime & 0xffffffff;
+	depswrite(&m, 4, 1);
+	m = (mtime >> 32) & 0xffffffff;
+	depswrite(&m, 4, 1);
 	for (i = 0; i < deps->len; ++i)
 		depswrite(&deps->node[i]->id, 4, 1);
 }
@@ -172,18 +176,18 @@ depsinit(const char *builddir)
 			goto rewrite;
 		}
 		if (isdep) {
-			if (sz < 8) {
-				warnx("invalid size, must be at least 8: %" PRIu32, sz);
+			if (sz < 12) {
+				warnx("invalid size, must be at least 12: %" PRIu32, sz);
 				goto rewrite;
 			}
-			sz -= 8;
+			sz -= 12;
 			id = buf[0];
 			if (id >= entrieslen) {
 				warnx("invalid node ID: %" PRIu32, id);
 				goto rewrite;
 			}
 			entry = &entries[id];
-			entry->mtime = buf[1];
+			entry->mtime = (int64_t)buf[2] << 32 | buf[1];
 			e = entry->node->gen;
 			if (!e || !edgevar(e, "deps"))
 				continue;
@@ -192,7 +196,7 @@ depsinit(const char *builddir)
 			entry->deps.len = sz;
 			entry->deps.node = xreallocarray(NULL, sz, sizeof(n));
 			for (i = 0; i < sz; ++i) {
-				id = buf[2 + i];
+				id = buf[3 + i];
 				if (id >= entrieslen) {
 					warnx("invalid node ID: %" PRIu32, id);
 					goto rewrite;
@@ -423,7 +427,7 @@ depsload(struct edge *e)
 	n = e->out[0];
 	deptype = edgevar(e, "deps");
 	if (deptype) {
-		if (n->id != -1 && (n->mtime < 0 || n->mtime / 1000000000 <= entries[n->id].mtime))
+		if (n->id != -1 && n->mtime <= entries[n->id].mtime)
 			deps = &entries[n->id].deps;
 		else if (buildopts.explain)
 			warnx("explain %s: missing or outdated record in .ninja_deps", n->path->s);
@@ -452,7 +456,6 @@ depsrecord(struct edge *e)
 	struct entry *entry;
 	size_t i;
 	bool update;
-	uint32_t mtime;
 
 	deptype = edgevar(e, "deps");
 	if (!deptype || deptype->n == 0)
@@ -467,7 +470,6 @@ depsrecord(struct edge *e)
 		return;
 	}
 	out = e->out[0];
-	mtime = out->mtime / 1000000000;
 	deps = depsparse(depfile->s);
 	remove(depfile->s);
 	if (!deps)
@@ -478,7 +480,7 @@ depsrecord(struct edge *e)
 		update = true;
 	} else {
 		entry = &entries[out->id];
-		if (entry->mtime != mtime || entry->deps.len != deps->len)
+		if (entry->mtime != out->mtime || entry->deps.len != deps->len)
 			update = true;
 		for (i = 0; i < deps->len && !update; ++i) {
 			if (entry->deps.node[i] != deps->node[i])
@@ -491,7 +493,7 @@ depsrecord(struct edge *e)
 			update = true;
 	}
 	if (update) {
-		recorddeps(out, deps, mtime);
+		recorddeps(out, deps, out->mtime);
 		if (fflush(depsfile) < 0)
 			err(1, "deps log flush");
 	}
