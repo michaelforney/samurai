@@ -290,12 +290,12 @@ depsclose(void)
 }
 
 static struct nodearray *
-depsparse(const char *name, struct string *out)
+depsparse(const char *name)
 {
 	static struct buffer buf;
 	static struct nodearray deps;
 	static size_t depscap;
-	struct string *path;
+	struct string *in, *out = NULL;
 	FILE *f;
 	int c, n;
 	bool sawcolon;
@@ -356,10 +356,10 @@ depsparse(const char *name, struct string *out)
 					depscap = deps.node ? depscap * 2 : 32;
 					deps.node = xreallocarray(deps.node, depscap, sizeof(deps.node[0]));
 				}
-				path = mkstr(buf.len);
-				memcpy(path->s, buf.data, buf.len);
-				path->s[buf.len] = '\0';
-				deps.node[deps.len++] = mknode(path);
+				in = mkstr(buf.len);
+				memcpy(in->s, buf.data, buf.len);
+				in->s[buf.len] = '\0';
+				deps.node[deps.len++] = mknode(in);
 			}
 			if (c == '\n')
 				sawcolon = false;
@@ -374,8 +374,12 @@ depsparse(const char *name, struct string *out)
 				warnx("bad depfile: expected ':', saw '%c'", c);
 				goto err;
 			}
-			if (out->n != buf.len || memcmp(buf.data, out->s, buf.len) != 0) {
-				warnx("bad depfile: output doesn't match $out: %.*s != %s", (int)buf.len, buf.data, out->s);
+			if (!out) {
+				out = mkstr(buf.len);
+				memcpy(out->s, buf.data, buf.len);
+				out->s[buf.len] = '\0';
+			} else if (out->n != buf.len || memcmp(buf.data, out->s, buf.len) != 0) {
+				warnx("bad depfile: multiple outputs: %.*s != %s", (int)buf.len, buf.data, out->s);
 				goto err;
 			}
 			sawcolon = true;
@@ -423,7 +427,7 @@ depsload(struct edge *e)
 		depfile = edgevar(e, "depfile");
 		if (!depfile)
 			return;
-		deps = depsparse(depfile->s, n->path);
+		deps = depsparse(depfile->s);
 		if (buildopts.explain && !deps)
 			warnx("explain %s: missing or invalid dep file", n->path->s);
 	}
@@ -460,7 +464,7 @@ depsrecord(struct edge *e)
 	}
 	out = e->out[0];
 	mtime = out->mtime / 1000000000;
-	deps = depsparse(depfile->s, out->path);
+	deps = depsparse(depfile->s);
 	remove(depfile->s);
 	if (!deps)
 		return;
