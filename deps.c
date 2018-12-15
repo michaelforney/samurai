@@ -366,6 +366,8 @@ depsparse(const char *name, struct string *out)
 			else if (c == EOF)
 				break;
 		} else {
+			while (isblank(c))
+				c = getc(f);
 			if (c == EOF)
 				break;
 			if (c != ':') {
