@@ -308,6 +308,7 @@ depsparse(const char *name)
 	deps.len = 0;
 	c = getc(f);
 	for (;;) {
+		/* TODO: this parser needs to be rewritten to be made simpler */
 		while (isalnum(c) || strchr("$+,-./@\\_", c)) {
 			switch (c) {
 			case '\\':
@@ -361,9 +362,12 @@ depsparse(const char *name)
 				in->s[buf.len] = '\0';
 				deps.node[deps.len++] = mknode(in);
 			}
-			if (c == '\n')
+			if (c == '\n') {
 				sawcolon = false;
-			else if (c == EOF)
+				do c = getc(f);
+				while (c == '\n');
+			}
+			if (c == EOF)
 				break;
 		} else {
 			while (isblank(c))
