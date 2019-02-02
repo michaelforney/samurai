@@ -174,6 +174,7 @@ parsedefault(struct scanner *s, struct environment *env)
 		str = targ->next;
 		path = enveval(env, targ);
 		delevalstr(targ);
+		canonpath(path);
 		n = nodeget(path->s);
 		if (!n)
 			errx(1, "unknown target '%s'", path->s);
