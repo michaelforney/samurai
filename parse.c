@@ -102,14 +102,12 @@ parseedge(struct scanner *s, struct environment *env)
 		parselet(s, &str);
 		val = enveval(env, str);
 		envaddvar(e->env, name, val);
-		delevalstr(str);
 	}
 
 	e->out = xreallocarray(NULL, e->nout, sizeof(*n));
 	for (i = 0; i < e->nout; out = str) {
 		str = out->next;
 		val = enveval(e->env, out);
-		delevalstr(out);
 		canonpath(val);
 		n = mknode(val);
 		if (n->gen) {
@@ -130,7 +128,6 @@ parseedge(struct scanner *s, struct environment *env)
 	for (i = 0; i < e->nin; in = str, ++i) {
 		str = in->next;
 		val = enveval(e->env, in);
-		delevalstr(in);
 		canonpath(val);
 		e->in[i] = mknode(val);
 	}
@@ -151,7 +148,6 @@ parseinclude(struct scanner *s, struct environment *env, bool newscope)
 		scanerror(s, "expected include path");
 	scannewline(s);
 	path = enveval(env, str);
-	delevalstr(str);
 
 	if (newscope)
 		env = mkenv(env);
@@ -173,7 +169,6 @@ parsedefault(struct scanner *s, struct environment *env)
 	for (; targ; targ = str) {
 		str = targ->next;
 		path = enveval(env, targ);
-		delevalstr(targ);
 		canonpath(path);
 		n = nodeget(path->s);
 		if (!n)
@@ -253,7 +248,6 @@ parse(const char *name, struct environment *env)
 			if (strcmp(var, "ninja_required_version") == 0)
 				checkversion(val->s);
 			envaddvar(env, var, val);
-			delevalstr(str);
 			break;
 		case EOF:
 			scanclose(&s);

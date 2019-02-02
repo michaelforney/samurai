@@ -100,6 +100,7 @@ enveval(struct environment *env, struct evalstring *str)
 {
 	size_t n;
 	struct evalstringpart *p;
+	struct string *res;
 
 	n = 0;
 	if (str) {
@@ -110,8 +111,10 @@ enveval(struct environment *env, struct evalstring *str)
 				n += p->str->n;
 		}
 	}
+	res = merge(str, n);
+	delevalstr(str);
 
-	return merge(str, n);
+	return res;
 }
 
 void
