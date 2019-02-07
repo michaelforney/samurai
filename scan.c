@@ -67,13 +67,45 @@ isvar(int c)
 	return issimplevar(c) || c == '.';
 }
 
+static void
+crlf(struct scanner *s)
+{
+	if (next(s) != '\n')
+		scanerror(s, "expected '\\n' after '\\r'");
+}
+
+static bool
+singlespace(struct scanner *s) {
+	int c;
+
+	switch (s->chr) {
+	case '$':
+		c = getc(s->f);
+		switch (c) {
+		case '\r':
+			crlf(s);
+			/* fallthrough */
+		case '\n':
+			break;
+		default:
+			ungetc(c, s->f);
+			return false;
+		}
+		/* fallthrough */
+	case ' ':
+		next(s);
+		return true;
+	}
+	return false;
+}
+
 static bool
 space(struct scanner *s)
 {
-	if (s->chr != ' ')
+	if (!singlespace(s))
 		return false;
-	do next(s);
-	while (s->chr == ' ');
+	while (singlespace(s))
+		;
 	return true;
 }
 
@@ -100,13 +132,6 @@ name(struct scanner *s)
 		scanerror(s, "expected name");
 	bufadd(&buf, '\0');
 	space(s);
-}
-
-static void
-crlf(struct scanner *s)
-{
-	if (next(s) != '\n')
-		scanerror(s, "expected '\\n' after '\\r'");
 }
 
 int
