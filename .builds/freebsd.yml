@@ -1,4 +1,4 @@
-image: freebsd
+image: freebsd/latest
 sources:
   - https://git.sr.ht/~mcf/samurai
 tasks:

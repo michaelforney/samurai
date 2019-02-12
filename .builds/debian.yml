@@ -1,4 +1,4 @@
-image: debian/stretch
+image: debian/stable
 sources:
   - https://git.sr.ht/~mcf/samurai
 tasks:
