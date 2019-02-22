@@ -74,7 +74,7 @@ void graphinit(void);
 /* create a new node or return existing node */
 struct node *mknode(struct string *);
 /* lookup a node by name; returns NULL if it does not exist */
-struct node *nodeget(char *);
+struct node *nodeget(char *, size_t);
 /* update the mtime field of a node */
 void nodestat(struct node *);
 /* escape a node's path, populating shellpath */

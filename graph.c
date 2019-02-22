@@ -48,7 +48,7 @@ mknode(struct string *path)
 	struct node *n;
 	struct hashtablekey k;
 
-	htabbufkey(&k, path->s, path->n);
+	htabkey(&k, path->s, path->n);
 	v = htabput(allnodes, &k);
 	if (*v) {
 		free(path);
@@ -70,11 +70,13 @@ mknode(struct string *path)
 }
 
 struct node *
-nodeget(char *path)
+nodeget(char *path, size_t len)
 {
 	struct hashtablekey k;
 
-	htabstrkey(&k, path);
+	if (!len)
+		len = strlen(path);
+	htabkey(&k, path, len);
 	return htabget(allnodes, &k);
 }
 

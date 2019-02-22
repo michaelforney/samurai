@@ -6,8 +6,7 @@ struct hashtablekey {
 	size_t len;
 };
 
-void htabstrkey(struct hashtablekey *, const char *);
-void htabbufkey(struct hashtablekey *, const char *, size_t);
+void htabkey(struct hashtablekey *, const char *, size_t);
 
 struct hashtable *mkhtab(size_t);
 void delhtab(struct hashtable *, void(void *));

@@ -174,7 +174,7 @@ retry:
 	depsinit(builddir);
 
 	/* rebuild the manifest if it's dirty */
-	n = nodeget(manifest);
+	n = nodeget(manifest, 0);
 	if (n && n->gen) {
 		buildadd(n);
 		if (n->dirty) {
@@ -188,7 +188,7 @@ retry:
 	/* finally, build any specified targets or the default targets */
 	if (argc) {
 		for (; *argv; ++argv) {
-			n = nodeget(*argv);
+			n = nodeget(*argv, 0);
 			if (!n)
 				errx(1, "unknown target: '%s'", *argv);
 			buildadd(n);

@@ -78,7 +78,7 @@ loginit(const char *builddir)
 		s = nextfield(&p);  /* output path */
 		if (!s)
 			continue;
-		n = nodeget(s);
+		n = nodeget(s, 0);
 		if (!n || !n->gen)
 			continue;
 		if (n->logmtime == MTIME_MISSING)

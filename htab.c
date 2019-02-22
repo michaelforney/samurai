@@ -13,17 +13,11 @@ struct hashtable {
 };
 
 void
-htabbufkey(struct hashtablekey *k, const char *s, size_t n)
+htabkey(struct hashtablekey *k, const char *s, size_t n)
 {
 	k->str = s;
 	k->len = n;
 	k->hash = murmurhash64a(s, n);
-}
-
-void
-htabstrkey(struct hashtablekey *k, const char *s)
-{
-	htabbufkey(k, s, strlen(s));
 }
 
 struct hashtable *

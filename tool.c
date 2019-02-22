@@ -83,7 +83,7 @@ clean(int argc, char *argv[])
 		}
 	} else if (argc > 0) {
 		for (; *argv; ++argv) {
-			n = nodeget(*argv);
+			n = nodeget(*argv, 0);
 			if (!n) {
 				warnx("unknown target: %s", *argv);
 				ret = 1;
