@@ -1,6 +1,7 @@
 # samurai
 
 [![Build Status](https://travis-ci.org/michaelforney/samurai.svg?branch=master)](https://travis-ci.org/michaelforney/samurai)
+[![builds.sr.ht status](https://builds.sr.ht/~mcf/samurai.svg)](https://builds.sr.ht/~mcf/samurai)
 
 samurai is a ninja-compatible build tool written in C99 with a focus on
 simplicity, speed, and portability.
