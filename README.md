@@ -8,7 +8,7 @@ simplicity, speed, and portability.
 
 ## Status
 
-samurai implements the ninja build language through version 1.8.2 except
+samurai implements the ninja build language through version 1.9.0 except
 for MSVC dependency handling (`deps = msvc`). It uses the same format
 for `.ninja_log` and `.ninja_deps` as ninja, currently version 5 and 3
 respectively.

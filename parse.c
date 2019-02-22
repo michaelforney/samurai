@@ -9,7 +9,7 @@
 #include "util.h"
 
 struct parseoptions parseopts;
-const char *ninjaversion = "1.8.2";
+const char *ninjaversion = "1.9.0";
 struct node **deftarg;
 size_t ndeftarg;
 
