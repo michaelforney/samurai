@@ -1,9 +1,17 @@
 #include <stdint.h>  /* for uint64_t */
 
-struct hashtable *mkht(size_t);
-void htfree(struct hashtable *, void (*)(void *));
-void **htput(struct hashtable *, const char *);
-void *htget(struct hashtable *, const char *);
-void **htkeys(struct hashtable *, size_t *);
+struct hashtablekey {
+	uint64_t hash;
+	const char *str;
+	size_t len;
+};
+
+void htabstrkey(struct hashtablekey *, const char *);
+void htabbufkey(struct hashtablekey *, const char *, size_t);
+
+struct hashtable *mkhtab(size_t);
+void delhtab(struct hashtable *, void(void *));
+void **htabput(struct hashtable *, struct hashtablekey *);
+void *htabget(struct hashtable *, struct hashtablekey *);
 
 uint64_t murmurhash64a(const void *, size_t);

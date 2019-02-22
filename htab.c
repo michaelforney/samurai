@@ -1,145 +1,127 @@
-/* Copied from myrddin's util/htab.c, by Ori Bernstein.
- * See LICENSE file for copyright details. */
+#include <assert.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include "htab.h"
 #include "util.h"
+#include "htab.h"
 
 struct hashtable {
-	size_t nelt;
-	size_t sz;
-	const char **keys;
+	size_t len, cap;
+	struct hashtablekey *keys;
 	void **vals;
-	uint64_t *hashes;
 };
 
-/* Creates a new empty hash table, using 'sz' as the initial size. */
-struct hashtable *
-mkht(size_t sz)
-{
-	struct hashtable *ht;
-
-	ht = xmalloc(sizeof(*ht));
-	ht->nelt = 0;
-	ht->sz = sz;
-	ht->keys = xreallocarray(NULL, sz, sizeof(ht->keys[0]));
-	memset(ht->keys, 0, sz * sizeof(ht->keys[0]));
-	ht->vals = xreallocarray(NULL, sz, sizeof(ht->vals[0]));
-	ht->hashes = xreallocarray(NULL, sz, sizeof(ht->hashes[0]));
-
-	return ht;
-}
-
-/* Frees a hash table. Passing this function NULL is a no-op. */
 void
-htfree(struct hashtable *ht, void (*del)(void *))
+htabbufkey(struct hashtablekey *k, const char *s, size_t n)
+{
+	k->str = s;
+	k->len = n;
+	k->hash = murmurhash64a(s, n);
+}
+
+void
+htabstrkey(struct hashtablekey *k, const char *s)
+{
+	htabbufkey(k, s, strlen(s));
+}
+
+struct hashtable *
+mkhtab(size_t cap)
+{
+	struct hashtable *h;
+	size_t i;
+
+	assert(!(cap & cap - 1));
+	h = xmalloc(sizeof(*h));
+	h->len = 0;
+	h->cap = cap;
+	h->keys = xreallocarray(NULL, cap, sizeof(h->keys[0]));
+	h->vals = xreallocarray(NULL, cap, sizeof(h->vals[0]));
+	for (i = 0; i < cap; ++i)
+		h->keys[i].str = NULL;
+
+	return h;
+}
+
+void
+delhtab(struct hashtable *h, void del(void *))
 {
 	size_t i;
 
-	if (!ht)
+	if (!h)
 		return;
-	for (i = 0; i < ht->sz; ++i) {
-		if (ht->keys[i])
-			del(ht->vals[i]);
+	if (del) {
+		for (i = 0; i < h->cap; ++i) {
+			if (h->keys[i].str)
+				del(h->vals[i]);
+		}
 	}
-	free(ht->keys);
-	free(ht->vals);
-	free(ht->hashes);
-	free(ht);
+	free(h->keys);
+	free(h->vals);
+	free(h);
 }
 
-/* Resizes the hash table by copying all the old keys into the right slots in a
- * new table. */
-static void
-grow(struct hashtable *ht, int sz)
+static bool
+keyequal(struct hashtablekey *k1, struct hashtablekey *k2)
 {
-	const char **oldk;
-	void **oldv;
-	uint64_t *oldh;
-	int oldsz;
-	int i;
-
-	oldk = ht->keys;
-	oldv = ht->vals;
-	oldh = ht->hashes;
-	oldsz = ht->sz;
-
-	ht->nelt = 0;
-	ht->sz = sz;
-	ht->keys = xreallocarray(NULL, sz, sizeof(ht->keys[0]));
-	memset(ht->keys, 0, sz * sizeof(ht->keys[0]));
-	ht->vals = xreallocarray(NULL, sz, sizeof(ht->vals[0]));
-	ht->hashes = xreallocarray(NULL, sz, sizeof(ht->hashes[0]));
-
-	for (i = 0; i < oldsz; i++) {
-		if (oldk[i])
-			*htput(ht, oldk[i]) = oldv[i];
-	}
-
-	free(oldh);
-	free(oldk);
-	free(oldv);
+	if (k1->hash != k2->hash || k1->len != k2->len)
+		return false;
+	return memcmp(k1->str, k2->str, k1->len) == 0;
 }
 
-/* Inserts or retrieves 'k' from the hash table, possibly killing any previous
- * key that compare as equal. */
-void **
-htput(struct hashtable *ht, const char *k)
-{
-	int i;
-	uint64_t h;
-	int di;
-
-	if (ht->sz < ht->nelt * 2)
-		grow(ht, ht->sz * 2);
-
-	di = 0;
-	h = murmurhash64a(k, strlen(k));
-	i = h & (ht->sz - 1);
-	while (ht->keys[i]) {
-		if (ht->hashes[i] == h && strcmp(ht->keys[i], k) == 0)
-			return &ht->vals[i];
-		di++;
-		i = (h + di) & (ht->sz - 1);
-	}
-	ht->nelt++;
-	ht->hashes[i] = h;
-	ht->keys[i] = k;
-	ht->vals[i] = NULL;
-
-	return &ht->vals[i];
-}
-
-/* Finds the index that we would insert the key into */
 static size_t
-htidx(struct hashtable *ht, const char *k)
-{
-	size_t i, di;
-	uint64_t h;
-
-	di = 0;
-	h = murmurhash64a(k, strlen(k));
-	i = h & (ht->sz - 1);
-	for (;;) {
-		if (!ht->keys[i])
-			return -1;
-		if (ht->hashes[i] == h && strcmp(ht->keys[i], k) == 0)
-			return i;
-		di++;
-		i = (h + di) & (ht->sz - 1);
-	}
-}
-
-/* Looks up a key, returning NULL if the value is not present. Note, if NULL is
- * a valid value, you need to check with hthas() to see if it's not there */
-void *
-htget(struct hashtable *ht, const char *k)
+keyindex(struct hashtable *h, struct hashtablekey *k)
 {
 	size_t i;
 
-	i = htidx(ht, k);
-	return i == (size_t)-1 ? NULL : ht->vals[i];
+	i = k->hash & h->cap - 1;
+	while (h->keys[i].str && !keyequal(&h->keys[i], k))
+		i = i + 1 & h->cap - 1;
+	return i;
+}
+
+void **
+htabput(struct hashtable *h, struct hashtablekey *k)
+{
+	struct hashtablekey *oldkeys;
+	void **oldvals;
+	size_t i, j, oldcap;
+
+	if (h->cap / 2 < h->len) {
+		oldkeys = h->keys;
+		oldvals = h->vals;
+		oldcap = h->cap;
+		h->cap *= 2;
+		h->keys = xreallocarray(NULL, h->cap, sizeof(h->keys[0]));
+		h->vals = xreallocarray(NULL, h->cap, sizeof(h->vals[0]));
+		for (i = 0; i < h->cap; ++i)
+			h->keys[i].str = NULL;
+		for (i = 0; i < oldcap; ++i) {
+			if (oldkeys[i].str) {
+				j = keyindex(h, &oldkeys[i]);
+				h->keys[j] = oldkeys[i];
+				h->vals[j] = oldvals[i];
+			}
+		}
+	}
+	i = keyindex(h, k);
+	if (!h->keys[i].str) {
+		h->keys[i] = *k;
+		h->vals[i] = NULL;
+		++h->len;
+	}
+
+	return &h->vals[i];
+}
+
+void *
+htabget(struct hashtable *h, struct hashtablekey *k)
+{
+	size_t i;
+
+	i = keyindex(h, k);
+	return h->keys[i].str ? h->vals[i] : NULL;
 }
 
 uint64_t

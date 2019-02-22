@@ -30,7 +30,7 @@ graphinit(void)
 	struct edge *e;
 
 	/* delete old nodes and edges in case we rebuilt the manifest */
-	htfree(allnodes, delnode);
+	delhtab(allnodes, delnode);
 	while (alledges) {
 		e = alledges;
 		alledges = e->allnext;
@@ -38,7 +38,7 @@ graphinit(void)
 		free(e->in);
 		free(e);
 	}
-	allnodes = mkht(1024);
+	allnodes = mkhtab(1024);
 }
 
 struct node *
@@ -46,8 +46,10 @@ mknode(struct string *path)
 {
 	void **v;
 	struct node *n;
+	struct hashtablekey k;
 
-	v = htput(allnodes, path->s);
+	htabbufkey(&k, path->s, path->n);
+	v = htabput(allnodes, &k);
 	if (*v) {
 		free(path);
 		return *v;
@@ -70,7 +72,10 @@ mknode(struct string *path)
 struct node *
 nodeget(char *path)
 {
-	return htget(allnodes, path);
+	struct hashtablekey k;
+
+	htabstrkey(&k, path);
+	return htabget(allnodes, &k);
 }
 
 void
