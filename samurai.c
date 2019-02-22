@@ -82,17 +82,17 @@ warnflag(const char *flag)
 int
 main(int argc, char *argv[])
 {
-	char *builddir, *manifest = "build.ninja";
+	char *builddir, *manifest = "build.ninja", *end, *arg;
 	const struct tool *tool = NULL;
 	struct node *n;
 	int tries;
-	char *end;
 
 	argv0 = strrchr(argv[0], '/');
 	argv0 = argv0 ? argv0 + 1 : argv[0];
 	ARGBEGIN {
 	case '-':
-		if (strcmp(&argv[0][1], "version") == 0) {
+		arg = EARGF(usage());
+		if (strcmp(arg, "version") == 0) {
 			puts(ninjaversion);
 			return 0;
 		}
