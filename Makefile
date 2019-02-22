@@ -11,7 +11,7 @@ OBJ=\
 	htab.o\
 	log.o\
 	parse.o\
-	samurai.o\
+	samu.o\
 	scan.o\
 	tool.o\
 	tree.o\
