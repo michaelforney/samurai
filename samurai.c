@@ -85,6 +85,7 @@ main(int argc, char *argv[])
 	char *builddir, *manifest = "build.ninja", *end, *arg;
 	const struct tool *tool = NULL;
 	struct node *n;
+	long num;
 	int tries;
 
 	argv0 = strrchr(argv[0], '/');
@@ -112,16 +113,16 @@ main(int argc, char *argv[])
 		manifest = EARGF(usage());
 		break;
 	case 'j':
-		buildopts.maxjobs = strtol(EARGF(usage()), NULL, 10);
-		if (buildopts.maxjobs <= 0)
+		num = strtol(EARGF(usage()), &end, 10);
+		if (*end || num < 0)
 			errx(1, "invalid -j parameter");
+		buildopts.maxjobs = num > 0 ? num : -1;
 		break;
 	case 'k':
-		buildopts.maxfail = strtol(EARGF(usage()), &end, 10);
+		num = strtol(EARGF(usage()), &end, 10);
 		if (*end)
 			errx(1, "invalid -k parameter");
-		if (buildopts.maxfail <= 0)
-			buildopts.maxfail = SIZE_MAX;
+		buildopts.maxfail = num > 0 ? num : -1;
 		break;
 	case 't':
 		tool = toolget(EARGF(usage()));
