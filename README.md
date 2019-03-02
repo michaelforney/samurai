@@ -10,7 +10,7 @@ simplicity, speed, and portability.
 
 samurai implements the ninja build language through version 1.9.0 except
 for MSVC dependency handling (`deps = msvc`). It uses the same format
-for `.ninja_log` and `.ninja_deps` as ninja, currently version 5 and 3
+for `.ninja_log` and `.ninja_deps` as ninja, currently version 5 and 4
 respectively.
 
 It is largely feature-complete and supports most of the same options as ninja.
