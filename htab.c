@@ -26,7 +26,7 @@ mkhtab(size_t cap)
 	struct hashtable *h;
 	size_t i;
 
-	assert(!(cap & cap - 1));
+	assert(!(cap & (cap - 1)));
 	h = xmalloc(sizeof(*h));
 	h->len = 0;
 	h->cap = cap;
@@ -69,9 +69,9 @@ keyindex(struct hashtable *h, struct hashtablekey *k)
 {
 	size_t i;
 
-	i = k->hash & h->cap - 1;
+	i = k->hash & (h->cap - 1);
 	while (h->keys[i].str && !keyequal(&h->keys[i], k))
-		i = i + 1 & h->cap - 1;
+		i = (i + 1) & (h->cap - 1);
 	return i;
 }
 
