@@ -1,114 +1,122 @@
-/* Based on musl's src/search/tsearch_avl.c, by Szabolcs Nagy.
+/* Based on musl's src/search/tsearch.c, by Szabolcs Nagy.
  * See LICENSE file for copyright details. */
 #include <stdlib.h>
 #include <string.h>
 #include "tree.h"
 #include "util.h"
 
+#define MAXH (sizeof(void*) * 8 * 3 / 2)
+
 struct treenode {
-	char *name;
+	char *key;
 	void *value;
-	struct treenode *left, *right;
+	struct treenode *child[2];
 	int height;
 };
 
+static inline int
+height(struct treenode *n)
+{
+	return n ? n->height : 0;
+}
+
+static int rot(struct treenode **p, struct treenode *x, int dir /* deeper side */)
+{
+	struct treenode *y = x->child[dir];
+	struct treenode *z = y->child[!dir];
+	int hx = x->height;
+	int hz = height(z);
+
+	if (hz > height(y->child[dir])) {
+		/*
+		 *   x
+		 *  / \ dir          z
+		 * A   y            / \
+		 *    / \   -->    x   y
+		 *   z   D        /|   |\
+		 *  / \          A B   C D
+		 * B   C
+		 */
+		x->child[dir] = z->child[!dir];
+		y->child[!dir] = z->child[dir];
+		z->child[!dir] = x;
+		z->child[dir] = y;
+		x->height = hz;
+		y->height = hz;
+		z->height = hz + 1;
+	} else {
+		/*
+		 *   x               y
+		 *  / \             / \
+		 * A   y    -->    x   D
+		 *    / \         / \
+		 *   z   D       A   z
+		 */
+		x->child[dir] = z;
+		y->child[!dir] = x;
+		x->height = hz + 1;
+		y->height = hz + 2;
+		z = y;
+	}
+	*p = z;
+	return z->height - hx;
+}
 
 static int
-delta(struct treenode *n)
+balance(struct treenode **p)
 {
-	return (n->left ? n->left->height : 0) - (n->right ? n->right->height : 0);
-}
+	struct treenode *n = *p;
+	int h0 = height(n->child[0]);
+	int h1 = height(n->child[1]);
 
-static void
-updateheight(struct treenode *n)
-{
-	n->height = 0;
-	if (n->left && n->left->height > n->height)
-		n->height = n->left->height;
-	if (n->right && n->right->height > n->height)
-		n->height = n->right->height;
-	++n->height;
-}
-
-static void
-rotl(struct treenode **n)
-{
-	struct treenode *r = (*n)->right;
-
-	(*n)->right = r->left;
-	r->left = *n;
-	updateheight(*n);
-	updateheight(r);
-	*n = r;
-}
-
-static void
-rotr(struct treenode **n)
-{
-	struct treenode *l = (*n)->left;
-
-	(*n)->left = l->right;
-	l->right = *n;
-	updateheight(*n);
-	updateheight(l);
-	*n = l;
-}
-
-static void
-balance(struct treenode **n)
-{
-	int d = delta(*n);
-
-	if (d < -1) {
-		if (delta((*n)->right) > 0)
-			rotr(&(*n)->right);
-		rotl(n);
-	} else if (d > 1) {
-		if (delta((*n)->left) < 0)
-			rotl(&(*n)->left);
-		rotr(n);
-	} else {
-		updateheight(*n);
+	if (h0 - h1 + 1u < 3u) {
+		int old = n->height;
+		n->height = h0 < h1 ? h1 + 1 : h0 + 1;
+		return n->height - old;
 	}
+	return rot(p, n, h0 < h1);
 }
 
 void *
-treefind(struct treenode *n, const char *k)
+treefind(struct treenode *n, const char *key)
 {
 	int c;
 
 	while (n) {
-		c = strcmp(k, n->name);
+		c = strcmp(key, n->key);
 		if (c == 0)
 			return n->value;
-		n = c < 0 ? n->left : n->right;
+		n = n->child[c > 0];
 	}
-
 	return NULL;
 }
 
 void *
-treeinsert(struct treenode **n, char *k, void *v)
+treeinsert(struct treenode **rootp, char *key, void *value)
 {
+	struct treenode **a[MAXH], *n = *rootp, *r;
 	void *old;
-	int c;
+	int i = 0, c;
 
-	if (!*n) {
-		*n = xmalloc(sizeof(**n));
-		(*n)->name = k;
-		(*n)->value = v;
-		(*n)->left = (*n)->right = NULL;
-		(*n)->height = 1;
-		return NULL;
+	a[i++] = rootp;
+	while (n) {
+		c = strcmp(key, n->key);
+		if (c == 0) {
+			old = n->value;
+			n->value = value;
+			return old;
+		}
+		a[i++] = &n->child[c > 0];
+		n = n->child[c > 0];
 	}
-	c = strcmp(k, (*n)->name);
-	if (c == 0) {
-		old = (*n)->value;
-		(*n)->value = v;
-		return old;
-	}
-	old = treeinsert(c < 0 ? &(*n)->left : &(*n)->right, k, v);
-	balance(n);
-
-	return old;
+	r = xmalloc(sizeof(*r));
+	r->key = key;
+	r->value = value;
+	r->child[0] = r->child[1] = NULL;
+	r->height = 1;
+	/* insert new node, rebalance ancestors.  */
+	*a[--i] = r;
+	while (i && balance(a[--i]))
+		;
+	return NULL;
 }
