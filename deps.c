@@ -275,8 +275,9 @@ rewrite:
 		recorddeps(entry->node, &entry->deps, entry->mtime);
 	}
 	free(oldentries);
-	if (fflush(depsfile) < 0)
-		fatal("deps log flush:");
+	fflush(depsfile);
+	if (ferror(depsfile))
+		fatal("deps log write failed");
 	if (rename(depstmppath, depspath) < 0)
 		fatal("deps log rename:");
 	if (builddir) {
@@ -288,8 +289,9 @@ rewrite:
 void
 depsclose(void)
 {
-	if (fflush(depsfile) < 0)
-		fatal("deps log flush:");
+	fflush(depsfile);
+	if (ferror(depsfile))
+		fatal("deps log write failed");
 	fclose(depsfile);
 }
 
