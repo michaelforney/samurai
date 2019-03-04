@@ -201,12 +201,9 @@ edgevar(struct edge *e, char *var)
 	} else if (strcmp(var, "out") == 0) {
 		val = pathlist(e->out, e->outimpidx, ' ');
 	} else {
-		val = envvar(e->env->parent, var);
-		if (val)
-			return val;
 		str = treefind(e->rule->bindings, var);
 		if (!str)
-			return NULL;
+			return envvar(e->env->parent, var);
 		n = 0;
 		for (p = str->parts; p; p = p->next) {
 			if (p->var)
