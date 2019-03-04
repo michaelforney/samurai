@@ -89,7 +89,7 @@ loginit(const char *builddir)
 			continue;
 		n->hash = strtoull(s, &s, 16);
 		if (*s) {
-			warn("corrupt build log: invalid hash for %s", n->path->s);
+			warn("corrupt build log: invalid hash for '%s'", n->path->s);
 			continue;
 		}
 	}

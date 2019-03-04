@@ -65,7 +65,7 @@ debugflag(const char *flag)
 	if (strcmp(flag, "explain") == 0)
 		buildopts.explain = true;
 	else
-		fatal("unknown debug flag: %s", flag);
+		fatal("unknown debug flag '%s'", flag);
 }
 
 static void
@@ -76,7 +76,7 @@ warnflag(const char *flag)
 	else if (strcmp(flag, "dupbuild=warn") == 0)
 		parseopts.dupbuildwarn = true;
 	else
-		fatal("unknown warning flag: %s", flag);
+		fatal("unknown warning flag '%s'", flag);
 }
 
 int
@@ -191,7 +191,7 @@ retry:
 		for (; *argv; ++argv) {
 			n = nodeget(*argv, 0);
 			if (!n)
-				fatal("unknown target: '%s'", *argv);
+				fatal("unknown target '%s'", *argv);
 			buildadd(n);
 		}
 	} else {

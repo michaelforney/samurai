@@ -205,7 +205,7 @@ depsinit(const char *builddir)
 			}
 		} else {
 			if (sz <= 4) {
-				warn("invalid size, must larger than 4: %" PRIu32, sz);
+				warn("invalid size, must be greater than 4: %" PRIu32, sz);
 				goto rewrite;
 			}
 			if (entrieslen != ~buf[sz / 4 - 1]) {

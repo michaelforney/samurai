@@ -80,7 +80,7 @@ parseedge(struct scanner *s, struct environment *env)
 	name = scanname(s);
 	e->rule = envrule(env, name);
 	if (!e->rule)
-		fatal("undefined rule: %s", name);
+		fatal("undefined rule '%s'", name);
 	free(name);
 	for (in = NULL, end = &in; (str = scanstring(s, true)); ++e->nin)
 		pushstr(&end, str);
@@ -196,21 +196,21 @@ parsepool(struct scanner *s, struct environment *env)
 			str = enveval(env, val);
 			p->maxjobs = strtol(str->s, &end, 10);
 			if (*end)
-				fatal("invalid pool depth: %s", str->s);
+				fatal("invalid pool depth '%s'", str->s);
 			free(str);
 		} else {
-			fatal("unexpected pool variable: %s", var);
+			fatal("unexpected pool variable '%s'", var);
 		}
 	}
 	if (!p->maxjobs)
-		fatal("pool has no depth: %s", p->name);
+		fatal("pool '%s' has no depth", p->name);
 }
 
 static void
 checkversion(const char *ver)
 {
 	if (strcmp(ver, ninjaversion) > 0)
-		fatal("ninja_required_version is newer than %s: %s", ninjaversion, ver);
+		fatal("ninja_required_version %s is newer than %s", ver, ninjaversion);
 }
 
 void

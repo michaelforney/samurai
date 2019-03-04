@@ -172,7 +172,7 @@ edgehash(struct edge *e)
 	e->flags |= FLAG_HASH;
 	cmd = edgevar(e, "command");
 	if (!cmd)
-		fatal("rule has no command: %s", e->rule->name);
+		fatal("rule '%s' has no command", e->rule->name);
 	rsp = edgevar(e, "rspfile_content");
 	if (rsp && rsp->n > 0) {
 		s = mkstr(cmd->n + sizeof(sep) - 1 + rsp->n);

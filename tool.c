@@ -68,7 +68,7 @@ clean(int argc, char *argv[])
 		for (; *argv; ++argv) {
 			r = envrule(rootenv, *argv);
 			if (!r) {
-				warn("unknown rule: %s", *argv);
+				warn("unknown rule '%s'", *argv);
 				ret = 1;
 				continue;
 			}
@@ -85,7 +85,7 @@ clean(int argc, char *argv[])
 		for (; *argv; ++argv) {
 			n = nodeget(*argv, 0);
 			if (!n) {
-				warn("unknown target: %s", *argv);
+				warn("unknown target '%s'", *argv);
 				ret = 1;
 				continue;
 			}
@@ -126,7 +126,7 @@ toolget(const char *name)
 		}
 	}
 	if (!t)
-		fatal("unknown tool: %s", name);
+		fatal("unknown tool '%s'", name);
 
 	return t;
 }
