@@ -13,7 +13,7 @@ for MSVC dependency handling (`deps = msvc`). It uses the same format
 for `.ninja_log` and `.ninja_deps` as ninja, currently version 5 and 4
 respectively.
 
-It is largely feature-complete and supports most of the same options as ninja.
+It is feature-complete and supports most of the same options as ninja.
 
 ## Requirements
 
