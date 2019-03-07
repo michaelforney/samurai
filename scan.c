@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -6,6 +7,8 @@
 #include <string.h>
 #include "scan.h"
 #include "util.h"
+
+#define getc getc_unlocked
 
 static struct buffer buf;
 
