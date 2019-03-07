@@ -69,11 +69,12 @@ instead of build.ninja.
 Run up to
 .Ar maxjobs
 jobs in parallel (default based on number of CPUs).
+If zero, allow unlimited concurrent jobs.
 .It Fl k
 Allow up to
 .Ar maxfail
 job failures.
-If not positive, allow any number of job failures.
+If negative or zero, allow any number of job failures.
 .It Fl v
 Print full commands instead of just
 .Sy description .
