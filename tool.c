@@ -9,16 +9,36 @@
 #include "util.h"
 
 static int
-cleannode(struct node *n)
+cleanpath(struct string *path)
 {
-	if (remove(n->path->s) == 0) {
-		printf("remove %s\n", n->path->s);
-	} else if (errno != ENOENT) {
-		warn("remove %s:", n->path->s);
-		return -1;
+	if (path) {
+		if (remove(path->s) == 0) {
+			printf("remove %s\n", path->s);
+		} else if (errno != ENOENT) {
+			warn("remove %s:", path->s);
+			return -1;
+		}
 	}
 
 	return 0;
+}
+
+static int
+cleanedge(struct edge *e)
+{
+	int ret = 0;
+	size_t i;
+
+	for (i = 0; i < e->nout; ++i) {
+		if (cleanpath(e->out[i]->path) < 0)
+			ret = -1;
+	}
+	if (cleanpath(edgevar(e, "rspfile")) < 0)
+		ret = -1;
+	if (cleanpath(edgevar(e, "depfile")) < 0)
+		ret = -1;
+
+	return ret;
 }
 
 static int
@@ -29,7 +49,7 @@ cleantarget(struct node *n)
 
 	if (!n->gen || n->gen->rule == &phonyrule)
 		return 0;
-	if (cleannode(n) < 0)
+	if (cleanpath(n->path) < 0)
 		ret = -1;
 	for (i = 0; i < n->gen->nin; ++i) {
 		if (cleantarget(n->gen->in[i]) < 0)
@@ -47,7 +67,6 @@ clean(int argc, char *argv[])
 	struct edge *e;
 	struct node *n;
 	struct rule *r;
-	size_t i;
 
 	ARGBEGIN {
 	case 'g':
@@ -75,10 +94,8 @@ clean(int argc, char *argv[])
 			for (e = alledges; e; e = e->allnext) {
 				if (e->rule != r)
 					continue;
-				for (i = 0; i < e->nout; ++i) {
-					if (cleannode(e->out[i]) < 0)
-						ret = 1;
-				}
+				if (cleanedge(e) < 0)
+					ret = 1;
 			}
 		}
 	} else if (argc > 0) {
@@ -98,10 +115,8 @@ clean(int argc, char *argv[])
 				continue;
 			if (!cleangen && edgevar(e, "generator"))
 				continue;
-			for (i = 0; i < e->nout; ++i) {
-				if (cleannode(e->out[i]) < 0)
-					ret = 1;
-			}
+			if (cleanedge(e) < 0)
+				ret = 1;
 		}
 	}
 
