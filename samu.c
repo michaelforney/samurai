@@ -79,17 +79,60 @@ warnflag(const char *flag)
 		fatal("unknown warning flag '%s'", flag);
 }
 
+enum {
+	maxArgs = 64
+};
+
+static int argc;
+static char *argv_combined[maxArgs];
+static char **argv = &argv_combined[0];
+
+void
+copycmdlineargs(int cmdline_argc, char *cmdline_argv[])
+{
+	int i = 1;
+	
+	while (argc < maxArgs -1 && i <= cmdline_argc) {
+		argv[argc] = cmdline_argv[i];
+		argc++;
+		i++;
+	}
+	argv[argc] = NULL;
+}
+
+void
+parseenvargs(char *s)
+{
+	char *p;
+		
+	p = strtok(s, " ");
+	while (p && argc < maxArgs - 1) {
+		argv[argc++] = p;
+		p = strtok(NULL, " ");
+	}
+	argv[argc] = NULL;
+}
+
 int
-main(int argc, char *argv[])
+main(int cmdline_argc, char *cmdline_argv[])
 {
 	char *builddir, *manifest = "build.ninja", *end, *arg;
 	const struct tool *tool = NULL;
 	struct node *n;
 	long num;
 	int tries;
+	char *samuflags;
 
-	argv0 = strrchr(argv[0], '/');
-	argv0 = argv0 ? argv0 + 1 : argv[0];
+	argv0 = strrchr(cmdline_argv[0], '/');
+	argv0 = argv0 ? argv0 + 1 : cmdline_argv[0];
+	argv[0] = cmdline_argv[0];
+	argc++; cmdline_argc--;
+	samuflags = getenv( "SAMUFLAGS" );
+	if (samuflags != NULL) {
+		samuflags = strdup(samuflags);
+		parseenvargs(samuflags);
+	}
+	copycmdlineargs(cmdline_argc, cmdline_argv);
 	ARGBEGIN {
 	case '-':
 		arg = EARGF(usage());
