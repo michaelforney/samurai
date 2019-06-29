@@ -338,8 +338,6 @@ edgedone(struct edge *e)
 	if (e->pool) {
 		p = e->pool;
 
-		if (p == &consolepool)
-			consoleused = false;
 		/* move edge from pool queue to main work queue */
 		if (p->work) {
 			new = p->work;
@@ -395,6 +393,8 @@ jobdone(struct job *j)
 	if (j->buf.len && (!consoleused || j->failed))
 		fwrite(j->buf.data, 1, j->buf.len, stdout);
 	j->buf.len = 0;
+	if (j->edge->pool == &consolepool)
+		consoleused = false;
 	if (!j->failed)
 		edgedone(j->edge);
 }
