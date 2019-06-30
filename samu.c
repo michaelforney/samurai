@@ -127,7 +127,7 @@ main(int cmdline_argc, char *cmdline_argv[])
 	argv0 = argv0 ? argv0 + 1 : cmdline_argv[0];
 	argv[0] = cmdline_argv[0];
 	argc++; cmdline_argc--;
-	samuflags = getenv( "SAMUFLAGS" );
+	samuflags = getenv("SAMUFLAGS");
 	if (samuflags != NULL) {
 		samuflags = strdup(samuflags);
 		parseenvargs(samuflags);
