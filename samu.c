@@ -79,46 +79,61 @@ warnflag(const char *flag)
 		fatal("unknown warning flag '%s'", flag);
 }
 
-enum {
-	maxArgs = 64
-};
-
-static int argc;
-static char *argv_combined[maxArgs];
-static char **argv = &argv_combined[0];
-
-void
-copycmdlineargs(int cmdline_argc, char *cmdline_argv[])
-{
-	int i = 1;
-	
-	while (argc < maxArgs -1 && i <= cmdline_argc) {
-		argv[argc] = cmdline_argv[i];
-		argc++;
-		i++;
-	}
-	argv[argc] = NULL;
-}
-
 void
 parseenvargs(char *s)
 {
+	char *copy;
 	char *p;
+	int argc;
+	enum { maxArgs = 64 };
+	char *env_argv[maxArgs];
+	char **argv = &env_argv[0];
+	char *arg, *end;
+	long num;
 		
 	if (s == NULL) {
 		return;
 	}
+
+	copy = xstrdup(s);
 	
-	p = strtok(s, " ");
+	argc = 1;
+	argv[0] = NULL;
+	
+	p = strtok(copy, " ");
 	while (p && argc < maxArgs - 1) {
 		argv[argc++] = p;
 		p = strtok(NULL, " ");
 	}
 	argv[argc] = NULL;
+
+	ARGBEGIN {
+	case '-':
+		arg = EARGF(usage());
+		if (strcmp(arg, "verbose") == 0) {
+			buildopts.verbose = true;
+		} else {
+			fatal("invalid long argument in SAMUFLAGS");
+		}
+		break;
+	case 'j':
+		num = strtol(EARGF(usage()), &end, 10);
+		if (*end || num < 0)
+			fatal("invalid -j parameter in SAMUFLAGS");
+		buildopts.maxjobs = num > 0 ? num : -1;
+		break;
+	case 'v':
+		buildopts.verbose = true;
+		break;
+	default:
+		fatal("invalid flags in SAMUFLAGS");
+	} ARGEND
+	
+	free(copy);
 }
 
 int
-main(int cmdline_argc, char *cmdline_argv[])
+main(int argc, char *argv[])
 {
 	char *builddir, *manifest = "build.ninja", *end, *arg;
 	const struct tool *tool = NULL;
@@ -126,12 +141,9 @@ main(int cmdline_argc, char *cmdline_argv[])
 	long num;
 	int tries;
 
-	argv0 = strrchr(cmdline_argv[0], '/');
-	argv0 = argv0 ? argv0 + 1 : cmdline_argv[0];
-	argv[0] = cmdline_argv[0];
-	argc++; cmdline_argc--;
-	parseenvargs(xstrdup(getenv("SAMUFLAGS")));
-	copycmdlineargs(cmdline_argc, cmdline_argv);
+	argv0 = strrchr(argv[0], '/');
+	argv0 = argv0 ? argv0 + 1 : argv[0];
+	parseenvargs(getenv("SAMUFLAGS"));
 	ARGBEGIN {
 	case '-':
 		arg = EARGF(usage());
