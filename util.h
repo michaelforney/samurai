@@ -30,6 +30,7 @@ void fatal(const char *, ...);
 void *xmalloc(size_t);
 void *xreallocarray(void *, size_t, size_t);
 char *xmemdup(const char *, size_t);
+char *xstrdup(const char *s);
 int xasprintf(char **, const char *, ...);
 
 /* append a byte to a buffer */

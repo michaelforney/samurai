@@ -105,6 +105,10 @@ parseenvargs(char *s)
 {
 	char *p;
 		
+	if (s == NULL) {
+		return;
+	}
+	
 	p = strtok(s, " ");
 	while (p && argc < maxArgs - 1) {
 		argv[argc++] = p;
@@ -121,17 +125,12 @@ main(int cmdline_argc, char *cmdline_argv[])
 	struct node *n;
 	long num;
 	int tries;
-	char *samuflags;
 
 	argv0 = strrchr(cmdline_argv[0], '/');
 	argv0 = argv0 ? argv0 + 1 : cmdline_argv[0];
 	argv[0] = cmdline_argv[0];
 	argc++; cmdline_argc--;
-	samuflags = getenv("SAMUFLAGS");
-	if (samuflags != NULL) {
-		samuflags = strdup(samuflags);
-		parseenvargs(samuflags);
-	}
+	parseenvargs(xstrdup(getenv("SAMUFLAGS")));
 	copycmdlineargs(cmdline_argc, cmdline_argv);
 	ARGBEGIN {
 	case '-':
