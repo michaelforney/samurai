@@ -1,4 +1,4 @@
-extern char *argv0;
+extern const char *argv0;
 
 #define ARGBEGIN \
 	for (;;) { \

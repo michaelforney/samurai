@@ -15,7 +15,7 @@
 #include "tool.h"
 #include "util.h"
 
-char *argv0;
+const char *argv0;
 
 static void
 usage(void)
