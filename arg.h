@@ -2,7 +2,8 @@ extern const char *argv0;
 
 #define ARGBEGIN \
 	for (;;) { \
-		++argv, --argc; \
+		if (argc > 0) \
+			++argv, --argc; \
 		if (argc == 0 || (*argv)[0] != '-') \
 			break; \
 		if ((*argv)[1] == '-' && !(*argv)[2]) { \
