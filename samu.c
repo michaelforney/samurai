@@ -95,7 +95,7 @@ parseenvargs(char *s)
 		return;
 	}
 
-	copy = xstrdup(s);
+	copy = xmemdup(s, strlen(s) + 1);
 	
 	argc = 1;
 	argv[0] = NULL;

@@ -90,20 +90,6 @@ xmemdup(const char *s, size_t n)
 	return p;
 }
 
-char *
-xstrdup(const char *s)
-{
-	char *d;
-	
-	if (s == NULL) {
-		return NULL;
-	}
-	
-	d = xmemdup(s, strlen(s) + 1);
-	
-	return d;
-}
-
 int
 xasprintf(char **s, const char *fmt, ...)
 {
