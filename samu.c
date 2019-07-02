@@ -89,7 +89,7 @@ jobsflag(const char *flag)
 	if (*end || num < 0)
 		fatal("invalid -j parameter");
 	buildopts.maxjobs = num > 0 ? num : -1;
-}		
+}
 
 static void
 parseenvargs(char *s)
@@ -101,16 +101,16 @@ parseenvargs(char *s)
 	char *env_argv[maxArgs];
 	char **argv = &env_argv[0];
 	char *arg;
-		
+
 	if (s == NULL) {
 		return;
 	}
 
 	copy = xmemdup(s, strlen(s) + 1);
-	
+
 	argc = 1;
 	argv[0] = NULL;
-	
+
 	p = strtok(copy, " ");
 	while (p && argc < maxArgs - 1) {
 		argv[argc++] = p;
@@ -136,7 +136,7 @@ parseenvargs(char *s)
 	default:
 		fatal("invalid flags in SAMUFLAGS");
 	} ARGEND
-	
+
 	free(copy);
 }
 
