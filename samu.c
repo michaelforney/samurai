@@ -92,28 +92,20 @@ jobsflag(const char *flag)
 }
 
 static void
-parseenvargs(char *s)
+parseenvargs(char *env)
 {
-	char *copy;
-	char *p;
+	char *arg, *argvbuf[64], **argv = argvbuf;
 	int argc;
-	enum { maxArgs = 64 };
-	char *env_argv[maxArgs];
-	char **argv = &env_argv[0];
 
-	if (s == NULL) {
+	if (!env)
 		return;
-	}
-
-	copy = xmemdup(s, strlen(s) + 1);
-
+	env = xmemdup(env, strlen(env) + 1);
 	argc = 1;
 	argv[0] = NULL;
-
-	p = strtok(copy, " ");
-	while (p && argc < maxArgs - 1) {
-		argv[argc++] = p;
-		p = strtok(NULL, " ");
+	arg = strtok(env, " ");
+	while (arg && (size_t)argc < LEN(argvbuf) - 1) {
+		argv[argc++] = arg;
+		arg = strtok(NULL, " ");
 	}
 	argv[argc] = NULL;
 
@@ -128,7 +120,7 @@ parseenvargs(char *s)
 		fatal("invalid flags in SAMUFLAGS");
 	} ARGEND
 
-	free(copy);
+	free(env);
 }
 
 static const char *
