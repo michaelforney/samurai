@@ -80,8 +80,14 @@ warnflag(const char *flag)
 }
 
 static void
-handle_maxjobs(long num)
+jobsflag(const char *flag)
 {
+	char *end;
+	long num;
+
+	num = strtol(flag, &end, 10);
+	if (*end || num < 0)
+		fatal("invalid -j parameter");
 	buildopts.maxjobs = num > 0 ? num : -1;
 }		
 
@@ -94,8 +100,7 @@ parseenvargs(char *s)
 	enum { maxArgs = 64 };
 	char *env_argv[maxArgs];
 	char **argv = &env_argv[0];
-	char *arg, *end;
-	long num;
+	char *arg;
 		
 	if (s == NULL) {
 		return;
@@ -123,10 +128,7 @@ parseenvargs(char *s)
 		}
 		break;
 	case 'j':
-		num = strtol(EARGF(usage()), &end, 10);
-		if (*end || num < 0)
-			fatal("invalid -j parameter in SAMUFLAGS");
-		handle_maxjobs(num);
+		jobsflag(EARGF(usage()));
 		break;
 	case 'v':
 		buildopts.verbose = true;
@@ -183,10 +185,7 @@ main(int argc, char *argv[])
 		manifest = EARGF(usage());
 		break;
 	case 'j':
-		num = strtol(EARGF(usage()), &end, 10);
-		if (*end || num < 0)
-			fatal("invalid -j parameter");
-		handle_maxjobs(num);
+		jobsflag(EARGF(usage()));
 		break;
 	case 'k':
 		num = strtol(EARGF(usage()), &end, 10);
