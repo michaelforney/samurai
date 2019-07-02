@@ -79,7 +79,13 @@ warnflag(const char *flag)
 		fatal("unknown warning flag '%s'", flag);
 }
 
-void
+static void
+handle_maxjobs(long num)
+{
+	buildopts.maxjobs = num > 0 ? num : -1;
+}		
+
+static void
 parseenvargs(char *s)
 {
 	char *copy;
@@ -120,7 +126,7 @@ parseenvargs(char *s)
 		num = strtol(EARGF(usage()), &end, 10);
 		if (*end || num < 0)
 			fatal("invalid -j parameter in SAMUFLAGS");
-		buildopts.maxjobs = num > 0 ? num : -1;
+		handle_maxjobs(num);
 		break;
 	case 'v':
 		buildopts.verbose = true;
@@ -180,7 +186,7 @@ main(int argc, char *argv[])
 		num = strtol(EARGF(usage()), &end, 10);
 		if (*end || num < 0)
 			fatal("invalid -j parameter");
-		buildopts.maxjobs = num > 0 ? num : -1;
+		handle_maxjobs(num);
 		break;
 	case 'k':
 		num = strtol(EARGF(usage()), &end, 10);
