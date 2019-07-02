@@ -100,7 +100,6 @@ parseenvargs(char *s)
 	enum { maxArgs = 64 };
 	char *env_argv[maxArgs];
 	char **argv = &env_argv[0];
-	char *arg;
 
 	if (s == NULL) {
 		return;
@@ -119,14 +118,6 @@ parseenvargs(char *s)
 	argv[argc] = NULL;
 
 	ARGBEGIN {
-	case '-':
-		arg = EARGF(usage());
-		if (strcmp(arg, "verbose") == 0) {
-			buildopts.verbose = true;
-		} else {
-			fatal("invalid long argument in SAMUFLAGS");
-		}
-		break;
 	case 'j':
 		jobsflag(EARGF(usage()));
 		break;
