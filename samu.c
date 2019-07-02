@@ -15,7 +15,7 @@
 #include "tool.h"
 #include "util.h"
 
-char *argv0;
+const char *argv0;
 
 static void
 usage(void)
@@ -132,6 +132,17 @@ parseenvargs(char *s)
 	free(copy);
 }
 
+static const char *
+progname(const char *arg, const char *def)
+{
+	const char *slash;
+
+	if (!arg)
+		return def;
+	slash = strrchr(arg, '/');
+	return slash ? slash + 1 : arg;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -141,8 +152,7 @@ main(int argc, char *argv[])
 	long num;
 	int tries;
 
-	argv0 = strrchr(argv[0], '/');
-	argv0 = argv0 ? argv0 + 1 : argv[0];
+	argv0 = progname(argv[0], "samu");
 	parseenvargs(getenv("SAMUFLAGS"));
 	ARGBEGIN {
 	case '-':

@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include "util.h"
 
-extern char *argv0;
+extern const char *argv0;
 
 static void
 vwarn(const char *fmt, va_list ap)

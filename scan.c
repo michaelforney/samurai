@@ -33,7 +33,7 @@ scanclose(struct scanner *s)
 void
 scanerror(struct scanner *s, const char *fmt, ...)
 {
-	extern char *argv0;
+	extern const char *argv0;
 	va_list ap;
 
 	fprintf(stderr, "%s: %s:%d:%d: ", argv0, s->path, s->line, s->col);

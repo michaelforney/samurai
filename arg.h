@@ -1,8 +1,9 @@
-extern char *argv0;
+extern const char *argv0;
 
 #define ARGBEGIN \
 	for (;;) { \
-		++argv, --argc; \
+		if (argc > 0) \
+			++argv, --argc; \
 		if (argc == 0 || (*argv)[0] != '-') \
 			break; \
 		if ((*argv)[1] == '-' && !(*argv)[2]) { \
@@ -17,4 +18,4 @@ extern char *argv0;
 	}
 
 #define EARGF(x) \
-	(done_ = 1, *++opt_ ? opt_ : argv[1] ? --argc, *++argv : ((x), abort(), NULL))
+	(done_ = 1, *++opt_ ? opt_ : argv[1] ? --argc, *++argv : ((x), abort(), (char *)0))
