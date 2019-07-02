@@ -111,8 +111,18 @@ actions.
 are interpreted as rules, and all outputs of actions with the specified rule
 types will be cleaned instead.
 .El
-.Sh ENVIRONMENT VARIABLES
-You can set the -v and the -j option also in an environment variable called
-.Ar SAMUFLAGS .
+.Sh ENVIRONMENT
+.Bl -tag -width SAMUFLAGS
+.It Ev SAMUFLAGS
+Options for
+.Nm
+that get applied before those specified on the command-line.
+The only options allowed in
+.Ev SAMUFLAGS
+are
+.Fl v
+and
+.Fl j .
+.El
 .Sh SEE ALSO
 .Xr make 1
