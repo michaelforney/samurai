@@ -1,4 +1,4 @@
-.Dd October 11, 2018
+.Dd July 3, 2019
 .Dt SAMU 1
 .Os
 .Sh NAME
@@ -110,6 +110,19 @@ actions.
 .Ar targets
 are interpreted as rules, and all outputs of actions with the specified rule
 types will be cleaned instead.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width SAMUFLAGS
+.It Ev SAMUFLAGS
+Options for
+.Nm
+that get applied before those specified on the command-line.
+The only options allowed in
+.Ev SAMUFLAGS
+are
+.Fl v
+and
+.Fl j .
 .El
 .Sh SEE ALSO
 .Xr make 1

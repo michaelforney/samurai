@@ -79,6 +79,52 @@ warnflag(const char *flag)
 		fatal("unknown warning flag '%s'", flag);
 }
 
+static void
+jobsflag(const char *flag)
+{
+	long num;
+	char *end;
+
+	num = strtol(flag, &end, 10);
+	if (*end || num < 0)
+		fatal("invalid -j parameter");
+	buildopts.maxjobs = num > 0 ? num : -1;
+}
+
+static void
+parseenvargs(char *env)
+{
+	char *arg, *argvbuf[64], **argv = argvbuf;
+	int argc;
+
+	if (!env)
+		return;
+	env = xmemdup(env, strlen(env) + 1);
+	argc = 1;
+	argv[0] = NULL;
+	arg = strtok(env, " ");
+	while (arg) {
+		if ((size_t)argc >= LEN(argvbuf) - 1)
+			fatal("too many arguments in SAMUFLAGS");
+		argv[argc++] = arg;
+		arg = strtok(NULL, " ");
+	}
+	argv[argc] = NULL;
+
+	ARGBEGIN {
+	case 'j':
+		jobsflag(EARGF(usage()));
+		break;
+	case 'v':
+		buildopts.verbose = true;
+		break;
+	default:
+		fatal("invalid option in SAMUFLAGS");
+	} ARGEND
+
+	free(env);
+}
+
 static const char *
 progname(const char *arg, const char *def)
 {
@@ -100,6 +146,7 @@ main(int argc, char *argv[])
 	int tries;
 
 	argv0 = progname(argv[0], "samu");
+	parseenvargs(getenv("SAMUFLAGS"));
 	ARGBEGIN {
 	case '-':
 		arg = EARGF(usage());
@@ -123,10 +170,7 @@ main(int argc, char *argv[])
 		manifest = EARGF(usage());
 		break;
 	case 'j':
-		num = strtol(EARGF(usage()), &end, 10);
-		if (*end || num < 0)
-			fatal("invalid -j parameter");
-		buildopts.maxjobs = num > 0 ? num : -1;
+		jobsflag(EARGF(usage()));
 		break;
 	case 'k':
 		num = strtol(EARGF(usage()), &end, 10);
