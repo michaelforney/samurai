@@ -8,6 +8,7 @@
 #include "scan.h"
 #include "util.h"
 
+#undef getc
 #define getc getc_unlocked
 
 static struct buffer buf;
