@@ -104,7 +104,7 @@ parseedge(struct scanner *s, struct environment *env)
 		envaddvar(e->env, name, val);
 	}
 
-	e->out = xreallocarray(NULL, e->nout, sizeof(*n));
+	e->out = xreallocarray(NULL, e->nout, sizeof(e->out[0]));
 	for (i = 0; i < e->nout; out = str) {
 		str = out->next;
 		val = enveval(e->env, out);
@@ -124,7 +124,7 @@ parseedge(struct scanner *s, struct environment *env)
 		}
 	}
 
-	e->in = xreallocarray(NULL, e->nin, sizeof(*n));
+	e->in = xreallocarray(NULL, e->nin, sizeof(e->in[0]));
 	for (i = 0; i < e->nin; in = str, ++i) {
 		str = in->next;
 		val = enveval(e->env, in);
