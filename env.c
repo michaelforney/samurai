@@ -191,9 +191,6 @@ edgevar(struct edge *e, char *var)
 	struct evalstringpart *p;
 	size_t n;
 
-	val = treefind(e->env->bindings, var);
-	if (val)
-		return val;
 	if (strcmp(var, "in") == 0) {
 		val = pathlist(e->in, e->inimpidx, ' ');
 	} else if (strcmp(var, "in_newline") == 0) {
@@ -201,6 +198,9 @@ edgevar(struct edge *e, char *var)
 	} else if (strcmp(var, "out") == 0) {
 		val = pathlist(e->out, e->outimpidx, ' ');
 	} else {
+		val = treefind(e->env->bindings, var);
+		if (val)
+			return val;
 		str = treefind(e->rule->bindings, var);
 		if (!str)
 			return envvar(e->env->parent, var);
@@ -213,7 +213,6 @@ edgevar(struct edge *e, char *var)
 		}
 		val = merge(str, n);
 	}
-	envaddvar(e->env, var, val);
 
 	return val;
 }
