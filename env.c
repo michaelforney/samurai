@@ -141,7 +141,7 @@ envrule(struct environment *env, char *name)
 }
 
 static struct string *
-pathlist(struct node **nodes, size_t n, char sep)
+pathlist(struct node **nodes, size_t n, char sep, bool escape)
 {
 	size_t i, len;
 	struct string *path, *result;
@@ -150,13 +150,13 @@ pathlist(struct node **nodes, size_t n, char sep)
 	if (n == 0)
 		return NULL;
 	if (n == 1)
-		return nodepath(nodes[0], true);
+		return nodepath(nodes[0], escape);
 	for (i = 0, len = 0; i < n; ++i)
-		len += nodepath(nodes[i], true)->n;
+		len += nodepath(nodes[i], escape)->n;
 	result = mkstr(len + n - 1);
 	s = result->s;
 	for (i = 0; i < n; ++i) {
-		path = nodes[i]->shellpath;
+		path = nodepath(nodes[i], escape);
 		memcpy(s, path->s, path->n);
 		s += path->n;
 		*s++ = sep;
@@ -185,7 +185,7 @@ ruleaddvar(struct rule *r, char *var, struct evalstring *val)
 }
 
 struct string *
-edgevar(struct edge *e, char *var)
+edgevar(struct edge *e, char *var, bool escape)
 {
 	struct string *val;
 	struct evalstring *str;
@@ -193,11 +193,11 @@ edgevar(struct edge *e, char *var)
 	size_t n;
 
 	if (strcmp(var, "in") == 0) {
-		val = pathlist(e->in, e->inimpidx, ' ');
+		val = pathlist(e->in, e->inimpidx, ' ', escape);
 	} else if (strcmp(var, "in_newline") == 0) {
-		val = pathlist(e->in, e->inimpidx, '\n');
+		val = pathlist(e->in, e->inimpidx, '\n', escape);
 	} else if (strcmp(var, "out") == 0) {
-		val = pathlist(e->out, e->outimpidx, ' ');
+		val = pathlist(e->out, e->outimpidx, ' ', escape);
 	} else {
 		val = treefind(e->env->bindings, var);
 		if (val)
@@ -208,7 +208,7 @@ edgevar(struct edge *e, char *var)
 		n = 0;
 		for (p = str->parts; p; p = p->next) {
 			if (p->var)
-				p->str = edgevar(e, p->var);
+				p->str = edgevar(e, p->var, escape);
 			if (p->str)
 				n += p->str->n;
 		}

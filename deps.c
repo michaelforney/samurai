@@ -189,7 +189,7 @@ depsinit(const char *builddir)
 			entry = &entries[id];
 			entry->mtime = (int64_t)buf[2] << 32 | buf[1];
 			e = entry->node->gen;
-			if (!e || !edgevar(e, "deps"))
+			if (!e || !edgevar(e, "deps", true))
 				continue;
 			sz /= 4;
 			free(entry->deps.node);
@@ -427,14 +427,14 @@ depsload(struct edge *e)
 	struct node *n;
 
 	n = e->out[0];
-	deptype = edgevar(e, "deps");
+	deptype = edgevar(e, "deps", true);
 	if (deptype) {
 		if (n->id != -1 && n->mtime <= entries[n->id].mtime)
 			deps = &entries[n->id].deps;
 		else if (buildopts.explain)
 			warn("explain %s: missing or outdated record in .ninja_deps", n->path->s);
 	} else {
-		depfile = edgevar(e, "depfile");
+		depfile = edgevar(e, "depfile", false);
 		if (!depfile)
 			return;
 		deps = depsparse(depfile->s);
@@ -459,14 +459,14 @@ depsrecord(struct edge *e)
 	size_t i;
 	bool update;
 
-	deptype = edgevar(e, "deps");
+	deptype = edgevar(e, "deps", true);
 	if (!deptype || deptype->n == 0)
 		return;
 	if (strcmp(deptype->s, "gcc") != 0) {
 		warn("unsuported deps type: %s", deptype->s);
 		return;
 	}
-	depfile = edgevar(e, "depfile");
+	depfile = edgevar(e, "depfile", false);
 	if (!depfile || depfile->n == 0) {
 		warn("deps but no depfile");
 		return;

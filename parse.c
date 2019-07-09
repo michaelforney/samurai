@@ -132,7 +132,7 @@ parseedge(struct scanner *s, struct environment *env)
 		e->in[i] = mknode(val);
 	}
 
-	val = edgevar(e, "pool");
+	val = edgevar(e, "pool", true);
 	if (val)
 		e->pool = poolget(val->s);
 }

@@ -31,7 +31,7 @@ struct pool *mkpool(char *);
 /* lookup a pool by name. fails if it does not exist */
 struct pool *poolget(char *);
 
-struct string *edgevar(struct edge *, char *);
+struct string *edgevar(struct edge *, char *, _Bool);
 
 extern struct environment *rootenv;
 extern struct rule phonyrule;

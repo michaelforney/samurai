@@ -33,9 +33,9 @@ cleanedge(struct edge *e)
 		if (cleanpath(e->out[i]->path) < 0)
 			ret = -1;
 	}
-	if (cleanpath(edgevar(e, "rspfile")) < 0)
+	if (cleanpath(edgevar(e, "rspfile", false)) < 0)
 		ret = -1;
-	if (cleanpath(edgevar(e, "depfile")) < 0)
+	if (cleanpath(edgevar(e, "depfile", false)) < 0)
 		ret = -1;
 
 	return ret;
@@ -113,7 +113,7 @@ clean(int argc, char *argv[])
 		for (e = alledges; e; e = e->allnext) {
 			if (e->rule == &phonyrule)
 				continue;
-			if (!cleangen && edgevar(e, "generator"))
+			if (!cleangen && edgevar(e, "generator", true))
 				continue;
 			if (cleanedge(e) < 0)
 				ret = 1;

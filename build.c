@@ -150,8 +150,8 @@ buildadd(struct node *n)
 		}
 	}
 	/* all outputs are dirty if any are older than the newest input */
-	generator = edgevar(e, "generator");
-	restat = edgevar(e, "restat");
+	generator = edgevar(e, "generator", true);
+	restat = edgevar(e, "restat", true);
 	for (i = 0; i < e->nout && !(e->flags & FLAG_DIRTY_OUT); ++i) {
 		n = e->out[i];
 		if (isdirty(n, newest, generator, restat)) {
@@ -201,9 +201,9 @@ jobstart(struct job *j, struct edge *e)
 				goto err0;
 		}
 	}
-	rspfile = edgevar(e, "rspfile");  // XXX: should use unescaped $out and $in
+	rspfile = edgevar(e, "rspfile", false);
 	if (rspfile) {
-		content = edgevar(e, "rspfile_content");
+		content = edgevar(e, "rspfile_content", true);
 		if (writefile(rspfile->s, content) < 0)
 			goto err0;
 	}
@@ -213,7 +213,7 @@ jobstart(struct job *j, struct edge *e)
 		goto err1;
 	}
 	j->edge = e;
-	j->cmd = edgevar(e, "command");
+	j->cmd = edgevar(e, "command", true);
 	if (!j->cmd) {
 		warn("rule '%s' has no command", e->rule->name);
 		goto err2;
@@ -222,7 +222,7 @@ jobstart(struct job *j, struct edge *e)
 	argv[2] = j->cmd->s;
 
 	if (!consoleused) {
-		description = buildopts.verbose ? NULL : edgevar(e, "description");
+		description = buildopts.verbose ? NULL : edgevar(e, "description", true);
 		if (!description || description->n == 0)
 			description = j->cmd;
 		printf("[%zu/%zu] %s\n", nstarted, ntotal, description->s);
@@ -348,7 +348,7 @@ edgedone(struct edge *e)
 			--p->numjobs;
 		}
 	}
-	restat = edgevar(e, "restat");
+	restat = edgevar(e, "restat", true);
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
 		old = n->mtime;
@@ -356,7 +356,7 @@ edgedone(struct edge *e)
 		n->logmtime = n->mtime == MTIME_MISSING ? 0 : n->mtime;
 		nodedone(n, restat && shouldprune(e, n, old));
 	}
-	rspfile = edgevar(e, "rspfile");
+	rspfile = edgevar(e, "rspfile", false);
 	if (rspfile)
 		remove(rspfile->s);
 	edgehash(e);
