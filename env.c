@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include "env.h"
@@ -148,10 +149,8 @@ pathlist(struct node **nodes, size_t n, char sep)
 
 	if (n == 0)
 		return NULL;
-	for (i = 0, len = 0; i < n; ++i) {
-		nodeescape(nodes[i]);
-		len += nodes[i]->shellpath->n;
-	}
+	for (i = 0, len = 0; i < n; ++i)
+		len += nodepath(nodes[i], true)->n;
 	result = mkstr(len + n - 1);
 	s = result->s;
 	for (i = 0; i < n; ++i) {

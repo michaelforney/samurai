@@ -98,15 +98,16 @@ nodestat(struct node *n)
 	}
 }
 
-void
-nodeescape(struct node *n)
+struct string *
+nodepath(struct node *n, bool escape)
 {
 	char *s, *d;
-	bool escape;
 	int nquote;
 
+	if (!escape)
+		return n->path;
 	if (n->shellpath)
-		return;
+		return n->shellpath;
 	escape = false;
 	nquote = 0;
 	for (s = n->path->s; *s; ++s) {
@@ -131,6 +132,7 @@ nodeescape(struct node *n)
 	} else {
 		n->shellpath = n->path;
 	}
+	return n->shellpath;
 }
 
 void

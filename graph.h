@@ -9,7 +9,7 @@ enum {
 };
 
 struct node {
-	/* shellpath is the escaped shell path, and is populated as needed by nodeescape */
+	/* shellpath is the escaped shell path, and is populated as needed by nodepath */
 	struct string *path, *shellpath;
 
 	/* modification time of file (in nanoseconds) and build log entry (in seconds) */
@@ -77,8 +77,8 @@ struct node *mknode(struct string *);
 struct node *nodeget(char *, size_t);
 /* update the mtime field of a node */
 void nodestat(struct node *);
-/* escape a node's path, populating shellpath */
-void nodeescape(struct node *);
+/* get a node's path, possibly escaped for the shell */
+struct string *nodepath(struct node *, _Bool);
 /* record the usage of a node by an edge */
 void nodeuse(struct node *, struct edge *);
 
