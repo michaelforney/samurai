@@ -149,6 +149,8 @@ pathlist(struct node **nodes, size_t n, char sep)
 
 	if (n == 0)
 		return NULL;
+	if (n == 1)
+		return nodepath(nodes[0], true);
 	for (i = 0, len = 0; i < n; ++i)
 		len += nodepath(nodes[i], true)->n;
 	result = mkstr(len + n - 1);
