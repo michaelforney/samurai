@@ -1,5 +1,5 @@
 image: debian/stable
 sources:
-  - https://git.sr.ht/~mcf/samurai
+- https://git.sr.ht/~mcf/samurai
 tasks:
-  - build: make -C samurai
+- build: make -C samurai
