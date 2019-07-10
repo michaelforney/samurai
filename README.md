@@ -26,7 +26,7 @@ are several cases where it is slightly different:
 
 - samurai uses the [variable lookup order] documented in the ninja manual,
   while ninja has a quirk ([ninja-build/ninja#1516]) that if the build
-  edge has no variable bindings, the variable is lookup up in file scope
+  edge has no variable bindings, the variable is looked up in file scope
   *before* the rule-level variables.
 - samurai schedules jobs using a stack, so the last scheduled job is
   the first to execute, while ninja schedules jobs based on the pointer
