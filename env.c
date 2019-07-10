@@ -100,28 +100,19 @@ struct string *
 enveval(struct environment *env, struct evalstring *str)
 {
 	size_t n;
-	struct evalstringpart *p, *last;
+	struct evalstringpart *p;
 	struct string *res;
 
 	n = 0;
-	last = NULL;
 	if (str) {
 		for (p = str->parts; p; p = p->next) {
 			if (p->var)
 				p->str = envvar(env, p->var);
-			if (p->str) {
+			if (p->str)
 				n += p->str->n;
-				last = p;
-			}
 		}
 	}
-	/* avoid allocating a new string if we already have the result */
-	if (last && last->str->n == n) {
-		res = last->str;
-		last->str = NULL;
-	} else {
-		res = merge(str, n);
-	}
+	res = merge(str, n);
 	delevalstr(str);
 
 	return res;
@@ -196,7 +187,7 @@ ruleaddvar(struct rule *r, char *var, struct evalstring *val)
 struct string *
 edgevar(struct edge *e, char *var, bool escape)
 {
-	struct string *val, *last;
+	struct string *val;
 	struct evalstring *str;
 	struct evalstringpart *p;
 	size_t n;
@@ -214,17 +205,13 @@ edgevar(struct edge *e, char *var, bool escape)
 	if (!str)
 		return envvar(e->env->parent, var);
 	n = 0;
-	last = NULL;
 	for (p = str->parts; p; p = p->next) {
 		if (p->var)
 			p->str = edgevar(e, p->var, escape);
-		if (p->str) {
+		if (p->str)
 			n += p->str->n;
-			last = p->str;
-		}
 	}
-	/* avoid allocating a new string if we already have the result */
-	return last && last->n == n ? last : merge(str, n);
+	return merge(str, n);
 }
 
 static void
