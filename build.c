@@ -327,27 +327,12 @@ shouldprune(struct edge *e, struct node *n, int64_t old)
 static void
 edgedone(struct edge *e)
 {
-	struct edge *new;
-	struct pool *p;
 	struct node *n;
 	size_t i;
 	struct string *rspfile;
 	bool restat;
 	int64_t old;
 
-	if (e->pool) {
-		p = e->pool;
-
-		/* move edge from pool queue to main work queue */
-		if (p->work) {
-			new = p->work;
-			p->work = p->work->worknext;
-			new->worknext = work;
-			work = new;
-		} else {
-			--p->numjobs;
-		}
-	}
 	restat = edgevar(e, "restat", true);
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
@@ -372,6 +357,8 @@ static void
 jobdone(struct job *j)
 {
 	int status;
+	struct edge *e, *new;
+	struct pool *p;
 
 	if (waitpid(j->pid, &status, 0) < 0) {
 		warn("waitpid %d:", j->pid);
@@ -393,10 +380,24 @@ jobdone(struct job *j)
 	if (j->buf.len && (!consoleused || j->failed))
 		fwrite(j->buf.data, 1, j->buf.len, stdout);
 	j->buf.len = 0;
-	if (j->edge->pool == &consolepool)
-		consoleused = false;
+	e = j->edge;
+	if (e->pool) {
+		p = e->pool;
+
+		if (p == &consolepool)
+			consoleused = false;
+		/* move edge from pool queue to main work queue */
+		if (p->work) {
+			new = p->work;
+			p->work = p->work->worknext;
+			new->worknext = work;
+			work = new;
+		} else {
+			--p->numjobs;
+		}
+	}
 	if (!j->failed)
-		edgedone(j->edge);
+		edgedone(e);
 }
 
 /* returns whether a job still has work to do. if not, sets j->failed */
