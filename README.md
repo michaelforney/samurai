@@ -1,6 +1,7 @@
 # samurai
 
 [![builds.sr.ht status](https://builds.sr.ht/~mcf/samurai.svg)](https://builds.sr.ht/~mcf/samurai)
+[![GitHub build status](https://github.com/michaelforney/samurai/workflows/build/badge.svg)](https://github.com/michaelforney/samurai/actions)
 
 samurai is a ninja-compatible build tool written in C99 with a focus on
 simplicity, speed, and portability.
