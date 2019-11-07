@@ -2,7 +2,7 @@ struct node;
 
 struct buildoptions {
 	size_t maxjobs, maxfail;
-	_Bool verbose, explain;
+	_Bool verbose, explain, keepdepfile, keeprsp;
 };
 
 extern struct buildoptions buildopts;

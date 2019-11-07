@@ -474,7 +474,8 @@ depsrecord(struct edge *e)
 	}
 	out = e->out[0];
 	deps = depsparse(depfile->s);
-	remove(depfile->s);
+	if (!buildopts.keepdepfile)
+		remove(depfile->s);
 	if (!deps)
 		return;
 	update = false;

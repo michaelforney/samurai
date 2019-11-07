@@ -55,12 +55,19 @@ Switch working directory to
 .Ar dir
 before building.
 .It Fl d
-Enable debug output.
-If
+Enable a debugging option.
+This flag may be specified multiple times to enable multiple debugging options.
+Possible values for
 .Ar debugflag
-is
-.Cm explain ,
-print messages explaining why outputs were dirty.
+are:
+.Bl -tag -width keepdepfile
+.It Cm explain
+Print messages explaining why outputs were dirty.
+.It Cm keepdepfile
+Don't remove $depfile after it was parsed.
+.It Cm keeprsp
+Don't remove $rspfile after job completion or failure.
+.El
 .It Fl f
 Load manifest from
 .Ar buildfile

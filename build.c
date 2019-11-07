@@ -272,7 +272,7 @@ err2:
 	close(fd[0]);
 	close(fd[1]);
 err1:
-	if (rspfile)
+	if (rspfile && !buildopts.keeprsp)
 		remove(rspfile->s);
 err0:
 	return -1;
@@ -342,7 +342,7 @@ edgedone(struct edge *e)
 		nodedone(n, restat && shouldprune(e, n, old));
 	}
 	rspfile = edgevar(e, "rspfile", false);
-	if (rspfile)
+	if (rspfile && !buildopts.keeprsp)
 		remove(rspfile->s);
 	edgehash(e);
 	depsrecord(e);

@@ -64,6 +64,10 @@ debugflag(const char *flag)
 {
 	if (strcmp(flag, "explain") == 0)
 		buildopts.explain = true;
+	else if (strcmp(flag, "keepdepfile") == 0)
+		buildopts.keepdepfile = true;
+	else if (strcmp(flag, "keeprsp") == 0)
+		buildopts.keeprsp = true;
 	else
 		fatal("unknown debug flag '%s'", flag);
 }
