@@ -393,10 +393,10 @@ depsparse(const char *name)
 				goto err;
 			}
 			sawcolon = true;
+			c = getc(f);
 		}
 		buf.len = 0;
 		for (;;) {
-			c = getc(f);
 			if (c == '\\') {
 				if (getc(f) != '\n') {
 					warn("bad depfile: '\\' only allowed before newline");
@@ -405,6 +405,7 @@ depsparse(const char *name)
 			} else if (!isblank(c)) {
 			    break;
 			}
+			c = getc(f);
 		}
 	}
 	if (ferror(f)) {
