@@ -141,7 +141,7 @@ depsinit(const char *builddir)
 	if (!fgets((char *)buf, sizeof(depsheader), depsfile))
 		goto rewrite;
 	if (fread(&ver, sizeof(ver), 1, depsfile) != 1) {
-		warn("deps log read:");
+		warn(ferror(depsfile) ? "deps log read:" : "deps log truncated");
 		goto rewrite;
 	}
 	if (strcmp((char *)buf, depsheader) != 0) {
@@ -168,7 +168,7 @@ depsinit(const char *builddir)
 			buf = xmalloc(cap);
 		}
 		if (fread(buf, sz, 1, depsfile) != 1) {
-			warn("deps log read:");
+			warn(ferror(depsfile) ? "deps log read:" : "deps log truncated");
 			goto rewrite;
 		}
 		if (sz % 4) {
