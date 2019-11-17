@@ -140,12 +140,12 @@ depsinit(const char *builddir)
 	}
 	if (!fgets((char *)buf, sizeof(depsheader), depsfile))
 		goto rewrite;
-	if (fread(&ver, sizeof(ver), 1, depsfile) != 1) {
-		warn(ferror(depsfile) ? "deps log read:" : "deps log truncated");
-		goto rewrite;
-	}
 	if (strcmp((char *)buf, depsheader) != 0) {
 		warn("invalid deps log header");
+		goto rewrite;
+	}
+	if (fread(&ver, sizeof(ver), 1, depsfile) != 1) {
+		warn(ferror(depsfile) ? "deps log read:" : "deps log truncated");
 		goto rewrite;
 	}
 	if (ver != depsver) {
