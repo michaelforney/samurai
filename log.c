@@ -53,6 +53,7 @@ loginit(const char *builddir)
 			fatal("open %s:", logpath);
 		goto rewrite;
 	}
+	setvbuf(logfile, NULL, _IOLBF, 0);
 	if (getline(&line, &sz, logfile) < 0)
 		goto rewrite;
 	if (sscanf(line, logfmt, &ver) < 1)
@@ -112,6 +113,7 @@ rewrite:
 	logfile = fopen(logtmppath, "w");
 	if (!logfile)
 		fatal("open %s:", logtmppath);
+	setvbuf(logfile, NULL, _IOLBF, 0);
 	fprintf(logfile, logfmt, logver);
 	if (nentry > 0) {
 		for (e = alledges; e; e = e->allnext) {
