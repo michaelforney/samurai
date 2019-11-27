@@ -12,8 +12,8 @@ OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 --------------------------------------------------------------------------------
-Parts of samurai are based on ninja, which is licensed under the Apache
-License, Version 2.0.
+Parts of samurai were written using ninja source code as a reference, which
+is licensed under the Apache License, Version 2.0.
 
 Copyright 2011-2015 Google Inc. All Rights Reserved.
 
