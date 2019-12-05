@@ -214,6 +214,8 @@ argdone:
 #endif
 	}
 
+	setvbuf(stdout, NULL, _IOLBF, 0);
+
 	tries = 0;
 retry:
 	/* (re-)initialize global graph, environment, and parse structures */
