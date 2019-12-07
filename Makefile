@@ -5,8 +5,8 @@ MANDIR=$(PREFIX)/share/man
 ALL_CFLAGS=$(CFLAGS) -Wall -Wextra -std=c99 -pedantic
 OBJ=\
 	build.o\
-	env.o\
 	deps.o\
+	env.o\
 	graph.o\
 	htab.o\
 	log.o\
@@ -16,12 +16,27 @@ OBJ=\
 	tool.o\
 	tree.o\
 	util.o
+HDR=\
+	arg.h\
+	build.h\
+	deps.h\
+	env.h\
+	graph.h\
+	htab.h\
+	log.h\
+	parse.h\
+	scan.h\
+	tool.h\
+	tree.h\
+	util.h
 
 .c.o:
 	$(CC) $(ALL_CFLAGS) -c -o $@ $<
 
 samu: $(OBJ)
 	$(CC) $(LDFLAGS) -o $@ $(OBJ)
+
+$(OBJ): $(HDR)
 
 install: samu samu.1
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
