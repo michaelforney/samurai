@@ -1,7 +1,7 @@
 .POSIX:
 
-PREFIX=/usr/local
-MANDIR=$(PREFIX)/share/man
+PREFIX?=/usr/local
+MANDIR?=$(PREFIX)/share/man
 ALL_CFLAGS=$(CFLAGS) -Wall -Wextra -std=c99 -pedantic
 OBJ=\
 	build.o\
