@@ -297,6 +297,7 @@ out:
 		return NULL;
 	str = xmalloc(sizeof(*str));
 	str->parts = parts;
+	str->visited = false;
 
 	return str;
 }

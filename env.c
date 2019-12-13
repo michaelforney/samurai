@@ -204,6 +204,9 @@ edgevar(struct edge *e, char *var, bool escape)
 	str = treefind(e->rule->bindings, var);
 	if (!str)
 		return envvar(e->env->parent, var);
+	if (str->visited)
+		fatal("cycle in rule variable involving '%s'", var);
+	str->visited = true;
 	n = 0;
 	for (p = str->parts; p; p = p->next) {
 		if (p->var)
@@ -211,6 +214,7 @@ edgevar(struct edge *e, char *var, bool escape)
 		if (p->str)
 			n += p->str->n;
 	}
+	str->visited = false;
 	return merge(str, n);
 }
 
