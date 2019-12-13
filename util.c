@@ -161,6 +161,8 @@ canonpath(struct string *path)
 	int n;
 	char *s, *d, *end;
 
+	if (path->n == 0)
+		fatal("empty path");
 	s = d = path->s;
 	end = path->s + path->n;
 	n = 0;
