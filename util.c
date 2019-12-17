@@ -1,6 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
 #include <errno.h>
-#include <fcntl.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -8,7 +7,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include "util.h"
 
 extern const char *argv0;
@@ -250,28 +248,20 @@ makedirs(struct string *path, bool parent)
 int
 writefile(const char *name, struct string *s)
 {
-	int fd, ret;
-	const char *p;
-	size_t n;
-	ssize_t nw;
+	FILE *f;
+	int ret;
 
-	fd = creat(name, 0666);
-	if (fd < 0) {
-		warn("creat %s:", name);
+	f = fopen(name, "w");
+	if (!f) {
+		warn("open %s:", name);
 		return -1;
 	}
 	ret = 0;
-	if (s) {
-		for (p = s->s, n = s->n; n > 0; p += nw, n -= nw) {
-			nw = write(fd, p, n);
-			if (nw <= 0) {
-				warn("write:");
-				ret = -1;
-				break;
-			}
-		}
+	if (s && (fwrite(s->s, 1, s->n, f) != s->n || fflush(f) != 0)) {
+		warn("write %s:", name);
+		ret = -1;
 	}
-	close(fd);
+	fclose(f);
 
 	return ret;
 }
