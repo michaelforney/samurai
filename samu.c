@@ -240,9 +240,13 @@ retry:
 		buildadd(n);
 		if (n->dirty) {
 			build();
-			if (++tries > 100)
-				fatal("manifest '%s' dirty after 100 tries", manifest);
-			goto retry;
+			if (n->gen->flags & FLAG_DIRTY_OUT || n->gen->nprune > 0) {
+				if (++tries > 100)
+					fatal("manifest '%s' dirty after 100 tries", manifest);
+				goto retry;
+			}
+			/* manifest was pruned; reset state, then continue with build */
+			buildreset();
 		}
 	}
 

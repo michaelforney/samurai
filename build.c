@@ -32,6 +32,23 @@ static struct edge *work;
 static size_t nstarted, ntotal;
 static bool consoleused;
 
+void
+buildreset(void) {
+	struct edge *e;
+	struct node *n;
+	size_t i;
+
+	for (e = alledges; e; e = e->allnext) {
+		e->flags = 0;
+		for (i = 0; i < e->nout; ++i) {
+			n = e->out[i];
+			free(n->use);
+			n->nuse = 0;
+			n->use = NULL;
+		}
+	}
+}
+
 /* returns whether n1 is newer than n2, or false if n1 is NULL */
 static bool
 isnewer(struct node *n1, struct node *n2)
