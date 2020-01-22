@@ -1,7 +1,10 @@
+#define _POSIX_C_SOURCE 200809L
 #include <errno.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include "arg.h"
 #include "env.h"
 #include "graph.h"
@@ -123,8 +126,104 @@ clean(int argc, char *argv[])
 	return ret;
 }
 
+static void
+printjson(const char *s, size_t n, bool join)
+{
+	size_t i;
+	char c;
+
+	for (i = 0; i < n; ++i) {
+		c = s[i];
+		switch (c) {
+		case '"':
+		case '\\':
+			putchar('\\');
+			break;
+		case '\n':
+			if (join)
+				c = ' ';
+			break;
+		case '\0':
+			return;
+		}
+		putchar(c);
+	}
+}
+
+static int
+compdb(int argc, char *argv[])
+{
+	char dir[PATH_MAX], *p;
+	struct edge *e;
+	struct string *cmd, *rspfile, *content;
+	bool expandrsp = false, first = true;
+	int i;
+	size_t off;
+
+	ARGBEGIN {
+	case 'x':
+		expandrsp = true;
+		break;
+	default:
+		fprintf(stderr, "usage: %s ... -t compdb [-x] rules...\n", argv0);
+		return 2;
+	} ARGEND
+
+	if (!getcwd(dir, sizeof(dir)))
+		fatal("getcwd:");
+
+	putchar('[');
+	for (e = alledges; e; e = e->allnext) {
+		if (e->nin == 0)
+			continue;
+		for (i = 0; i < argc; ++i) {
+			if (strcmp(e->rule->name, argv[i]) == 0) {
+				if (first)
+					first = false;
+				else
+					putchar(',');
+
+				printf("\n  {\n    \"directory\": \"");
+				printjson(dir, -1, false);
+
+				printf("\",\n    \"command\": \"");
+				cmd = edgevar(e, "command", true);
+				rspfile = expandrsp ? edgevar(e, "rspfile", true) : NULL;
+				p = rspfile ? strstr(cmd->s, rspfile->s) : NULL;
+				if (!p || p == cmd->s || p[-1] != '@') {
+					printjson(cmd->s, cmd->n, false);
+				} else {
+					off = p - cmd->s;
+					printjson(cmd->s, off - 1, false);
+					content = edgevar(e, "rspfile_content", true);
+					printjson(content->s, content->n, true);
+					off += rspfile->n;
+					printjson(cmd->s + off, cmd->n - off, false);
+				}
+
+				printf("\",\n    \"file\": \"");
+				printjson(e->in[0]->path->s, -1, false);
+
+				printf("\",\n    \"output\": \"");
+				printjson(e->out[0]->path->s, -1, false);
+
+				printf("\",\n  }");
+				break;
+			}
+		}
+	}
+	puts("\n]");
+
+	fflush(stdout);
+	if (ferror(stdout))
+		fatal("write failed");
+
+	return 0;
+}
+
 static const struct tool tools[] = {
 	{"clean", clean},
+	{"compdb", compdb},
 };
 
 const struct tool *

@@ -1,4 +1,4 @@
-.Dd July 3, 2019
+.Dd January 22, 2019
 .Dt SAMU 1
 .Os
 .Sh NAME
@@ -20,6 +20,12 @@
 .Fl t Cm clean
 .Op Fl gr
 .Op Ar target...
+.Nm
+.Op Fl C Ar dir
+.Op Fl f Ar buildfile
+.Fl t Cm compdb
+.Op Fl x
+.Op Ar rule...
 .Sh DESCRIPTION
 .Nm
 loads a build manifest from
@@ -48,6 +54,12 @@ Targets built with
 rules are only removed if
 .Fl g
 is specified.
+.Pp
+If the
+.Cm compdb
+tool is used, a compilation database
+.Lk ( https://clang.llvm.org/docs/JSONCompilationDatabase.html )
+is printed instead.
 .Sh OPTIONS
 .Bl -tag -width Ds
 .It Fl C
@@ -106,9 +118,10 @@ only print a diagnostic message.
 .It Fl t
 Instead of building, invoke a subtool.
 All arguments and flags after the subtool are interpreted by the subtool.
-Currently,
+The currently supported subtools are
 .Cm clean
-is the only subtool.
+and
+.Cm compdb .
 .It Fl g
 When cleaning, also clean outputs of
 .Sy generator
@@ -117,6 +130,8 @@ actions.
 .Ar targets
 are interpreted as rules, and all outputs of actions with the specified rule
 types will be cleaned instead.
+.It Fl x
+When printing a compilation database, replace @$rspfile with $rspfile_content (with <blank> in place of <newline>).
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width SAMUFLAGS
