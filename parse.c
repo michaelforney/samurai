@@ -35,6 +35,7 @@ parserule(struct scanner *s, struct environment *env)
 	struct rule *r;
 	char *var;
 	struct evalstring *val;
+	bool hascommand = false;
 
 	r = mkrule(scanname(s));
 	scannewline(s);
@@ -42,7 +43,11 @@ parserule(struct scanner *s, struct environment *env)
 		var = scanname(s);
 		parselet(s, &val);
 		ruleaddvar(r, var, val);
+		if (strcmp(var, "command") == 0)
+			hascommand = true;
 	}
+	if (!hascommand)
+		fatal("rule '%s' has no command", r->name);
 	envaddrule(env, r);
 }
 

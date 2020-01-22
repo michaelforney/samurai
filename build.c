@@ -231,10 +231,6 @@ jobstart(struct job *j, struct edge *e)
 	}
 	j->edge = e;
 	j->cmd = edgevar(e, "command", true);
-	if (!j->cmd) {
-		warn("rule '%s' has no command", e->rule->name);
-		goto err2;
-	}
 	j->fd = fd[0];
 	argv[2] = j->cmd->s;
 
