@@ -207,7 +207,7 @@ compdb(int argc, char *argv[])
 				printf("\",\n    \"output\": \"");
 				printjson(e->out[0]->path->s, -1, false);
 
-				printf("\",\n  }");
+				printf("\"\n  }");
 				break;
 			}
 		}
