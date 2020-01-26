@@ -1,4 +1,4 @@
-.Dd January 22, 2019
+.Dd January 26, 2020
 .Dt SAMU 1
 .Os
 .Sh NAME
@@ -134,7 +134,7 @@ types will be cleaned instead.
 When printing a compilation database, replace @$rspfile with $rspfile_content (with <blank> in place of <newline>).
 .El
 .Sh ENVIRONMENT
-.Bl -tag -width SAMUFLAGS
+.Bl -tag -width NINJA_STATUS
 .It Ev SAMUFLAGS
 Options for
 .Nm
@@ -145,6 +145,29 @@ are
 .Fl v
 and
 .Fl j .
+.It Ev NINJA_STATUS
+The status output printed to the left of each rule description, using printf-like conversion specifiers.
+If unset, the default is "[%s/%t] ".
+.Pp
+Available conversion specifiers:
+.Bl -tag
+.It Cm %s
+Number of started jobs.
+.It Cm %f
+Number of finished jobs.
+.It Cm %t
+Total number of jobs.
+.It Cm %r
+Number of running jobs.
+.It Cm %u
+Number of remaining jobs.
+.It Cm %p
+Percentage of completed jobs.
+.It Cm %e
+Elapsed time in seconds (to 3 decimal places).
+.It Cm %%
+The '%' character.
+.El
 .El
 .Sh SEE ALSO
 .Xr make 1

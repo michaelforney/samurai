@@ -214,6 +214,10 @@ argdone:
 #endif
 	}
 
+	buildopts.statusfmt = getenv("NINJA_STATUS");
+	if (!buildopts.statusfmt)
+		buildopts.statusfmt = "[%s/%t] ";
+
 	setvbuf(stdout, NULL, _IOLBF, 0);
 
 	tries = 0;
