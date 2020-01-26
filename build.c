@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 #include "build.h"
 #include "deps.h"
@@ -29,8 +30,10 @@ struct job {
 
 struct buildoptions buildopts = {.maxfail = 1};
 static struct edge *work;
-static size_t nstarted, ntotal;
+static size_t nstarted, nfinished, ntotal;
 static bool consoleused;
+static char *ninja_status;
+static struct timespec starttime;
 
 void
 buildreset(void) {
@@ -199,6 +202,47 @@ buildadd(struct node *n)
 	e->flags &= ~FLAG_CYCLE;
 }
 
+static void
+printstatus(char *fmt)
+{
+	struct timespec ctime;
+
+	for (; *fmt; ++fmt) {
+		if (*fmt == '%') {
+			switch (*(++fmt)) {
+			case 's':
+				printf("%zu", nstarted);
+				break;
+			case 'f':
+				printf("%zu", nfinished);
+				break;
+			case 't':
+				printf("%zu", ntotal);
+				break;
+			case 'r':
+				printf("%zu", nstarted - nfinished);
+				break;
+			case 'u':
+				printf("%zu", ntotal - nstarted);
+				break;
+			case 'p':
+				printf("%3lu%%", 100 * nfinished / ntotal);
+				break;
+			case 'e':
+				clock_gettime(CLOCK_MONOTONIC, &ctime);
+				printf("%.3f",
+					(ctime.tv_sec + ctime.tv_nsec * 0.000000001) -
+					(starttime.tv_sec + starttime.tv_nsec * 0.000000001));
+				break;
+			case '%':
+				putchar('%');
+				break;
+			}
+		} else
+			putchar(*fmt);
+	}
+}
+
 static int
 jobstart(struct job *j, struct edge *e)
 {
@@ -238,7 +282,8 @@ jobstart(struct job *j, struct edge *e)
 		description = buildopts.verbose ? NULL : edgevar(e, "description", true);
 		if (!description || description->n == 0)
 			description = j->cmd;
-		printf("[%zu/%zu] %s\n", nstarted, ntotal, description->s);
+		printstatus(ninja_status);
+		puts(description->s);
 	}
 
 	if ((errno = posix_spawn_file_actions_init(&actions))) {
@@ -373,6 +418,7 @@ jobdone(struct job *j)
 	struct edge *e, *new;
 	struct pool *p;
 
+	++nfinished;
 	if (waitpid(j->pid, &status, 0) < 0) {
 		warn("waitpid %d:", j->pid);
 		j->failed = true;
@@ -456,6 +502,31 @@ build(void)
 	struct pollfd *fds = NULL;
 	size_t i, next = 0, jobslen = 0, numjobs = 0, numfail = 0;
 	struct edge *e;
+	char *fmt;
+
+	clock_gettime(CLOCK_MONOTONIC, &starttime);
+
+	if ((ninja_status = getenv("NINJA_STATUS"))) {
+		fmt = ninja_status;
+		for (; *fmt; ++fmt) {
+			if (*fmt == '%') {
+				switch (*(++fmt)) {
+				case 's':
+				case 'f':
+				case 't':
+				case 'r':
+				case 'u':
+				case 'p':
+				case 'e':
+				case '%':
+					break;
+				default:
+					fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *fmt);
+				}
+			}
+		}
+	} else
+		ninja_status = "[%s/%t] ";
 
 	if (!work)
 		warn("nothing to do");

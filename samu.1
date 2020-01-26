@@ -146,5 +146,19 @@ are
 and
 .Fl j .
 .El
+.Bl -tag -width NINJA_STATUS
+.It Ev NINJA_STATUS
+The status output printed to the left of each rule description, using printf-like conversion specifiers.
+.El
+
+Available conversion specifiers:
+  %s    Started edges
+  %f    Finished edges
+  %t    Total edges
+  %r    Running edges
+  %u    Remaining edges
+  %p    Percentage of completed edges
+  %e    Elapsed seconds (to 3 decimal places)
+  %%    The '%' character
 .Sh SEE ALSO
 .Xr make 1
