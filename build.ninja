@@ -17,9 +17,10 @@ build log.o: cc log.c
 build parse.o: cc parse.c
 build samu.o: cc samu.c
 build scan.o: cc scan.c
+build term-dumb.o: cc term-dumb.c
 build tool.o: cc tool.c
 build tree.o: cc tree.c
 build util.o: cc util.c
-build samu: link build.o deps.o env.o graph.o htab.o log.o parse.o samu.o scan.o tool.o tree.o util.o
+build samu: link build.o deps.o env.o graph.o htab.o log.o parse.o samu.o scan.o term-dumb.c tool.o tree.o util.o
 
 default samu
