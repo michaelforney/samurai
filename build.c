@@ -17,13 +17,14 @@
 #include "graph.h"
 #include "log.h"
 #include "util.h"
+#include <reproc/reproc.h>
 
 struct job {
 	struct string *cmd;
 	struct edge *edge;
 	struct buffer buf;
 	size_t next;
-	pid_t pid;
+	reproc_t *process;
 	int fd;
 	bool failed;
 };
@@ -246,13 +247,12 @@ printstatus(void)
 static int
 jobstart(struct job *j, struct edge *e)
 {
-	extern char **environ;
 	size_t i;
 	struct node *n;
 	struct string *rspfile, *content, *description;
 	int fd[2];
-	posix_spawn_file_actions_t actions;
-	char *argv[] = {"/bin/sh", "-c", NULL, NULL};
+	reproc_options options = { 0 };
+	const char *argv[] = {"/bin/sh", "-c", NULL, NULL};
 
 	++nstarted;
 	for (i = 0; i < e->nout; ++i) {
@@ -286,37 +286,20 @@ jobstart(struct job *j, struct edge *e)
 		puts(description->s);
 	}
 
-	if ((errno = posix_spawn_file_actions_init(&actions))) {
-		warn("posix_spawn_file_actions_init:");
-		goto err2;
-	}
-	if ((errno = posix_spawn_file_actions_addclose(&actions, fd[0]))) {
-		warn("posix_spawn_file_actions_addclose:");
-		goto err3;
-	}
 	if (e->pool != &consolepool) {
-		if ((errno = posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0))) {
-			warn("posix_spawn_file_actions_addopen:");
-			goto err3;
-		}
-		if ((errno = posix_spawn_file_actions_adddup2(&actions, fd[1], 1))) {
-			warn("posix_spawn_file_actions_adddup2:");
-			goto err3;
-		}
-		if ((errno = posix_spawn_file_actions_adddup2(&actions, fd[1], 2))) {
-			warn("posix_spawn_file_actions_adddup2:");
-			goto err3;
-		}
-		if ((errno = posix_spawn_file_actions_addclose(&actions, fd[1]))) {
-			warn("posix_spawn_file_actions_addclose:");
-			goto err3;
-		}
+		options.redirect.in.type = REPROC_REDIRECT_DISCARD;
+		options.redirect.out.handle = fd[1];
+		options.redirect.err.handle = fd[1];
+	} else {
+		options.redirect.parent = true;
 	}
-	if ((errno = posix_spawn(&j->pid, argv[0], &actions, NULL, argv, environ))) {
-		warn("posix_spawn %s:", j->cmd->s);
+	if ((j->process = reproc_new()) == NULL) {
+		warn("reproc_new %s:", j->cmd->s);
 		goto err3;
 	}
-	posix_spawn_file_actions_destroy(&actions);
+	if (reproc_start(j->process, argv, options) < 0) {
+		goto err3;
+	}
 	close(fd[1]);
 	j->failed = false;
 	if (e->pool == &consolepool)
@@ -325,8 +308,7 @@ jobstart(struct job *j, struct edge *e)
 	return j->fd;
 
 err3:
-	posix_spawn_file_actions_destroy(&actions);
-err2:
+	reproc_destroy(j->process);
 	close(fd[0]);
 	close(fd[1]);
 err1:
@@ -419,8 +401,8 @@ jobdone(struct job *j)
 	struct pool *p;
 
 	++nfinished;
-	if (waitpid(j->pid, &status, 0) < 0) {
-		warn("waitpid %d:", j->pid);
+	if ((status = reproc_wait(j->process, REPROC_INFINITE)) < 0) {
+		warn("waitpid %s:", j->cmd->s);
 		j->failed = true;
 	} else if (WIFEXITED(status)) {
 		if (WEXITSTATUS(status) != 0) {
@@ -435,6 +417,7 @@ jobdone(struct job *j)
 		warn("job status unknown: %s", j->cmd->s);
 		j->failed = true;
 	}
+	reproc_destroy(j->process);
 	close(j->fd);
 	if (j->buf.len && (!consoleused || j->failed))
 		fwrite(j->buf.data, 1, j->buf.len, stdout);
@@ -487,7 +470,7 @@ jobwork(struct job *j)
 	warn("read:");
 
 kill:
-	kill(j->pid, SIGTERM);
+	reproc_terminate(j->process);
 	j->failed = true;
 done:
 	jobdone(j);
