@@ -3,6 +3,8 @@
 PREFIX=/usr/local
 MANDIR=$(PREFIX)/share/man
 ALL_CFLAGS=$(CFLAGS) -Wall -Wextra -std=c99 -pedantic
+PROC=posix
+
 OBJ=\
 	build.o\
 	deps.o\
@@ -11,6 +13,7 @@ OBJ=\
 	htab.o\
 	log.o\
 	parse.o\
+	proc-$(PROC).o\
 	samu.o\
 	scan.o\
 	tool.o\
@@ -25,6 +28,7 @@ HDR=\
 	htab.h\
 	log.h\
 	parse.h\
+	proc.h\
 	scan.h\
 	tool.h\
 	tree.h\
