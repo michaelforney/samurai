@@ -296,7 +296,7 @@ depsclose(void)
 }
 
 static struct nodearray *
-depsparse(const char *name)
+depsparse(const char *name, bool allowmissing)
 {
 	static struct buffer buf;
 	static struct nodearray deps;
@@ -306,12 +306,15 @@ depsparse(const char *name)
 	int c, n;
 	bool sawcolon;
 
+	deps.len = 0;
 	f = fopen(name, "r");
-	if (!f)
+	if (!f) {
+		if (errno == ENOENT && allowmissing)
+			return &deps;
 		return NULL;
+	}
 	sawcolon = false;
 	buf.len = 0;
-	deps.len = 0;
 	c = getc(f);
 	for (;;) {
 		/* TODO: this parser needs to be rewritten to be made simpler */
@@ -438,9 +441,9 @@ depsload(struct edge *e)
 		depfile = edgevar(e, "depfile", false);
 		if (!depfile)
 			return;
-		deps = depsparse(depfile->s);
+		deps = depsparse(depfile->s, false);
 		if (buildopts.explain && !deps)
-			warn("explain %s: missing or invalid dep file", n->path->s);
+			warn("explain %s: missing or invalid depfile", n->path->s);
 	}
 	if (deps) {
 		edgeadddeps(e, deps->node, deps->len);
@@ -473,7 +476,7 @@ depsrecord(struct edge *e)
 		return;
 	}
 	out = e->out[0];
-	deps = depsparse(depfile->s);
+	deps = depsparse(depfile->s, true);
 	if (!buildopts.keepdepfile)
 		remove(depfile->s);
 	if (!deps)
