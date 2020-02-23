@@ -54,14 +54,18 @@ struct edge {
 	/* how many inputs need to be pruned before all outputs can be pruned */
 	size_t nprune;
 
+	// clang-format off
+
 	enum {
-		FLAG_WORK      = 1<<0, /* scheduled for build */
-		FLAG_HASH      = 1<<1, /* calculated the command hash */
-		FLAG_DIRTY_IN  = 1<<3, /* dirty input */
-		FLAG_DIRTY_OUT = 1<<4, /* missing or outdated output */
+		FLAG_WORK      = 1 << 0, /* scheduled for build */
+		FLAG_HASH      = 1 << 1, /* calculated the command hash */
+		FLAG_DIRTY_IN  = 1 << 3, /* dirty input */
+		FLAG_DIRTY_OUT = 1 << 4, /* missing or outdated output */
 		FLAG_DIRTY     = FLAG_DIRTY_IN | FLAG_DIRTY_OUT,
-		FLAG_CYCLE     = 1<<5, /* used for cycle detection */
+		FLAG_CYCLE     = 1 << 5, /* used for cycle detection */
 	} flags;
+
+	// clang-format on
 
 	/* used to coordinate ready work in build() */
 	struct edge *worknext;

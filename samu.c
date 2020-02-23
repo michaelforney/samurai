@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>  /* for chdir */
+#include <unistd.h> /* for chdir */
 #include "arg.h"
 #include "build.h"
 #include "deps.h"
@@ -199,7 +199,9 @@ argdone:
 #ifdef _SC_NPROCESSORS_ONLN
 		int n = sysconf(_SC_NPROCESSORS_ONLN);
 		switch (n) {
-		case -1: case 0: case 1:
+		case -1:
+		case 0:
+		case 1:
 			buildopts.maxjobs = 2;
 			break;
 		case 2:

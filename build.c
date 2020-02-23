@@ -35,7 +35,8 @@ static bool consoleused;
 static struct timespec starttime;
 
 void
-buildreset(void) {
+buildreset(void)
+{
 	struct edge *e;
 	struct node *n;
 	size_t i;
@@ -590,5 +591,5 @@ build(void)
 		else
 			fatal("subcommand failed");
 	}
-	ntotal = 0;  /* reset in case we just rebuilt the manifest */
+	ntotal = 0; /* reset in case we just rebuilt the manifest */
 }

@@ -142,6 +142,8 @@ murmurhash64a(const void *ptr, size_t len)
 		h *= m;
 	}
 
+	// clang-format off
+
 	switch (len & 0x7) {
 	case 7: h ^= (uint64_t)p[6] << 48;  /* fallthrough */
 	case 6: h ^= (uint64_t)p[5] << 40;  /* fallthrough */
@@ -152,6 +154,8 @@ murmurhash64a(const void *ptr, size_t len)
 	case 1: h ^= (uint64_t)p[0];
 		h *= m;
 	}
+
+	// clang-format on
 
 	h ^= h >> r;
 	h *= m;

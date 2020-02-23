@@ -222,8 +222,8 @@ compdb(int argc, char *argv[])
 }
 
 static const struct tool tools[] = {
-	{"clean", clean},
-	{"compdb", compdb},
+    {"clean", clean},
+    {"compdb", compdb},
 };
 
 const struct tool *
