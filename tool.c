@@ -83,7 +83,6 @@ clean(int argc, char *argv[])
 		return 2;
 	} ARGEND
 
-
 	if (cleanrule) {
 		if (!argc)
 			fatal("expected a rule to clean");

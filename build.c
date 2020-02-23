@@ -35,7 +35,8 @@ static bool consoleused;
 static struct timespec starttime;
 
 void
-buildreset(void) {
+buildreset(void)
+{
 	struct edge *e;
 
 	for (e = alledges; e; e = e->allnext)

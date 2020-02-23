@@ -96,7 +96,7 @@ parseedge(struct scanner *s, struct environment *env)
 	for (in = NULL, end = &in; (str = scanstring(s, true)); ++e->nin)
 		pushstr(&end, str);
 	e->inimpidx = e->nin;
-	p = scanpipe(s, 1|2);
+	p = scanpipe(s, 1 | 2);
 	if (p == 1) {
 		for (; (str = scanstring(s, true)); ++e->nin)
 			pushstr(&end, str);

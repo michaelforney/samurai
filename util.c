@@ -115,7 +115,7 @@ void
 bufadd(struct buffer *buf, char c)
 {
 	if (buf->len >= buf->cap) {
-		buf->cap = buf->cap ? buf->cap * 2 : 1<<8;
+		buf->cap = buf->cap ? buf->cap * 2 : 1 << 8;
 		buf->data = realloc(buf->data, buf->cap);
 		if (!buf->data)
 			fatal("realloc:");
@@ -170,7 +170,7 @@ canonpath(struct string *path)
 	}
 	while (s < end) {
 		switch (s[0]) {
-		case  '/':
+		case '/':
 			++s;
 			continue;
 		case '.':

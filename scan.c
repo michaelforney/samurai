@@ -79,7 +79,8 @@ crlf(struct scanner *s)
 }
 
 static bool
-singlespace(struct scanner *s) {
+singlespace(struct scanner *s)
+{
 	int c;
 
 	switch (s->chr) {

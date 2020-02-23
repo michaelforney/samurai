@@ -1,0 +1,11 @@
+# clang-format isn't authoritative for the style decisions in this project, but
+# these rules mostly align with the suggested style, and clang-format can be
+# used fix any potential style-mistakes.
+AlignEscapedNewlines: DontAlign
+AlwaysBreakAfterDefinitionReturnType: All
+BreakBeforeBraces: Linux
+ColumnLimit: 0
+IndentWidth: 8
+SortIncludes: false
+TabWidth: 8
+UseTab: ForIndentation

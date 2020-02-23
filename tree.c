@@ -5,7 +5,7 @@
 #include "tree.h"
 #include "util.h"
 
-#define MAXH (sizeof(void*) * 8 * 3 / 2)
+#define MAXH (sizeof(void *) * 8 * 3 / 2)
 
 struct treenode {
 	char *key;
@@ -20,7 +20,8 @@ height(struct treenode *n)
 	return n ? n->height : 0;
 }
 
-static int rot(struct treenode **p, struct treenode *x, int dir /* deeper side */)
+static int
+rot(struct treenode **p, struct treenode *x, int dir /* deeper side */)
 {
 	struct treenode *y = x->child[dir];
 	struct treenode *z = y->child[!dir];

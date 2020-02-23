@@ -40,7 +40,7 @@ specified previously in node records.
 */
 
 /* maximum record size (in bytes) */
-#define MAX_RECORD_SIZE (1<<19)
+#define MAX_RECORD_SIZE (1 << 19)
 
 struct nodearray {
 	struct node **node;
@@ -83,7 +83,7 @@ recordid(struct node *n)
 		fatal("ID record too large");
 	depswrite(&sz, 4, 1);
 	depswrite(n->path->s, 1, n->path->n);
-	depswrite((char [4]){0}, 1, sz - n->path->n - 4);
+	depswrite((char[4]){0}, 1, sz - n->path->n - 4);
 	chk = ~n->id;
 	depswrite(&chk, 4, 1);
 
@@ -406,7 +406,7 @@ depsparse(const char *name, bool allowmissing)
 					goto err;
 				}
 			} else if (!isblank(c)) {
-			    break;
+				break;
 			}
 			c = getc(f);
 		}
