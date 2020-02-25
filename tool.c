@@ -3,6 +3,7 @@
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include "arg.h"
@@ -221,9 +222,83 @@ compdb(int argc, char *argv[])
 	return 0;
 }
 
+static void
+targets_rule(int argc, char *argv[])
+{
+	struct edge *e = NULL;
+	for (e = alledges; e; e = e->allnext) {
+		if (argc == 2) {
+			if (e->nin == 0)
+				continue;
+
+			/* TODO: what does `gen` means in a node? */
+			if (!e->in[0]->gen)
+				printf("%s\n", e->in[0]->path->s);
+		}
+		else if (argc == 3) {
+			if (e->nout == 0)
+				continue;
+
+			if (strcmp(e->rule->name, argv[2]) == 0)
+				printf("%s\n", e->out[0]->path->s);
+		}
+	}
+}
+
+static void
+targets_depth(struct node *nodes, size_t nnodes, size_t depth, size_t indent)
+{
+	for (size_t i = 0; i < nnodes; ++i) {
+		for (size_t j = 0; j < indent; ++j)
+			printf("  ");
+
+		printf("%s: %s\n", nodes[i].path->s, nodes[i].gen->rule->name);
+	}
+}
+
+static void
+targets_all(void)
+{
+	struct edge *e = NULL;
+	for (e = alledges; e; e = e->allnext) {
+		if (e->nout == 0)
+			continue;
+
+		printf("%s: %s\n", e->out[0]->path->s, e->rule->name);
+	}
+}
+
+static int
+targets(int argc, char *argv[])
+{
+	int depth = 1;
+	if (argc >= 2) {
+		const char *mode = argv[1];
+		if (strcmp(mode, "rule") == 0) {
+			targets_rule(argc, argv);
+			return 0;
+		} else if (strcmp(mode, "depth") == 0) {
+			if (argc > 1)
+				depth = atoi(argv[1]);
+		} else if (strcmp(mode, "all") == 0) {
+			targets_all();
+			return 0;
+		} else {
+			fprintf(stderr, "unknown target tool mode '%s'\n", mode);
+			return 2;
+		}
+	}
+
+	struct node *nodes = NULL;
+	size_t i = rootnodes(&nodes);
+	targets_depth(nodes, i, depth, 0);
+	return 0;
+}
+
 static const struct tool tools[] = {
 	{"clean", clean},
 	{"compdb", compdb},
+	{"targets", targets},
 };
 
 const struct tool *

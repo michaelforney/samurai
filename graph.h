@@ -90,5 +90,8 @@ void edgehash(struct edge *);
 /* add dependencies from $depfile or .ninja_deps as implicit inputs */
 void edgeadddeps(struct edge *e, struct node **deps, size_t ndeps);
 
+/* array of nodes without use */
+size_t rootnodes(struct node**);
+
 /* a single linked list of all edges, valid up until build() */
 extern struct edge *alledges;
