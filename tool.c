@@ -3,6 +3,7 @@
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include "arg.h"
@@ -220,9 +221,87 @@ compdb(int argc, char *argv[])
 	return 0;
 }
 
+static void
+targetsdepth(struct node *n, size_t depth, size_t indent)
+{
+	struct edge *e = n->gen;
+	size_t i;
+
+	for (i = 0; i < indent; ++i)
+		printf("  ");
+	if (e) {
+		printf("%s: %s\n", n->path->s, e->rule->name);
+		if (depth != 1) {
+			for (i = 0; i < e->nin; ++i)
+				targetsdepth(e->in[i], depth - 1, indent + 1);
+		}
+	} else {
+		puts(n->path->s);
+	}
+}
+
+static void
+targetsusage(void)
+{
+	fprintf(stderr,
+	        "usage: %s ... -t targets [depth [maxdepth]]\n"
+	        "       %s ... -t targets rule [rulename]\n"
+	        "       %s ... -t targets all\n",
+	        argv0, argv0, argv0);
+	exit(2);
+}
+
+static int
+targets(int argc, char *argv[])
+{
+	struct edge *e;
+	size_t depth = 1, i;
+	char *end, *mode, *name;
+
+	if (argc > 3)
+		targetsusage();
+	mode = argv[1];
+	if (!mode || strcmp(mode, "depth") == 0) {
+		if (argc == 3) {
+			depth = strtol(argv[2], &end, 10);
+			if (*end)
+				targetsusage();
+		}
+		for (e = alledges; e; e = e->allnext) {
+			for (i = 0; i < e->nout; ++i) {
+				if (e->out[i]->nuse == 0)
+					targetsdepth(e->out[i], depth, 0);
+			}
+		}
+	} else if (strcmp(mode, "rule") == 0) {
+		name = argv[2];
+		for (e = alledges; e; e = e->allnext) {
+			if (!name) {
+				for (i = 0; i < e->nin; ++i) {
+					if (!e->in[i]->gen)
+						puts(e->in[i]->path->s);
+				}
+			} else if (strcmp(e->rule->name, name) == 0) {
+				for (i = 0; i < e->nout; ++i)
+					puts(e->out[i]->path->s);
+			}
+		}
+	} else if (strcmp(mode, "all") == 0 && argc == 2) {
+		for (e = alledges; e; e = e->allnext) {
+			for (i = 0; i < e->nout; ++i)
+				printf("%s: %s\n", e->out[i]->path->s, e->rule->name);
+		}
+	} else {
+		targetsusage();
+	}
+
+	return 0;
+}
+
 static const struct tool tools[] = {
 	{"clean", clean},
 	{"compdb", compdb},
+	{"targets", targets},
 };
 
 const struct tool *

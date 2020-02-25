@@ -26,6 +26,22 @@
 .Fl t Cm compdb
 .Op Fl x
 .Op Ar rule...
+.Nm
+.Op Fl C Ar dir
+.Op Fl f Ar buildfile
+.Fl t Cm targets
+.Op Cm depth Op Ar maxdepth
+.Nm
+.Op Fl C Ar dir
+.Op Fl f Ar buildfile
+.Fl t Cm targets
+.Cm rule
+.Op Ar rulename
+.Nm
+.Op Fl C Ar dir
+.Op Fl f Ar buildfile
+.Fl t Cm targets
+.Cm all
 .Sh DESCRIPTION
 .Nm
 loads a build manifest from
@@ -60,6 +76,25 @@ If the
 tool is used, a compilation database
 .Lk ( https://clang.llvm.org/docs/JSONCompilationDatabase.html )
 is printed instead.
+.Pp
+If the
+.Cm targets
+tool is used, a list of targets will be displayed, either by rule or by depth.
+The first argument determines how the targets will be displayed:
+.Bl -tag -width Ds
+.It Cm depth
+An indented tree of targets will be displayed, starting by the root targets
+(those with no dependent targets), up to the depth specified by
+.Ar maxdepth
+(defaults to 1).
+.It Cm rule
+If
+.Ar rulename
+is given, a list of targets using the given rule will be displayed.
+Otherwise, a list of source files will be displayed.
+.It Cm all
+A list of all targets will be displayed.
+.El
 .Sh OPTIONS
 .Bl -tag -width Ds
 .It Fl C
@@ -119,9 +154,10 @@ only print a diagnostic message.
 Instead of building, invoke a subtool.
 All arguments and flags after the subtool are interpreted by the subtool.
 The currently supported subtools are
-.Cm clean
+.Cm clean ,
+.Cm compdb ,
 and
-.Cm compdb .
+.Cm targets .
 .It Fl g
 When cleaning, also clean outputs of
 .Sy generator
