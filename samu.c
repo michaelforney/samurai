@@ -182,6 +182,10 @@ main(int argc, char *argv[])
 			fatal("invalid -k parameter");
 		buildopts.maxfail = num > 0 ? num : -1;
 		break;
+	case 'l':
+		warn("job scheduling based on load average is not implemented");
+		EARGF(usage());
+		break;
 	case 't':
 		tool = toolget(EARGF(usage()));
 		goto argdone;
