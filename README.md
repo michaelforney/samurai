@@ -40,6 +40,10 @@ are several cases where it is slightly different:
   systems, like meson, force color output from gcc by default using
   `-fdiagnostics-color=always`, so if you plan to save the output to a
   log, you should pass `-Db_colorout=auto` to meson.
+- samurai follows the [POSIX Utility Syntax Guidelines], in particular
+  guideline 9, so it requires that any command-line options precede
+  the operands. It does not do GNU-style argument permutation.
 
 [ninja-build/ninja#1516]: https://github.com/ninja-build/ninja/issues/1516
 [variable lookup order]: https://ninja-build.org/manual.html#ref_scope
+[POSIX Utility Syntax Guidelines]: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html#tag_12_02
