@@ -61,6 +61,7 @@ struct edge {
 		FLAG_DIRTY_OUT = 1<<4, /* missing or outdated output */
 		FLAG_DIRTY     = FLAG_DIRTY_IN | FLAG_DIRTY_OUT,
 		FLAG_CYCLE     = 1<<5, /* used for cycle detection */
+		FLAG_DEPS      = 1<<6, /* dependencies loaded */
 	} flags;
 
 	/* used to coordinate ready work in build() */

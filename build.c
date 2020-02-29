@@ -39,7 +39,7 @@ buildreset(void) {
 	struct edge *e;
 
 	for (e = alledges; e; e = e->allnext)
-		e->flags = 0;
+		e->flags &= ~FLAG_WORK;
 }
 
 /* returns whether n1 is newer than n2, or false if n1 is NULL */

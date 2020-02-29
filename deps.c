@@ -430,6 +430,9 @@ depsload(struct edge *e)
 	struct nodearray *deps = NULL;
 	struct node *n;
 
+	if (e->flags & FLAG_DEPS)
+		return;
+	e->flags |= FLAG_DEPS;
 	n = e->out[0];
 	deptype = edgevar(e, "deps", true);
 	if (deptype) {
