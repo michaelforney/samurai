@@ -37,18 +37,9 @@ static struct timespec starttime;
 void
 buildreset(void) {
 	struct edge *e;
-	struct node *n;
-	size_t i;
 
-	for (e = alledges; e; e = e->allnext) {
+	for (e = alledges; e; e = e->allnext)
 		e->flags = 0;
-		for (i = 0; i < e->nout; ++i) {
-			n = e->out[i];
-			free(n->use);
-			n->nuse = 0;
-			n->use = NULL;
-		}
-	}
 }
 
 /* returns whether n1 is newer than n2, or false if n1 is NULL */
@@ -163,10 +154,8 @@ buildadd(struct node *n)
 			if (n->mtime != MTIME_MISSING && !isnewer(newest, n))
 				newest = n;
 		}
-		if (n->dirty || (n->gen && n->gen->nblock > 0)) {
+		if (n->dirty || (n->gen && n->gen->nblock > 0))
 			++e->nblock;
-			nodeuse(n, e);
-		}
 	}
 	/* all outputs are dirty if any are older than the newest input */
 	generator = edgevar(e, "generator", true);

@@ -216,6 +216,7 @@ edgeadddeps(struct edge *e, struct node **deps, size_t ndeps)
 		n = deps[i];
 		if (!n->gen)
 			n->gen = mkphony(n);
+		nodeuse(n, e);
 	}
 	e->in = xreallocarray(e->in, e->nin + ndeps, sizeof(e->in[0]));
 	order = e->in + e->inorderidx;

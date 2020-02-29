@@ -140,7 +140,9 @@ parseedge(struct scanner *s, struct environment *env)
 		str = in->next;
 		val = enveval(e->env, in);
 		canonpath(val);
-		e->in[i] = mknode(val);
+		n = mknode(val);
+		e->in[i] = n;
+		nodeuse(n, e);
 	}
 
 	val = edgevar(e, "pool", true);
