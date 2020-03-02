@@ -226,28 +226,3 @@ edgeadddeps(struct edge *e, struct node **deps, size_t ndeps)
 	e->inorderidx += ndeps;
 	e->nin += ndeps;
 }
-
-size_t
-rootnodes(struct node **nodes)
-{
-	size_t size = 0;
-	struct edge *e = NULL;
-
-	for (e = alledges; e; e = e->allnext) {
-		if (e->nout == 0)
-			continue;
-
-		for (size_t n = 0; n < e->nout; ++n) {
-			printf("rule is %s\n", e->rule->name);
-			printf("nuse is %zu\n", e->out[n]->nuse);
-			if (e->out[n]->nuse == 0) {
-				*nodes = xreallocarray(*nodes, size + 1, sizeof(nodes[0]));
-				nodes[size] = e->out[n];
-				size += 1;
-			}
-		}
-
-	}
-
-	return size;
-}
