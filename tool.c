@@ -231,7 +231,6 @@ targets_rule(int argc, char *argv[])
 			if (e->nin == 0)
 				continue;
 
-			/* TODO: what does `gen` means in a node? */
 			if (!e->in[0]->gen)
 				printf("%s\n", e->in[0]->path->s);
 		}
@@ -246,13 +245,20 @@ targets_rule(int argc, char *argv[])
 }
 
 static void
-targets_depth(struct node *nodes, size_t nnodes, size_t depth, size_t indent)
+targets_depth(struct node **nodes, size_t nnodes, size_t depth, size_t indent)
 {
 	for (size_t i = 0; i < nnodes; ++i) {
+		if (nodes[i]->gen == NULL)
+			continue;
+
 		for (size_t j = 0; j < indent; ++j)
 			printf("  ");
 
-		printf("%s: %s\n", nodes[i].path->s, nodes[i].gen->rule->name);
+		printf("%s: %s\n", nodes[i]->path->s, nodes[i]->gen->rule->name);
+
+		if (depth > 1 || depth <= 0)
+			targets_depth(nodes[i]->gen->in, nodes[i]->gen->nin,
+					depth - 1, indent + 1);
 	}
 }
 
@@ -271,7 +277,7 @@ targets_all(void)
 static int
 targets(int argc, char *argv[])
 {
-	int depth = 1;
+	size_t depth = 1;
 	if (argc >= 2) {
 		const char *mode = argv[1];
 		if (strcmp(mode, "rule") == 0) {
@@ -279,7 +285,7 @@ targets(int argc, char *argv[])
 			return 0;
 		} else if (strcmp(mode, "depth") == 0) {
 			if (argc > 1)
-				depth = atoi(argv[1]);
+				sscanf(argv[2], "%zu", &depth);
 		} else if (strcmp(mode, "all") == 0) {
 			targets_all();
 			return 0;
@@ -289,9 +295,25 @@ targets(int argc, char *argv[])
 		}
 	}
 
-	struct node *nodes = NULL;
-	size_t i = rootnodes(&nodes);
-	targets_depth(nodes, i, depth, 0);
+	/* Find root nodes (node with 0 use) */
+	size_t size = 0;
+	struct node **nodes = NULL;
+	struct edge *e = NULL;
+	for (e = alledges; e; e = e->allnext) {
+		if (e->nout == 0)
+			continue;
+
+		for (size_t n = 0; n < e->nout; ++n) {
+			if (e->out[n]->nuse != 0)
+				continue;
+
+			nodes = xreallocarray(nodes, size + 1, sizeof(nodes[0]));
+			nodes[size] = e->out[n];
+			size += 1;
+		}
+	}
+
+	targets_depth(nodes, size, depth, 0);
 	return 0;
 }
 
