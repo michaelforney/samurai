@@ -238,7 +238,7 @@ jobstart(struct job *j, struct edge *e)
 	extern char **environ;
 	size_t i;
 	struct node *n;
-	struct string *rspfile, *content, *description;
+	struct string *rspfile, *content;
 	int fd[2];
 	posix_spawn_file_actions_t actions;
 	char *argv[] = {"/bin/sh", "-c", NULL, NULL};
@@ -266,14 +266,6 @@ jobstart(struct job *j, struct edge *e)
 	j->cmd = edgevar(e, "command", true);
 	j->fd = fd[0];
 	argv[2] = j->cmd->s;
-
-	if (!consoleused) {
-		description = buildopts.verbose ? NULL : edgevar(e, "description", true);
-		if (!description || description->n == 0)
-			description = j->cmd;
-		printstatus();
-		puts(description->s);
-	}
 
 	if ((errno = posix_spawn_file_actions_init(&actions))) {
 		warn("posix_spawn_file_actions_init:");
@@ -406,6 +398,7 @@ jobdone(struct job *j)
 	int status;
 	struct edge *e, *new;
 	struct pool *p;
+	struct string *description;
 
 	++nfinished;
 	if (waitpid(j->pid, &status, 0) < 0) {
@@ -429,6 +422,15 @@ jobdone(struct job *j)
 		fwrite(j->buf.data, 1, j->buf.len, stdout);
 	j->buf.len = 0;
 	e = j->edge;
+
+	if (!consoleused) {
+		description = buildopts.verbose ? NULL : edgevar(e, "description", true);
+		if (!description || description->n == 0)
+			description = j->cmd;
+		printstatus();
+		puts(description->s);
+	}
+
 	if (e->pool) {
 		p = e->pool;
 
