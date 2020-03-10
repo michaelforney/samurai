@@ -24,8 +24,13 @@
 .Op Fl C Ar dir
 .Op Fl f Ar buildfile
 .Fl t Cm compdb
-.Op Fl x
 .Op Ar rule...
+.Nm
+.Op Fl C Ar dir
+.Op Fl f Ar buildfile
+.Fl t Cm targets
+.Op Ar mode
+.Op Ar argument
 .Sh DESCRIPTION
 .Nm
 loads a build manifest from
@@ -60,6 +65,17 @@ If the
 tool is used, a compilation database
 .Lk ( https://clang.llvm.org/docs/JSONCompilationDatabase.html )
 is printed instead.
+.Pp
+If the
+.Cm targets
+tool is used, a list of targets will be displayed, either by rule or by depth.
+If a name is given as an argument to the rule mode, a list of targets using the
+given rule will be displayed. If no name is given, a list of source files is
+displayed. If a value is given as an argument to the depth mode, a list of
+targets will be displayed in a depth-first way, starting by the root targets
+(the targets with no outputs). If the depth is 0, all targets will be displayed.
+If no arguments is provided to the depth mode, a depth of 1 will be assumed. If
+no mode is specified, a list of all targets is displayed.
 .Sh OPTIONS
 .Bl -tag -width Ds
 .It Fl C
