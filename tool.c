@@ -225,7 +225,8 @@ compdb(int argc, char *argv[])
 static void
 targets_rule(int argc, char *argv[])
 {
-	struct edge *e = NULL;
+	struct edge *e;
+
 	for (e = alledges; e; e = e->allnext) {
 		if (argc == 2) {
 			if (e->nin == 0)
@@ -233,13 +234,14 @@ targets_rule(int argc, char *argv[])
 
 			if (!e->in[0]->gen)
 				printf("%s\n", e->in[0]->path->s);
-		}
-		else if (argc == 3) {
+		} else if (argc == 3) {
 			if (e->nout == 0)
 				continue;
 
-			if (strcmp(e->rule->name, argv[2]) == 0)
-				printf("%s\n", e->out[0]->path->s);
+			if (strcmp(e->rule->name, argv[2]) == 0) {
+				for (size_t i = 0; i < e->nout; ++i)
+					printf("%s\n", e->out[i]->path->s);
+			}
 		}
 	}
 }
@@ -270,7 +272,8 @@ targets_all(void)
 		if (e->nout == 0)
 			continue;
 
-		printf("%s: %s\n", e->out[0]->path->s, e->rule->name);
+		for (size_t i = 0; i < e->nout; ++i)
+			printf("%s: %s\n", e->out[i]->path->s, e->rule->name);
 	}
 }
 
@@ -284,8 +287,12 @@ targets(int argc, char *argv[])
 			targets_rule(argc, argv);
 			return 0;
 		} else if (strcmp(mode, "depth") == 0) {
-			if (argc > 1)
-				sscanf(argv[2], "%zu", &depth);
+			if (argc > 1) {
+				char *end;
+				depth = (size_t)strtol(argv[2], &end, 10);
+				if (*end)
+					fprintf(stderr, "depth not valid");
+			}
 		} else if (strcmp(mode, "all") == 0) {
 			targets_all();
 			return 0;
@@ -295,9 +302,6 @@ targets(int argc, char *argv[])
 		}
 	}
 
-	/* Find root nodes (node with 0 use) */
-	size_t size = 0;
-	struct node **nodes = NULL;
 	struct edge *e = NULL;
 	for (e = alledges; e; e = e->allnext) {
 		if (e->nout == 0)
@@ -307,13 +311,10 @@ targets(int argc, char *argv[])
 			if (e->out[n]->nuse != 0)
 				continue;
 
-			nodes = xreallocarray(nodes, size + 1, sizeof(nodes[0]));
-			nodes[size] = e->out[n];
-			size += 1;
+			targets_depth(e->out, e->nout, depth, 0);
 		}
 	}
 
-	targets_depth(nodes, size, depth, 0);
 	return 0;
 }
 
