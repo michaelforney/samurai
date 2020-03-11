@@ -226,20 +226,16 @@ static void
 targets_rule(int argc, char *argv[])
 {
 	struct edge *e;
-
+	size_t i;
 	for (e = alledges; e; e = e->allnext) {
 		if (argc == 2) {
-			if (e->nin == 0)
-				continue;
-
-			if (!e->in[0]->gen)
-				printf("%s\n", e->in[0]->path->s);
+			for (i = 0; i < e->nin; ++i)
+				if (!e->in[i]->gen) {
+					printf("%s\n", e->in[i]->path->s);
+			}
 		} else if (argc == 3) {
-			if (e->nout == 0)
-				continue;
-
 			if (strcmp(e->rule->name, argv[2]) == 0) {
-				for (size_t i = 0; i < e->nout; ++i)
+				for (i = 0; i < e->nout; ++i)
 					printf("%s\n", e->out[i]->path->s);
 			}
 		}
@@ -249,18 +245,18 @@ targets_rule(int argc, char *argv[])
 static void
 targets_depth(struct node **nodes, size_t nnodes, size_t depth, size_t indent)
 {
-	for (size_t i = 0; i < nnodes; ++i) {
+	size_t i, j;
+	for (i = 0; i < nnodes; ++i) {
 		if (nodes[i]->gen == NULL)
 			continue;
 
-		for (size_t j = 0; j < indent; ++j)
+		for (j = 0; j < indent; ++j)
 			printf("  ");
 
 		printf("%s: %s\n", nodes[i]->path->s, nodes[i]->gen->rule->name);
 
 		if (depth > 1 || depth <= 0)
-			targets_depth(nodes[i]->gen->in, nodes[i]->gen->nin,
-					depth - 1, indent + 1);
+			targets_depth(nodes[i]->gen->in, nodes[i]->gen->nin, depth - 1, indent + 1);
 	}
 }
 
@@ -268,11 +264,9 @@ static void
 targets_all(void)
 {
 	struct edge *e = NULL;
+	size_t i;
 	for (e = alledges; e; e = e->allnext) {
-		if (e->nout == 0)
-			continue;
-
-		for (size_t i = 0; i < e->nout; ++i)
+		for (i = 0; i < e->nout; ++i)
 			printf("%s: %s\n", e->out[i]->path->s, e->rule->name);
 	}
 }
@@ -303,11 +297,9 @@ targets(int argc, char *argv[])
 	}
 
 	struct edge *e = NULL;
+	size_t n;
 	for (e = alledges; e; e = e->allnext) {
-		if (e->nout == 0)
-			continue;
-
-		for (size_t n = 0; n < e->nout; ++n) {
+		for (n = 0; n < e->nout; ++n) {
 			if (e->out[n]->nuse != 0)
 				continue;
 
