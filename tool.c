@@ -243,20 +243,21 @@ targets_rule(int argc, char *argv[])
 }
 
 static void
-targets_depth(struct node **nodes, size_t nnodes, size_t depth, size_t indent)
+targets_depth(struct node *n, size_t depth, size_t indent)
 {
-	size_t i, j;
-	for (i = 0; i < nnodes; ++i) {
-		if (nodes[i]->gen == NULL)
-			continue;
+	struct edge *e = n->gen;
+	size_t i;
 
-		for (j = 0; j < indent; ++j)
-			printf("  ");
-
-		printf("%s: %s\n", nodes[i]->path->s, nodes[i]->gen->rule->name);
-
-		if (depth > 1 || depth <= 0)
-			targets_depth(nodes[i]->gen->in, nodes[i]->gen->nin, depth - 1, indent + 1);
+	for (i = 0; i < indent; ++i)
+		printf("  ");
+	if (e) {
+		printf("%s: %s\n", n->path->s, e->rule->name);
+		if (depth > 1 || depth <= 0) {
+			for (i = 0; i < e->nin; ++i)
+				targets_depth(e->in[i], depth - 1, indent + 1);
+		}
+	} else {
+		printf("%s\n", n->path->s);
 	}
 }
 
@@ -303,7 +304,7 @@ targets(int argc, char *argv[])
 			if (e->out[n]->nuse != 0)
 				continue;
 
-			targets_depth(e->out, e->nout, depth, 0);
+			targets_depth(e->out[n], depth, 0);
 		}
 	}
 
