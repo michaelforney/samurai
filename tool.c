@@ -223,25 +223,6 @@ compdb(int argc, char *argv[])
 }
 
 static void
-targetsrule(const char *name)
-{
-	struct edge *e;
-	size_t i;
-
-	for (e = alledges; e; e = e->allnext) {
-		if (!name) {
-			for (i = 0; i < e->nin; ++i) {
-				if (!e->in[i]->gen)
-					puts(e->in[i]->path->s);
-			}
-		} else if (strcmp(e->rule->name, name) == 0) {
-			for (i = 0; i < e->nout; ++i)
-				puts(e->out[i]->path->s);
-		}
-	}
-}
-
-static void
 targetsdepth(struct node *n, size_t depth, size_t indent)
 {
 	struct edge *e = n->gen;
@@ -261,18 +242,6 @@ targetsdepth(struct node *n, size_t depth, size_t indent)
 }
 
 static void
-targetsall(void)
-{
-	struct edge *e;
-	size_t i;
-
-	for (e = alledges; e; e = e->allnext) {
-		for (i = 0; i < e->nout; ++i)
-			printf("%s: %s\n", e->out[i]->path->s, e->rule->name);
-	}
-}
-
-static void
 targetsusage(void)
 {
 	fprintf(stderr,
@@ -288,7 +257,7 @@ targets(int argc, char *argv[])
 {
 	struct edge *e;
 	size_t depth = 1, i;
-	char *end, *mode;
+	char *end, *mode, *name;
 
 	if (argc > 3)
 		targetsusage();
@@ -306,9 +275,23 @@ targets(int argc, char *argv[])
 			}
 		}
 	} else if (strcmp(mode, "rule") == 0) {
-		targetsrule(argv[2]);
+		name = argv[2];
+		for (e = alledges; e; e = e->allnext) {
+			if (!name) {
+				for (i = 0; i < e->nin; ++i) {
+					if (!e->in[i]->gen)
+						puts(e->in[i]->path->s);
+				}
+			} else if (strcmp(e->rule->name, name) == 0) {
+				for (i = 0; i < e->nout; ++i)
+					puts(e->out[i]->path->s);
+			}
+		}
 	} else if (strcmp(mode, "all") == 0 && argc == 2) {
-		targetsall();
+		for (e = alledges; e; e = e->allnext) {
+			for (i = 0; i < e->nout; ++i)
+				printf("%s: %s\n", e->out[i]->path->s, e->rule->name);
+		}
 	} else {
 		targetsusage();
 	}
