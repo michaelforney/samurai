@@ -223,22 +223,20 @@ compdb(int argc, char *argv[])
 }
 
 static void
-targetsrule(int argc, char *argv[])
+targetsrule(const char *name)
 {
 	struct edge *e;
 	size_t i;
 
 	for (e = alledges; e; e = e->allnext) {
-		if (argc == 2) {
+		if (!name) {
 			for (i = 0; i < e->nin; ++i) {
 				if (!e->in[i]->gen)
 					puts(e->in[i]->path->s);
 			}
-		} else if (argc == 3) {
-			if (strcmp(e->rule->name, argv[2]) == 0) {
-				for (i = 0; i < e->nout; ++i)
-					puts(e->out[i]->path->s);
-			}
+		} else if (strcmp(e->rule->name, name) == 0) {
+			for (i = 0; i < e->nout; ++i)
+				puts(e->out[i]->path->s);
 		}
 	}
 }
@@ -284,7 +282,7 @@ targets(int argc, char *argv[])
 	if (argc >= 2) {
 		mode = argv[1];
 		if (strcmp(mode, "rule") == 0) {
-			targetsrule(argc, argv);
+			targetsrule(argv[2]);
 			return 0;
 		} else if (strcmp(mode, "depth") == 0) {
 			if (argc > 2) {
