@@ -223,27 +223,28 @@ compdb(int argc, char *argv[])
 }
 
 static void
-targets_rule(int argc, char *argv[])
+targetsrule(int argc, char *argv[])
 {
 	struct edge *e;
 	size_t i;
+
 	for (e = alledges; e; e = e->allnext) {
 		if (argc == 2) {
-			for (i = 0; i < e->nin; ++i)
-				if (!e->in[i]->gen) {
-					printf("%s\n", e->in[i]->path->s);
+			for (i = 0; i < e->nin; ++i) {
+				if (!e->in[i]->gen)
+					puts(e->in[i]->path->s);
 			}
 		} else if (argc == 3) {
 			if (strcmp(e->rule->name, argv[2]) == 0) {
 				for (i = 0; i < e->nout; ++i)
-					printf("%s\n", e->out[i]->path->s);
+					puts(e->out[i]->path->s);
 			}
 		}
 	}
 }
 
 static void
-targets_depth(struct node *n, size_t depth, size_t indent)
+targetsdepth(struct node *n, size_t depth, size_t indent)
 {
 	struct edge *e = n->gen;
 	size_t i;
@@ -252,20 +253,21 @@ targets_depth(struct node *n, size_t depth, size_t indent)
 		printf("  ");
 	if (e) {
 		printf("%s: %s\n", n->path->s, e->rule->name);
-		if (depth > 1 || depth <= 0) {
+		if (depth != 1) {
 			for (i = 0; i < e->nin; ++i)
-				targets_depth(e->in[i], depth - 1, indent + 1);
+				targetsdepth(e->in[i], depth - 1, indent + 1);
 		}
 	} else {
-		printf("%s\n", n->path->s);
+		puts(n->path->s);
 	}
 }
 
 static void
-targets_all(void)
+targetsall(void)
 {
-	struct edge *e = NULL;
+	struct edge *e;
 	size_t i;
+
 	for (e = alledges; e; e = e->allnext) {
 		for (i = 0; i < e->nout; ++i)
 			printf("%s: %s\n", e->out[i]->path->s, e->rule->name);
@@ -275,21 +277,23 @@ targets_all(void)
 static int
 targets(int argc, char *argv[])
 {
-	size_t depth = 1;
+	struct edge *e;
+	size_t depth = 1, i;
+	char *end, *mode;
+
 	if (argc >= 2) {
-		const char *mode = argv[1];
+		mode = argv[1];
 		if (strcmp(mode, "rule") == 0) {
-			targets_rule(argc, argv);
+			targetsrule(argc, argv);
 			return 0;
 		} else if (strcmp(mode, "depth") == 0) {
 			if (argc > 2) {
-				char *end;
-				depth = (size_t)strtol(argv[2], &end, 10);
+				depth = strtol(argv[2], &end, 10);
 				if (*end)
 					fprintf(stderr, "depth not valid");
 			}
 		} else if (strcmp(mode, "all") == 0) {
-			targets_all();
+			targetsall();
 			return 0;
 		} else {
 			fprintf(stderr, "unknown target tool mode '%s'\n", mode);
@@ -297,14 +301,10 @@ targets(int argc, char *argv[])
 		}
 	}
 
-	struct edge *e = NULL;
-	size_t n;
 	for (e = alledges; e; e = e->allnext) {
-		for (n = 0; n < e->nout; ++n) {
-			if (e->out[n]->nuse != 0)
-				continue;
-
-			targets_depth(e->out[n], depth, 0);
+		for (i = 0; i < e->nout; ++i) {
+			if (e->out[i]->nuse == 0)
+				targetsdepth(e->out[i], depth, 0);
 		}
 	}
 
