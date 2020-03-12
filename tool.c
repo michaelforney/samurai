@@ -282,7 +282,7 @@ targets(int argc, char *argv[])
 			targets_rule(argc, argv);
 			return 0;
 		} else if (strcmp(mode, "depth") == 0) {
-			if (argc > 1) {
+			if (argc > 2) {
 				char *end;
 				depth = (size_t)strtol(argv[2], &end, 10);
 				if (*end)
