@@ -272,6 +272,17 @@ targetsall(void)
 	}
 }
 
+static void
+targetsusage(void)
+{
+	fprintf(stderr,
+	        "usage: %s ... -t targets [depth [maxdepth]]\n"
+	        "       %s ... -t targets rule [rulename]\n"
+	        "       %s ... -t targets all\n",
+	        argv0, argv0, argv0);
+	exit(2);
+}
+
 static int
 targets(int argc, char *argv[])
 {
@@ -279,31 +290,27 @@ targets(int argc, char *argv[])
 	size_t depth = 1, i;
 	char *end, *mode;
 
-	if (argc >= 2) {
-		mode = argv[1];
-		if (strcmp(mode, "rule") == 0) {
-			targetsrule(argv[2]);
-			return 0;
-		} else if (strcmp(mode, "depth") == 0) {
-			if (argc > 2) {
-				depth = strtol(argv[2], &end, 10);
-				if (*end)
-					fprintf(stderr, "depth not valid");
+	if (argc > 3)
+		targetsusage();
+	mode = argv[1];
+	if (!mode || strcmp(mode, "depth") == 0) {
+		if (argc == 3) {
+			depth = strtol(argv[2], &end, 10);
+			if (*end)
+				targetsusage();
+		}
+		for (e = alledges; e; e = e->allnext) {
+			for (i = 0; i < e->nout; ++i) {
+				if (e->out[i]->nuse == 0)
+					targetsdepth(e->out[i], depth, 0);
 			}
-		} else if (strcmp(mode, "all") == 0) {
-			targetsall();
-			return 0;
-		} else {
-			fprintf(stderr, "unknown target tool mode '%s'\n", mode);
-			return 2;
 		}
-	}
-
-	for (e = alledges; e; e = e->allnext) {
-		for (i = 0; i < e->nout; ++i) {
-			if (e->out[i]->nuse == 0)
-				targetsdepth(e->out[i], depth, 0);
-		}
+	} else if (strcmp(mode, "rule") == 0) {
+		targetsrule(argv[2]);
+	} else if (strcmp(mode, "all") == 0 && argc == 2) {
+		targetsall();
+	} else {
+		targetsusage();
 	}
 
 	return 0;
