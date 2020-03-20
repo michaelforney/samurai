@@ -98,6 +98,8 @@ htabput(struct hashtable *h, struct hashtablekey *k)
 				h->vals[j] = oldvals[i];
 			}
 		}
+		free(oldkeys);
+		free(oldvals);
 	}
 	i = keyindex(h, k);
 	if (!h->keys[i].str) {
