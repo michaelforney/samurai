@@ -42,7 +42,7 @@ void bufadd(struct buffer *buf, char c);
 struct string *mkstr(size_t n);
 
 /* delete an unevaluated string */
-void delevalstr(struct evalstring *);
+void delevalstr(void *);
 
 /* canonicalizes the given path by removing duplicate slashes, and
  * folding '/.' and 'foo/..' */

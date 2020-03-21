@@ -135,8 +135,9 @@ mkstr(size_t n)
 }
 
 void
-delevalstr(struct evalstring *str)
+delevalstr(void *ptr)
 {
+	struct evalstring *str = ptr;
 	struct evalstringpart *p, *next;
 
 	if (!str)

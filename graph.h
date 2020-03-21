@@ -85,7 +85,7 @@ void nodeuse(struct node *, struct edge *);
 
 /* create a new edge with the given parent environment */
 struct edge *mkedge(struct environment *parent);
-/* compute the murmurhash64a of an edge comand and store it in the hash field */
+/* compute the murmurhash64a of an edge command and store it in the hash field */
 void edgehash(struct edge *);
 /* add dependencies from $depfile or .ninja_deps as implicit inputs */
 void edgeadddeps(struct edge *e, struct node **deps, size_t ndeps);

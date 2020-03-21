@@ -14,6 +14,19 @@ struct treenode {
 	int height;
 };
 
+void
+deltree(struct treenode *n, void del(void *))
+{
+	if (!n)
+		return;
+	free(n->key);
+	if (del)
+		del(n->value);
+	deltree(n->child[0], del);
+	deltree(n->child[1], del);
+	free(n);
+}
+
 static inline int
 height(struct treenode *n)
 {
