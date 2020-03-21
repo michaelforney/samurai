@@ -29,9 +29,9 @@ envinit(void)
 	 * fixing this would probably require keeping a list of used
 	 * environments and traversing them here. */
 	if (rootenv) {
-		deltree(rootenv->bindings, free);
-		deltree(rootenv->rules, delrule);
-		deltree(pools, delpool);
+		deltree(rootenv->bindings, free, free);
+		deltree(rootenv->rules, NULL, delrule);
+		deltree(pools, NULL, delpool);
 		free(rootenv);
 	}
 	rootenv = mkenv(NULL);
@@ -194,7 +194,8 @@ delrule(void *ptr)
 	struct rule *r = ptr;
 	if (r == &phonyrule)
 		return;
-	deltree(r->bindings, delevalstr);
+	free(r->name);
+	deltree(r->bindings, free, delevalstr);
 	free(r);
 }
 
@@ -251,6 +252,7 @@ delpool(void *ptr)
 	struct pool *p = ptr;
 	if(p == &consolepool)
 		return;
+	free(p->name);
 	free(p);
 }
 

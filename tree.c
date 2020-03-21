@@ -15,15 +15,16 @@ struct treenode {
 };
 
 void
-deltree(struct treenode *n, void del(void *))
+deltree(struct treenode *n, void delkey(void *), void delval(void *))
 {
 	if (!n)
 		return;
-	free(n->key);
-	if (del)
-		del(n->value);
-	deltree(n->child[0], del);
-	deltree(n->child[1], del);
+	if (delkey)
+		delkey(n->key);
+	if (delval)
+		delval(n->value);
+	deltree(n->child[0], delkey, delval);
+	deltree(n->child[1], delkey, delval);
 	free(n);
 }
 

@@ -1,8 +1,8 @@
 /* binary tree node, such that keys are sorted lexicographically for fast lookup */
 struct treenode;
 
-/* free a tree and its' children recursively, free values with a function */
-void deltree(struct treenode *, void(void *));
+/* free a tree and its children recursively, free keys and values with a function */
+void deltree(struct treenode *, void(void *), void(void *));
 
 /* search a binary tree for a key, return the key's value or NULL*/
 void *treefind(struct treenode *, const char *);
