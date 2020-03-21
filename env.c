@@ -18,12 +18,22 @@ struct pool consolepool = {.name = "console", .maxjobs = 1};
 static struct treenode *pools;
 
 static void addpool(struct pool *);
+static void delpool(void *);
+static void delrule(void *);
 
 void
 envinit(void)
 {
-	/* TODO: delete old root environment and pools (in case we rebuilt
-	 * build.ninja). for now, we leak memory. */
+	/* free old rootenv and pools in case we rebuilt the manifest
+	 * TODO: some memory is still leaked if subninja is used.
+	 * fixing this would probably require keeping a list of used
+	 * environments and traversing them here. */
+	if (rootenv) {
+		deltree(rootenv->bindings, free, free);
+		deltree(rootenv->rules, NULL, delrule);
+		deltree(pools, NULL, delpool);
+		free(rootenv);
+	}
 	rootenv = mkenv(NULL);
 	envaddrule(rootenv, &phonyrule);
 	pools = NULL;
@@ -178,6 +188,18 @@ mkrule(char *name)
 	return r;
 }
 
+static void
+delrule(void *ptr)
+{
+	struct rule *r = ptr;
+
+	if (r == &phonyrule)
+		return;
+	deltree(r->bindings, free, delevalstr);
+	free(r->name);
+	free(r);
+}
+
 void
 ruleaddvar(struct rule *r, char *var, struct evalstring *val)
 {
@@ -238,6 +260,17 @@ mkpool(char *name)
 	addpool(p);
 
 	return p;
+}
+
+static void
+delpool(void *ptr)
+{
+	struct pool *p = ptr;
+
+	if (p == &consolepool)
+		return;
+	free(p->name);
+	free(p);
 }
 
 struct pool *
