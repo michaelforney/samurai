@@ -32,6 +32,7 @@ struct node {
 	_Bool dirty;
 };
 
+/* build rule, i.e., edge between inputs and outputs */
 struct edge {
 	struct rule *rule;
 	struct pool *pool;
