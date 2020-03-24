@@ -332,11 +332,11 @@ nodedone(struct node *n, bool prune)
 	struct edge *e;
 	size_t i, j;
 
-	/* if we did not already populate n->use, we do not care about the dependent edges. */
-	if (!n->use)
-		return;
 	for (i = 0; i < n->nuse; ++i) {
 		e = n->use[i];
+		/* skip edges not used in this build */
+		if (!(e->flags & FLAG_WORK))
+			continue;
 		if (!(e->flags & (prune ? FLAG_DIRTY_OUT : FLAG_DIRTY)) && --e->nprune == 0) {
 			/* either edge was clean (possible with order-only
 			 * inputs), or all its blocking inputs were pruned, so
