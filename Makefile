@@ -2,7 +2,7 @@
 
 PREFIX=/usr/local
 MANDIR=$(PREFIX)/share/man
-ALL_CFLAGS=$(CFLAGS) -Wall -Wextra -std=c99 -pedantic
+ALL_CFLAGS=$(CFLAGS) -std=c99 -Wall -Wextra -Wpedantic
 OBJ=\
 	build.o\
 	deps.o\
