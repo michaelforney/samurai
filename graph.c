@@ -20,6 +20,7 @@ delnode(void *p)
 
 	if (n->shellpath != n->path)
 		free(n->shellpath);
+	free(n->use);
 	free(n->path);
 	free(n);
 }
