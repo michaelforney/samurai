@@ -10,12 +10,14 @@ struct environment {
 	struct environment *parent;
 	struct treenode *bindings;
 	struct treenode *rules;
+	struct environment *allnext;
 };
 
 struct environment *rootenv;
 struct rule phonyrule = {.name = "phony"};
 struct pool consolepool = {.name = "console", .maxjobs = 1};
 static struct treenode *pools;
+static struct environment *allenvs;
 
 static void addpool(struct pool *);
 static void delpool(void *);
@@ -24,16 +26,18 @@ static void delrule(void *);
 void
 envinit(void)
 {
-	/* free old rootenv and pools in case we rebuilt the manifest
-	 * TODO: some memory is still leaked if subninja is used.
-	 * fixing this would probably require keeping a list of used
-	 * environments and traversing them here. */
-	if (rootenv) {
-		deltree(rootenv->bindings, free, free);
-		deltree(rootenv->rules, NULL, delrule);
-		deltree(pools, NULL, delpool);
-		free(rootenv);
+	struct environment *env;
+
+	/* free old environments and pools in case we rebuilt the manifest */
+	while (allenvs) {
+		env = allenvs;
+		allenvs = env->allnext;
+		deltree(env->bindings, free, free);
+		deltree(env->rules, NULL, delrule);
+		free(env);
 	}
+	deltree(pools, NULL, delpool);
+
 	rootenv = mkenv(NULL);
 	envaddrule(rootenv, &phonyrule);
 	pools = NULL;
@@ -59,6 +63,8 @@ mkenv(struct environment *parent)
 	env->parent = parent;
 	env->bindings = NULL;
 	env->rules = NULL;
+	env->allnext = allenvs;
+	allenvs = env;
 
 	return env;
 }
