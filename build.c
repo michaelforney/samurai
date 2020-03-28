@@ -191,46 +191,58 @@ buildadd(struct node *n)
 	e->flags &= ~FLAG_CYCLE;
 }
 
-static void
-printstatus(void)
+static size_t
+formatstatus(char *buf, size_t len)
 {
 	const char *fmt;
+	size_t ret = 0;
+	int n;
 	struct timespec endtime;
 
 	for (fmt = buildopts.statusfmt; *fmt; ++fmt) {
-		if (*fmt == '%') {
-			++fmt;
-			switch (*fmt) {
-			case 's':
-				printf("%zu", nstarted);
-				break;
-			case 'f':
-				printf("%zu", nfinished);
-				break;
-			case 't':
-				printf("%zu", ntotal);
-				break;
-			case 'r':
-				printf("%zu", nstarted - nfinished);
-				break;
-			case 'u':
-				printf("%zu", ntotal - nstarted);
-				break;
-			case 'p':
-				printf("%3zu%%", 100 * nfinished / ntotal);
-				break;
-			case 'e':
-				clock_gettime(CLOCK_MONOTONIC, &endtime);
-				printf("%.3f", (endtime.tv_sec - starttime.tv_sec) + 0.000000001 * (endtime.tv_nsec - starttime.tv_nsec));
-				break;
-			case '%':
-				putchar('%');
-				break;
-			}
-		} else {
-			putchar(*fmt);
+		if (*fmt != '%' || *++fmt == '%') {
+			if (len > 1)
+				*buf++ = *fmt;
+			++ret;
+			continue;
 		}
+		switch (*fmt) {
+		case 's':
+			n = snprintf(buf, len, "%zu", nstarted);
+			break;
+		case 'f':
+			n = snprintf(buf, len, "%zu", nfinished);
+			break;
+		case 't':
+			n = snprintf(buf, len, "%zu", ntotal);
+			break;
+		case 'r':
+			n = snprintf(buf, len, "%zu", nstarted - nfinished);
+			break;
+		case 'u':
+			n = snprintf(buf, len, "%zu", ntotal - nstarted);
+			break;
+		case 'p':
+			n = snprintf(buf, len, "%3zu%%", 100 * nfinished / ntotal);
+			break;
+		case 'e':
+			clock_gettime(CLOCK_MONOTONIC, &endtime);
+			n = snprintf(buf, len, "%.3f", (endtime.tv_sec - starttime.tv_sec) + 0.000000001 * (endtime.tv_nsec - starttime.tv_nsec));
+			break;
+		default:
+			fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *fmt);
+		}
+		if (n < 0)
+			fatal("snprintf:");
+		ret += n;
+		if ((size_t)n > len)
+			n = len;
+		buf += n;
+		len -= n;
 	}
+	if (len > 0)
+		*buf = '\0';
+	return ret;
 }
 
 static int
@@ -242,7 +254,7 @@ jobstart(struct job *j, struct edge *e)
 	struct string *rspfile, *content, *description;
 	int fd[2];
 	posix_spawn_file_actions_t actions;
-	char *argv[] = {"/bin/sh", "-c", NULL, NULL};
+	char *argv[] = {"/bin/sh", "-c", NULL, NULL}, status[256];
 
 	++nstarted;
 	for (i = 0; i < e->nout; ++i) {
@@ -272,7 +284,8 @@ jobstart(struct job *j, struct edge *e)
 		description = buildopts.verbose ? NULL : edgevar(e, "description", true);
 		if (!description || description->n == 0)
 			description = j->cmd;
-		printstatus();
+		formatstatus(status, sizeof(status));
+		fputs(status, stdout);
 		puts(description->s);
 	}
 
@@ -492,28 +505,9 @@ build(void)
 	struct pollfd *fds = NULL;
 	size_t i, next = 0, jobslen = 0, numjobs = 0, numfail = 0;
 	struct edge *e;
-	const char *fmt;
 
 	clock_gettime(CLOCK_MONOTONIC, &starttime);
-
-	for (fmt = buildopts.statusfmt; *fmt; ++fmt) {
-		if (*fmt == '%') {
-			++fmt;
-			switch (*fmt) {
-			case 's':
-			case 'f':
-			case 't':
-			case 'r':
-			case 'u':
-			case 'p':
-			case 'e':
-			case '%':
-				break;
-			default:
-				fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *fmt);
-			}
-		}
-	}
+	formatstatus(NULL, 0);
 
 	if (!work)
 		warn("nothing to do");
