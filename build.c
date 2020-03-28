@@ -226,7 +226,10 @@ formatstatus(char *buf, size_t len)
 			n = snprintf(buf, len, "%3zu%%", 100 * nfinished / ntotal);
 			break;
 		case 'e':
-			clock_gettime(CLOCK_MONOTONIC, &endtime);
+			if (clock_gettime(CLOCK_MONOTONIC, &endtime) != 0) {
+				warn("clock_gettime:");
+				endtime = starttime;
+			}
 			n = snprintf(buf, len, "%.3f", (endtime.tv_sec - starttime.tv_sec) + 0.000000001 * (endtime.tv_nsec - starttime.tv_nsec));
 			break;
 		default:
