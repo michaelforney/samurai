@@ -236,6 +236,7 @@ formatstatus(char *buf, size_t len)
 			break;
 		default:
 			fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *fmt);
+			continue;  /* unreachable, but avoids warning */
 		}
 		if (n < 0)
 			fatal("snprintf:");
