@@ -201,8 +201,10 @@ formatstatus(char *buf, size_t len)
 
 	for (fmt = buildopts.statusfmt; *fmt; ++fmt) {
 		if (*fmt != '%' || *++fmt == '%') {
-			if (len > 1)
+			if (len > 1) {
 				*buf++ = *fmt;
+				--len;
+			}
 			++ret;
 			continue;
 		}
