@@ -165,7 +165,7 @@ compdb(int argc, char *argv[])
 		expandrsp = true;
 		break;
 	default:
-		fprintf(stderr, "usage: %s ... -t compdb [-x] rules...\n", argv0);
+		fprintf(stderr, "usage: %s ... -t compdb [-x] [rules...]\n", argv0);
 		return 2;
 	} ARGEND
 
