@@ -15,10 +15,7 @@ struct node {
 	/* modification time of file (in nanoseconds) and build log entry (in seconds) */
 	int64_t mtime, logmtime;
 
-	/* generating edge and dependent edges.
-	 *
-	 * only gen and nuse are set in parse.c:parseedge; use is allocated and
-	 * populated in build.c:computedirty. */
+	/* generating edge and dependent edges */
 	struct edge *gen, **use;
 	size_t nuse;
 
