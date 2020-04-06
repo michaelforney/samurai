@@ -8,6 +8,7 @@ enum {
 	MTIME_MISSING = -2,
 };
 
+/* corresponds to a file */
 struct node {
 	/* shellpath is the escaped shell path, and is populated as needed by nodepath */
 	struct string *path, *shellpath;
@@ -15,11 +16,11 @@ struct node {
 	/* modification time of file (in nanoseconds) and build log entry (in seconds) */
 	int64_t mtime, logmtime;
 
-	/* generating edge and dependent edges.
-	 *
-	 * only gen and nuse are set in parse.c:parseedge; use is allocated and
-	 * populated in build.c:computedirty. */
-	struct edge *gen, **use;
+	/* edge that builds this node */
+	struct edge *gen;
+	/* list of edges that use this node as input, allocated and populated in graph.c:nodeuse */
+	struct edge **use;
+	/* number of edges in this.use */
 	size_t nuse;
 
 	/* command hash used to build this output, read from build log */

@@ -78,6 +78,7 @@ parseedge(struct scanner *s, struct environment *env)
 
 	e = mkedge(env);
 
+	/* scan outputs */
 	for (out = NULL, end = &out; (str = scanstring(s, true)); ++e->nout)
 		pushstr(&end, str);
 	e->outimpidx = e->nout;
@@ -88,6 +89,8 @@ parseedge(struct scanner *s, struct environment *env)
 	if (e->nout == 0)
 		scanerror(s, "expected output path");
 	scanchar(s, ':');
+
+	/* scan rule name and inputs */
 	name = scanname(s);
 	e->rule = envrule(env, name);
 	if (!e->rule)
@@ -107,6 +110,8 @@ parseedge(struct scanner *s, struct environment *env)
 		for (; (str = scanstring(s, true)); ++e->nin)
 			pushstr(&end, str);
 	}
+
+	/* scan variables for the build rule */
 	scannewline(s);
 	while (scanindent(s)) {
 		name = scanname(s);
@@ -115,6 +120,7 @@ parseedge(struct scanner *s, struct environment *env)
 		envaddvar(e->env, name, val);
 	}
 
+	/* evaluate output strings and make output nodes */
 	e->out = xreallocarray(NULL, e->nout, sizeof(e->out[0]));
 	for (i = 0; i < e->nout; out = str) {
 		str = out->next;
