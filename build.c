@@ -115,13 +115,43 @@ queue(struct edge *e)
 	*front = e;
 }
 
+static void
+computedirty(struct edge *e, struct node *newest)
+{
+	struct node *n;
+	size_t i;
+	bool generator, restat;
+
+	/* all outputs are dirty if any are older than the newest input */
+	generator = edgevarbool(e, "generator");
+	restat = edgevarbool(e, "restat");
+	for (i = 0; i < e->nout && !(e->flags & FLAG_DIRTY_OUT); ++i) {
+		n = e->out[i];
+		if (isdirty(n, newest, generator, restat)) {
+			n->dirty = true;
+			e->flags |= FLAG_DIRTY_OUT;
+		}
+	}
+	if (e->flags & FLAG_DIRTY) {
+		for (i = 0; i < e->nout; ++i) {
+			n = e->out[i];
+			if (buildopts.explain && !n->dirty) {
+				if (e->flags & FLAG_DIRTY_IN)
+					warn("explain %s: input is dirty", n->path->s);
+				else if (e->flags & FLAG_DIRTY_OUT)
+					warn("explain %s: output of generating action is dirty", n->path->s);
+			}
+			n->dirty = true;
+		}
+	}
+}
+
 void
 buildadd(struct node *n)
 {
 	struct edge *e;
 	struct node *newest;
 	size_t i;
-	bool generator, restat;
 
 	e = n->gen;
 	if (!e) {
@@ -158,28 +188,7 @@ buildadd(struct node *n)
 		if (n->dirty || (n->gen && n->gen->nblock > 0))
 			++e->nblock;
 	}
-	/* all outputs are dirty if any are older than the newest input */
-	generator = edgevar(e, "generator", true);
-	restat = edgevar(e, "restat", true);
-	for (i = 0; i < e->nout && !(e->flags & FLAG_DIRTY_OUT); ++i) {
-		n = e->out[i];
-		if (isdirty(n, newest, generator, restat)) {
-			n->dirty = true;
-			e->flags |= FLAG_DIRTY_OUT;
-		}
-	}
-	if (e->flags & FLAG_DIRTY) {
-		for (i = 0; i < e->nout; ++i) {
-			n = e->out[i];
-			if (buildopts.explain && !n->dirty) {
-				if (e->flags & FLAG_DIRTY_IN)
-					warn("explain %s: input is dirty", n->path->s);
-				else if (e->flags & FLAG_DIRTY_OUT)
-					warn("explain %s: output of generating action is dirty", n->path->s);
-			}
-			n->dirty = true;
-		}
-	}
+	computedirty(e, newest);
 	if (!(e->flags & FLAG_DIRTY_OUT))
 		e->nprune = e->nblock;
 	if (e->flags & FLAG_DIRTY) {
