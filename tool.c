@@ -5,6 +5,7 @@
 #include <string.h>
 #include "arg.h"
 #include "env.h"
+#include "dyndep.h"
 #include "graph.h"
 #include "os.h"
 #include "parse.h"
@@ -31,6 +32,9 @@ cleanedge(struct edge *e)
 {
 	int ret = 0;
 	size_t i;
+
+	if (e->dyndep)
+		dyndepload(e->dyndep, true);
 
 	for (i = 0; i < e->nout; ++i) {
 		if (cleanpath(e->out[i]->path) < 0)

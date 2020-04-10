@@ -10,6 +10,7 @@ LDLIBS?=-lrt
 OBJ=\
 	build.o\
 	deps.o\
+	dyndep.o\
 	env.o\
 	graph.o\
 	htab.o\
