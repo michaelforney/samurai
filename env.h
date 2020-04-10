@@ -42,6 +42,9 @@ struct pool *poolget(char *);
 /* evaluate and return an edge's variable, optionally shell-escaped */
 struct string *edgevar(struct edge *, char *, _Bool);
 
+/* evaluate and return an edge's boolean variable */
+_Bool edgevarbool(struct edge *, char *);
+
 extern struct environment *rootenv;
 extern struct rule phonyrule;
 extern struct pool consolepool;
