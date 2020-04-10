@@ -10,6 +10,7 @@ rule link
 
 build build.o: cc build.c
 build deps.o: cc deps.c
+build dyndep.o: cc dyndep.c
 build env.o: cc env.c
 build graph.o: cc graph.c
 build htab.o: cc htab.c
@@ -20,6 +21,6 @@ build scan.o: cc scan.c
 build tool.o: cc tool.c
 build tree.o: cc tree.c
 build util.o: cc util.c
-build samu: link build.o deps.o env.o graph.o htab.o log.o parse.o samu.o scan.o tool.o tree.o util.o
+build samu: link build.o deps.o dyndep.o env.o graph.o htab.o log.o parse.o samu.o scan.o tool.o tree.o util.o
 
 default samu

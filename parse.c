@@ -3,13 +3,14 @@
 #include <string.h>
 #include <stdlib.h>
 #include "env.h"
+#include "dyndep.h"
 #include "graph.h"
 #include "parse.h"
 #include "scan.h"
 #include "util.h"
 
 struct parseoptions parseopts;
-const char *ninjaversion = "1.9.0";
+const char *ninjaversion = "1.10.0";
 struct node **deftarg;
 size_t ndeftarg;
 
@@ -71,7 +72,7 @@ parseedge(struct scanner *s, struct environment *env)
 	struct edge *e;
 	struct evalstring *out, *in, *str, **end;
 	char *name;
-	struct string *val;
+	struct string *val, *dyndep;
 	struct node *n;
 	size_t i;
 	int p;
@@ -102,7 +103,7 @@ parseedge(struct scanner *s, struct environment *env)
 			pushstr(&end, str);
 		p = scanpipe(s, 2);
 	}
-	e->inorderidx = e->nin;
+	e->indynidx = e->inorderidx = e->nin;
 	if (p == 2) {
 		for (; (str = scanstring(s, true)); ++e->nin)
 			pushstr(&end, str);
@@ -134,6 +135,9 @@ parseedge(struct scanner *s, struct environment *env)
 			++i;
 		}
 	}
+	e->outdynidx = e->nout;
+
+	dyndep = edgevar(e, "dyndep", true);
 
 	e->in = xreallocarray(NULL, e->nin, sizeof(e->in[0]));
 	for (i = 0; i < e->nin; in = str, ++i) {
@@ -143,7 +147,14 @@ parseedge(struct scanner *s, struct environment *env)
 		n = mknode(val);
 		e->in[i] = n;
 		nodeuse(n, e);
+		if (dyndep && strcmp(n->path->s, dyndep->s) == 0) {
+			dyndepuse(mkdyndep(n), e);
+			dyndep = NULL;
+		}
 	}
+
+	if (dyndep)
+		fatal("dyndep '%s' not in inputs", dyndep->s);
 
 	val = edgevar(e, "pool", true);
 	if (val)
@@ -222,7 +233,8 @@ parsepool(struct scanner *s, struct environment *env)
 static void
 checkversion(const char *ver)
 {
-	if (strcmp(ver, ninjaversion) > 0)
+	int nmajor, nminor = 0;
+	if (sscanf(ver, "%d.%d", &nmajor, &nminor) < 1 || (nmajor > 1) || (nminor > 10))
 		fatal("ninja_required_version %s is newer than %s", ver, ninjaversion);
 }
 

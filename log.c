@@ -38,6 +38,7 @@ loginit(const char *builddir)
 	size_t sz = 0, nline, nentry, i;
 	struct edge *e;
 	struct node *n;
+	struct string *path;
 	int64_t mtime;
 
 	nline = 0;
@@ -80,8 +81,12 @@ loginit(const char *builddir)
 		if (!s)
 			continue;
 		n = nodeget(s, 0);
-		if (!n || !n->gen)
-			continue;
+		if (!n) {
+			path = mkstr(strlen(s));
+			memcpy(path->s, s, path->n);
+			path->s[path->n] = '\0';
+			n = mknode(path);
+		}
 		if (n->logmtime == MTIME_MISSING)
 			++nentry;
 		n->logmtime = mtime;

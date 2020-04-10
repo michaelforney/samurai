@@ -8,6 +8,7 @@
 #include "arg.h"
 #include "build.h"
 #include "deps.h"
+#include "dyndep.h"
 #include "env.h"
 #include "graph.h"
 #include "log.h"
@@ -230,6 +231,7 @@ retry:
 	graphinit();
 	envinit();
 	parseinit();
+	dyndepinit();
 
 	/* parse the manifest */
 	parse(manifest, rootenv);

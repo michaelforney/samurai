@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include "build.h"
 #include "deps.h"
+#include "dyndep.h"
 #include "env.h"
 #include "graph.h"
 #include "log.h"
@@ -105,6 +106,10 @@ queue(struct edge *e)
 {
 	struct edge **front = &work;
 
+	if (e->flags & FLAG_QUEUED)
+		return;
+	e->flags |= FLAG_QUEUED;
+
 	if (e->pool && e->rule != &phonyrule) {
 		if (e->pool->numjobs == e->pool->maxjobs)
 			front = &e->pool->work;
@@ -115,13 +120,89 @@ queue(struct edge *e)
 	*front = e;
 }
 
+static void
+computedirty(struct edge *e, struct node *newest)
+{
+	struct node *n;
+	size_t i;
+	bool generator, restat;
+
+	/* all outputs are dirty if any are older than the newest input */
+	generator = edgevarbool(e, "generator");
+	restat = edgevarbool(e, "restat");
+	for (i = 0; i < e->nout && !(e->flags & FLAG_DIRTY_OUT); ++i) {
+		n = e->out[i];
+		if (isdirty(n, newest, generator, restat)) {
+			n->dirty = true;
+			e->flags |= FLAG_DIRTY_OUT;
+		}
+	}
+	if (e->flags & FLAG_DIRTY) {
+		for (i = 0; i < e->nout; ++i) {
+			n = e->out[i];
+			if (buildopts.explain && !n->dirty) {
+				if (e->flags & FLAG_DIRTY_IN)
+					warn("explain %s: input is dirty", n->path->s);
+				else if (e->flags & FLAG_DIRTY_OUT)
+					warn("explain %s: output of generating action is dirty", n->path->s);
+			}
+			n->dirty = true;
+		}
+	}
+}
+
+void
+buildupdate(struct node *n)
+{
+	struct edge *e;
+	struct node *newest;
+	bool planned;
+	size_t i;
+
+	e = n->gen;
+	if (e->flags & FLAG_CYCLE)
+		fatal("dependency cycle involving '%s'", n->path->s);
+	e->flags |= FLAG_CYCLE | FLAG_WORK;
+	/* if the edge is already marked dirty ntotal was already updated */
+	planned = e->flags & FLAG_DIRTY;
+	for (i = e->outdynidx; i < e->nout; ++i) {
+		n = e->out[i];
+		if (n->mtime == MTIME_UNKNOWN) {
+			n->dirty = false;
+			nodestat(n);
+		}
+	}
+	newest = NULL;
+	for (i = e->indynidx; i < e->inorderidx; ++i) {
+		n = e->in[i];
+		buildadd(n);
+		if (i < e->inorderidx) {
+			if (n->dirty)
+				e->flags |= FLAG_DIRTY_IN;
+			if (n->mtime != MTIME_MISSING && !isnewer(newest, n))
+				newest = n;
+		}
+		if (n->dirty || (n->gen && n->gen->nblock > 0))
+			++e->nblock;
+	}
+	computedirty(e, newest);
+	if (!(e->flags & FLAG_DIRTY_OUT))
+		e->nprune = e->nblock;
+	if (e->flags & FLAG_DIRTY) {
+		if (e->nblock == 0)
+			queue(e);
+		if (!planned && e->rule != &phonyrule)
+			++ntotal;
+	}
+	e->flags &= ~FLAG_CYCLE;
+}
+
 void
 buildadd(struct node *n)
 {
 	struct edge *e;
 	struct node *newest;
 	size_t i;
-	bool generator, restat;
 
 	e = n->gen;
 	if (!e) {
@@ -158,28 +239,7 @@ buildadd(struct node *n)
 		if (n->dirty || (n->gen && n->gen->nblock > 0))
 			++e->nblock;
 	}
-	/* all outputs are dirty if any are older than the newest input */
-	generator = edgevar(e, "generator", true);
-	restat = edgevar(e, "restat", true);
-	for (i = 0; i < e->nout && !(e->flags & FLAG_DIRTY_OUT); ++i) {
-		n = e->out[i];
-		if (isdirty(n, newest, generator, restat)) {
-			n->dirty = true;
-			e->flags |= FLAG_DIRTY_OUT;
-		}
-	}
-	if (e->flags & FLAG_DIRTY) {
-		for (i = 0; i < e->nout; ++i) {
-			n = e->out[i];
-			if (buildopts.explain && !n->dirty) {
-				if (e->flags & FLAG_DIRTY_IN)
-					warn("explain %s: input is dirty", n->path->s);
-				else if (e->flags & FLAG_DIRTY_OUT)
-					warn("explain %s: output of generating action is dirty", n->path->s);
-			}
-			n->dirty = true;
-		}
-	}
+	computedirty(e, newest);
 	if (!(e->flags & FLAG_DIRTY_OUT))
 		e->nprune = e->nblock;
 	if (e->flags & FLAG_DIRTY) {
@@ -189,6 +249,8 @@ buildadd(struct node *n)
 			++ntotal;
 	}
 	e->flags &= ~FLAG_CYCLE;
+	if (e->dyndep)
+		dyndepload(e->dyndep, false);
 }
 
 static size_t
@@ -351,6 +413,13 @@ nodedone(struct node *n, bool prune)
 	struct edge *e;
 	size_t i, j;
 
+	/* mark node clean for computedirty of edges with dyndeps */
+	n->dirty = false;
+
+	/* if this node is a dyndep it can be loaded now */
+	if (n->dyndep)
+		dyndepload(n->dyndep, false);
+
 	for (i = 0; i < n->nuse; ++i) {
 		e = n->use[i];
 		/* skip edges not used in this build */
@@ -370,43 +439,45 @@ nodedone(struct node *n, bool prune)
 	}
 }
 
-static bool
-shouldprune(struct edge *e, struct node *n, int64_t old)
-{
-	struct node *in, *newest;
-	size_t i;
-
-	if (old != n->mtime)
-		return false;
-	newest = NULL;
-	for (i = 0; i < e->inorderidx; ++i) {
-		in = e->in[i];
-		nodestat(in);
-		if (in->mtime != MTIME_MISSING && !isnewer(newest, in))
-			newest = in;
-	}
-	if (newest)
-		n->logmtime = newest->mtime;
-
-	return true;
-}
-
 static void
 edgedone(struct edge *e)
 {
-	struct node *n;
+	struct node *n, *newest;
 	size_t i;
 	struct string *rspfile;
-	bool restat;
+	bool restat, prune, pruned;
 	int64_t old;
 
-	restat = edgevar(e, "restat", true);
+	/* mark edge clean for dyndepload */
+	e->flags &= ~FLAG_DIRTY;
+
+	newest = NULL;
+	prune = pruned = false;
+	restat = edgevarbool(e, "restat");
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
 		old = n->mtime;
 		nodestat(n);
 		n->logmtime = n->mtime == MTIME_MISSING ? 0 : n->mtime;
-		nodedone(n, restat && shouldprune(e, n, old));
+
+		prune = restat && old != n->mtime;
+		pruned = pruned || prune;
+		nodedone(n, prune);
+	}
+	/* if any output was pruned, find the newest input non-order-only
+	 * input and record it for each output of this edge */
+	if (pruned) {
+		for (i = 0; i < e->inorderidx; ++i) {
+			n = e->in[i];
+			nodestat(n);
+			if (n->mtime != MTIME_MISSING && !isnewer(newest, n))
+				newest = n;
+		}
+	}
+	for (i = 0; i < e->nout; ++i) {
+		n = e->out[i];
+		if (newest)
+			n->logmtime = newest->mtime;
 	}
 	rspfile = edgevar(e, "rspfile", false);
 	if (rspfile && !buildopts.keeprsp)
