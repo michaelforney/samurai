@@ -379,43 +379,43 @@ nodedone(struct node *n, bool prune)
 	}
 }
 
-static bool
-shouldprune(struct edge *e, struct node *n, int64_t old)
-{
-	struct node *in, *newest;
-	size_t i;
-
-	if (old != n->mtime)
-		return false;
-	newest = NULL;
-	for (i = 0; i < e->inorderidx; ++i) {
-		in = e->in[i];
-		nodestat(in);
-		if (in->mtime != MTIME_MISSING && !isnewer(newest, in))
-			newest = in;
-	}
-	if (newest)
-		n->logmtime = newest->mtime;
-
-	return true;
-}
-
 static void
 edgedone(struct edge *e)
 {
-	struct node *n;
+	struct node *n, *newest;
 	size_t i;
 	struct string *rspfile;
-	bool restat;
+	bool restat, prune, pruned;
 	int64_t old;
 
-	restat = edgevar(e, "restat", true);
+
+	newest = NULL;
+	prune = pruned = false;
+	restat = edgevarbool(e, "restat");
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
 		old = n->mtime;
 		nodestat(n);
 		n->logmtime = n->mtime == MTIME_MISSING ? 0 : n->mtime;
-		nodedone(n, restat && shouldprune(e, n, old));
+
+		prune = restat && old != n->mtime;
+		pruned = pruned || prune;
+		nodedone(n, prune);
+	}
+	/* if any output was pruned, find the newest input non-order-only
+	 * input and record it for each output of this edge */
+	if (pruned) {
+		for (i = 0; i < e->inorderidx; ++i) {
+			n = e->in[i];
+			nodestat(n);
+			if (n->mtime != MTIME_MISSING && !isnewer(newest, n))
+				newest = n;
+		}
+	}
+	for (i = 0; i < e->nout; ++i) {
+		n = e->out[i];
+		if (newest)
+			n->logmtime = newest->mtime;
 	}
 	rspfile = edgevar(e, "rspfile", false);
 	if (rspfile && !buildopts.keeprsp)
