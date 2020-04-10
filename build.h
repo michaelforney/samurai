@@ -12,5 +12,7 @@ extern struct buildoptions buildopts;
 void buildreset(void);
 /* schedule a particular target to be built */
 void buildadd(struct node *);
+/* reschedule a particular target to be built */
+void buildupdate(struct node *);
 /* execute rules to build the scheduled targets */
 void build(void);

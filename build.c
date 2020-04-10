@@ -147,6 +147,49 @@ computedirty(struct edge *e, struct node *newest)
 }
 
 void
+buildupdate(struct node *n)
+{
+	struct edge *e;
+	struct node *newest;
+	size_t i;
+
+	e = n->gen;
+	if (e->flags & FLAG_CYCLE)
+		fatal("dependency cycle involving '%s'", n->path->s);
+	e->flags |= FLAG_CYCLE | FLAG_WORK;
+	for (i = e->outdynidx; i < e->nout; ++i) {
+		n = e->out[i];
+		if (n->mtime == MTIME_UNKNOWN) {
+			n->dirty = false;
+			nodestat(n);
+		}
+	}
+	newest = NULL;
+	for (i = e->indynidx; i < e->inorderidx; ++i) {
+		n = e->in[i];
+		buildadd(n);
+		if (i < e->inorderidx) {
+			if (n->dirty)
+				e->flags |= FLAG_DIRTY_IN;
+			if (n->mtime != MTIME_MISSING && !isnewer(newest, n))
+				newest = n;
+		}
+		if (n->dirty || (n->gen && n->gen->nblock > 0))
+			++e->nblock;
+	}
+	computedirty(e, newest);
+	if (!(e->flags & FLAG_DIRTY_OUT))
+		e->nprune = e->nblock;
+	if (!(e->flags & FLAG_DIRTY_OUT))
+		e->nprune = e->nblock;
+	if (e->flags & FLAG_DIRTY) {
+		if (e->nblock == 0)
+			queue(e);
+	}
+	e->flags &= ~FLAG_CYCLE;
+}
+
+void
 buildadd(struct node *n)
 {
 	struct edge *e;
