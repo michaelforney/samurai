@@ -233,7 +233,8 @@ parsepool(struct scanner *s, struct environment *env)
 static void
 checkversion(const char *ver)
 {
-	if (strcmp(ver, ninjaversion) > 0)
+	int nmajor, nminor = 0;
+	if (sscanf(ver, "%d.%d", &nmajor, &nminor) < 1 || (nmajor > 1) || (nminor > 10))
 		fatal("ninja_required_version %s is newer than %s", ver, ninjaversion);
 }
 

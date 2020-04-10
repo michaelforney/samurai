@@ -89,7 +89,8 @@ parselet(struct scanner *s, struct evalstring **val)
 static void
 checkversion(const char *ver)
 {
-	if (strcmp(ver, dyndepversion) > 0)
+	int nmajor, nminor = 0;
+	if ((sscanf(ver, "%d.%d", &nmajor, &nminor) < 1) || (nmajor > 1))
 		fatal("ninja_dyndep_version %s is newer than %s", ver, dyndepversion);
 }
 
