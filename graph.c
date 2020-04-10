@@ -58,6 +58,7 @@ mknode(struct string *path)
 	n = xmalloc(sizeof(*n));
 	n->path = path;
 	n->shellpath = NULL;
+	n->dyndep = NULL;
 	n->gen = NULL;
 	n->use = NULL;
 	n->nuse = 0;
@@ -152,6 +153,7 @@ mkedge(struct environment *parent)
 
 	e = xmalloc(sizeof(*e));
 	e->env = mkenv(parent);
+	e->dyndep = NULL;
 	e->pool = NULL;
 	e->out = NULL;
 	e->nout = 0;
@@ -226,4 +228,44 @@ edgeadddeps(struct edge *e, struct node **deps, size_t ndeps)
 	memcpy(order, deps, ndeps * sizeof(e->in[0]));
 	e->inorderidx += ndeps;
 	e->nin += ndeps;
+}
+
+void
+edgeadddyndeps(struct edge *e, struct node **deps, size_t ndeps)
+{
+	struct node **order, *n;
+	size_t norder, i;
+
+	for (i = 0; i < ndeps; ++i) {
+		n = deps[i];
+		if (!n->gen)
+			n->gen = mkphony(n);
+		nodeuse(n, e);
+	}
+	e->indynidx = e->inorderidx;
+	e->in = xreallocarray(e->in, e->nin + ndeps, sizeof(e->in[0]));
+	order = e->in + e->inorderidx;
+	norder = e->nin - e->inorderidx;
+	memmove(order + ndeps, order, norder * sizeof(e->in[0]));
+	memcpy(order, deps, ndeps * sizeof(e->in[0]));
+	e->inorderidx += ndeps;
+	e->nin += ndeps;
+}
+
+void
+edgeadddynouts(struct edge *e, struct node **outs, size_t nouts)
+{
+	struct node *n;
+	size_t i;
+
+	for (i = 0; i < nouts; ++i) {
+		n = outs[i];
+		if (n->gen && n->gen->rule != &phonyrule)
+			fatal("multiple rules generate '%s'", n->path->s);
+		n->gen = e;
+	}
+	e->outdynidx = e->nout;
+	e->out = xreallocarray(e->out, e->nout + nouts, sizeof(e->out[0]));
+	memcpy(e->out + e->nout, outs, nouts * sizeof(e->out[0]));
+	e->nout += nouts;
 }

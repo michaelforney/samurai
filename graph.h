@@ -19,6 +19,9 @@ struct node {
 	struct edge *gen, **use;
 	size_t nuse;
 
+	/* dyndep or NULL if the node is not a dyndep */
+	struct dyndep *dyndep;
+
 	/* command hash used to build this output, read from build log */
 	uint64_t hash;
 
@@ -39,10 +42,13 @@ struct edge {
 	struct node **out, **in;
 	size_t nout, nin;
 
-	/* index of first implicit output */
-	size_t outimpidx;
-	/* index of first implicit and order-only input */
-	size_t inimpidx, inorderidx;
+	/* dyndep or NULL if the edge has no dyndep */
+	struct dyndep *dyndep;
+
+	/* index of first implicit adn dyndep output */
+	size_t outimpidx, outdynidx;
+	/* index of first implicit, dyndep and order-only input */
+	size_t inimpidx, indynidx, inorderidx;
 
 	/* command hash */
 	uint64_t hash;
@@ -60,6 +66,7 @@ struct edge {
 		FLAG_DIRTY     = FLAG_DIRTY_IN | FLAG_DIRTY_OUT,
 		FLAG_CYCLE     = 1 << 5,  /* used for cycle detection */
 		FLAG_DEPS      = 1 << 6,  /* dependencies loaded */
+		FLAG_DYNDEP    = 1 << 7,  /* dyndep loaded */
 	} flags;
 
 	/* used to coordinate ready work in build() */
@@ -87,6 +94,10 @@ struct edge *mkedge(struct environment *parent);
 void edgehash(struct edge *);
 /* add dependencies from $depfile or .ninja_deps as implicit inputs */
 void edgeadddeps(struct edge *e, struct node **deps, size_t ndeps);
+/* add dependencies from dyndep files as implicit inputs */
+void edgeadddyndeps(struct edge *e, struct node **deps, size_t ndeps);
+/* add outputs from dyndep as implicit outputs */
+void edgeadddynouts(struct edge *e, struct node **outs, size_t nouts);
 
 /* a single linked list of all edges, valid up until build() */
 extern struct edge *alledges;
