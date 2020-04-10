@@ -360,6 +360,9 @@ nodedone(struct node *n, bool prune)
 	struct edge *e;
 	size_t i, j;
 
+	/* mark node clean for computedirty of edges with dyndeps */
+	n->dirty = false;
+
 	for (i = 0; i < n->nuse; ++i) {
 		e = n->use[i];
 		/* skip edges not used in this build */
