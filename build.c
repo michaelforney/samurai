@@ -443,6 +443,8 @@ edgedone(struct edge *e)
 	bool restat, prune, pruned;
 	int64_t old;
 
+	/* mark edge clean for dyndepload */
+	e->flags &= ~FLAG_DIRTY;
 
 	newest = NULL;
 	prune = pruned = false;
