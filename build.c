@@ -156,12 +156,15 @@ buildupdate(struct node *n)
 {
 	struct edge *e;
 	struct node *newest;
+	bool planned;
 	size_t i;
 
 	e = n->gen;
 	if (e->flags & FLAG_CYCLE)
 		fatal("dependency cycle involving '%s'", n->path->s);
 	e->flags |= FLAG_CYCLE | FLAG_WORK;
+	/* if the edge is already marked dirty ntotal was already updated */
+	planned = e->flags & FLAG_DIRTY;
 	for (i = e->outdynidx; i < e->nout; ++i) {
 		n = e->out[i];
 		if (n->mtime == MTIME_UNKNOWN) {
@@ -188,6 +191,8 @@ buildupdate(struct node *n)
 	if (e->flags & FLAG_DIRTY) {
 		if (e->nblock == 0)
 			queue(e);
+		if (!planned && e->rule != &phonyrule)
+			++ntotal;
 	}
 	e->flags &= ~FLAG_CYCLE;
 }
