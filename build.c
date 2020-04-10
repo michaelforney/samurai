@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include "build.h"
 #include "deps.h"
+#include "dyndep.h"
 #include "env.h"
 #include "graph.h"
 #include "log.h"
@@ -180,8 +181,6 @@ buildupdate(struct node *n)
 	computedirty(e, newest);
 	if (!(e->flags & FLAG_DIRTY_OUT))
 		e->nprune = e->nblock;
-	if (!(e->flags & FLAG_DIRTY_OUT))
-		e->nprune = e->nblock;
 	if (e->flags & FLAG_DIRTY) {
 		if (e->nblock == 0)
 			queue(e);
@@ -241,6 +240,8 @@ buildadd(struct node *n)
 			++ntotal;
 	}
 	e->flags &= ~FLAG_CYCLE;
+	if (e->dyndep)
+		dyndepload(e->dyndep, false);
 }
 
 static size_t
@@ -405,6 +406,10 @@ nodedone(struct node *n, bool prune)
 
 	/* mark node clean for computedirty of edges with dyndeps */
 	n->dirty = false;
+
+	/* if this node is a dyndep it can be loaded now */
+	if (n->dyndep)
+		dyndepload(n->dyndep, false);
 
 	for (i = 0; i < n->nuse; ++i) {
 		e = n->use[i];

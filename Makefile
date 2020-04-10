@@ -6,6 +6,7 @@ ALL_CFLAGS=$(CFLAGS) -std=c99 -Wall -Wextra -Wpedantic
 OBJ=\
 	build.o\
 	deps.o\
+	dyndep.o\
 	env.o\
 	graph.o\
 	htab.o\
