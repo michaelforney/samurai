@@ -106,6 +106,10 @@ queue(struct edge *e)
 {
 	struct edge **front = &work;
 
+	if (e->flags & FLAG_QUEUED)
+		return;
+	e->flags |= FLAG_QUEUED;
+
 	if (e->pool && e->rule != &phonyrule) {
 		if (e->pool->numjobs == e->pool->maxjobs)
 			front = &e->pool->work;

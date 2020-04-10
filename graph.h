@@ -67,6 +67,7 @@ struct edge {
 		FLAG_CYCLE     = 1 << 5,  /* used for cycle detection */
 		FLAG_DEPS      = 1 << 6,  /* dependencies loaded */
 		FLAG_DYNDEP    = 1 << 7,  /* dyndep loaded */
+		FLAG_QUEUED    = 1 << 8,  /* edge is queued */
 	} flags;
 
 	/* used to coordinate ready work in build() */
