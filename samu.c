@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include <errno.h>
+#include <float.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -97,6 +98,18 @@ jobsflag(const char *flag)
 }
 
 static void
+loadflag(const char *flag)
+{
+	double value;
+	char *end;
+
+	value = strtod(flag, &end);
+	if (*end || value < 0)
+		fatal("invalid -l parameter");
+	buildopts.maxload = value > 0 ? value : -1;
+}
+
+static void
 parseenvargs(char *env)
 {
 	char *arg, *argvbuf[64], **argv = argvbuf;
@@ -184,8 +197,7 @@ main(int argc, char *argv[])
 		buildopts.maxfail = num > 0 ? num : -1;
 		break;
 	case 'l':
-		warn("job scheduling based on load average is not implemented");
-		EARGF(usage());
+		loadflag(EARGF(usage()));
 		break;
 	case 't':
 		tool = toolget(EARGF(usage()));
@@ -213,6 +225,10 @@ argdone:
 			buildopts.maxjobs = n + 2;
 			break;
 		}
+	}
+
+	if (!buildopts.maxload) {
+		buildopts.maxload = -1.0f;
 	}
 
 	buildopts.statusfmt = getenv("NINJA_STATUS");
