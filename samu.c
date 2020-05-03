@@ -12,6 +12,7 @@
 #include "graph.h"
 #include "log.h"
 #include "parse.h"
+#include "system.h"
 #include "tool.h"
 #include "util.h"
 
@@ -200,8 +201,7 @@ main(int argc, char *argv[])
 	} ARGEND
 argdone:
 	if (!buildopts.maxjobs) {
-#ifdef _SC_NPROCESSORS_ONLN
-		int n = sysconf(_SC_NPROCESSORS_ONLN);
+		int n = get_cores_count();
 		switch (n) {
 		case -1: case 0: case 1:
 			buildopts.maxjobs = 2;
@@ -213,9 +213,6 @@ argdone:
 			buildopts.maxjobs = n + 2;
 			break;
 		}
-#else
-		buildopts.maxjobs = 2;
-#endif
 	}
 
 	buildopts.statusfmt = getenv("NINJA_STATUS");

@@ -35,6 +35,7 @@ samu_sources = [
     'parse.c',
     'samu.c',
     'scan.c',
+    'system.c',
     'tool.c',
     'tree.c',
     'util.c',
