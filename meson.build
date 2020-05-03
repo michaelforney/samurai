@@ -20,6 +20,9 @@ config.set_quoted('VERSION', meson.project_version())
 ###############################################################################
 # Executable
 
+threads = dependency('threads')
+
+
 configure_file(
     output: 'config.h',
     configuration: config,
@@ -44,6 +47,7 @@ samu_sources = [
 executable('samu',
     samu_sources,
     install: true,
+    dependencies: threads,
 )
 
 

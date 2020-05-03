@@ -1,8 +1,10 @@
 #define _POSIX_C_SOURCE 200809L
+#define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <poll.h>
+#include <pthread.h>
 #include <signal.h>
 #include <spawn.h>
 #include <stdbool.h>
@@ -16,6 +18,7 @@
 #include "env.h"
 #include "graph.h"
 #include "log.h"
+#include "system.h"
 #include "util.h"
 
 struct job {
@@ -504,6 +507,72 @@ done:
 	return false;
 }
 
+
+static bool load_average_is_low = true;
+static int       monitor_load_fd;
+static pthread_t monitor_load_thread;
+
+static void*
+monitor_load_average()
+{
+	while (true) {
+		bool new_load_average_is_low = get_load_average() < buildopts.maxload;
+		printf("Load = %f\n", get_load_average());
+		if (new_load_average_is_low && !load_average_is_low) {
+			// notify that load went down
+			char *notif = "a";
+			write(monitor_load_fd, notif, 1);
+		}
+		load_average_is_low = new_load_average_is_low;
+
+		// Wait until notified to stop
+		struct pollfd pollfd;
+		pollfd.fd = monitor_load_fd;
+		pollfd.events = POLLRDHUP;
+		if (poll(&pollfd, 1, 1000) > 0) {
+			break;
+		}
+	}
+	pthread_exit(NULL);
+}
+
+static int
+start_monitor_load_average()
+{
+	if (buildopts.maxload <= 0) {
+		return -1;
+	}
+
+	int fd[2];
+	if (pipe(fd) < 0) {
+		warn("pipe:");
+		warn("Cannot monitor load");
+		return -1;
+	}
+
+	monitor_load_fd = fd[1];
+
+	warn("Monitoring load");
+
+	pthread_create(
+		&monitor_load_thread,
+		NULL,
+		monitor_load_average,
+		NULL
+	);
+
+	return fd[0];
+}
+
+static void
+stop_monitor_load_average(int fd)
+{
+	if (monitor_load_thread) {
+		close(fd);
+		pthread_join(monitor_load_thread, NULL);
+	}
+}
+
 void
 build(void)
 {
@@ -518,10 +587,19 @@ build(void)
 	if (!work)
 		warn("nothing to do");
 
+	// Initialize fds[0] with load average monitoring thread
+	fds = xreallocarray(fds, 1, sizeof(jobs[0]));
+	fds[0].events = POLLIN;
+	fds[0].fd = start_monitor_load_average();
+
 	nstarted = 0;
 	for (;;) {
 		/* start ready edges */
-		while (work && numjobs < buildopts.maxjobs && numfail < buildopts.maxfail) {
+		while (work
+			&& numjobs < buildopts.maxjobs
+			&& load_average_is_low
+			&& numfail < buildopts.maxfail
+		) {
 			e = work;
 			work = work->worknext;
 			if (e->rule == &phonyrule) {
@@ -534,18 +612,18 @@ build(void)
 				if (jobslen > buildopts.maxjobs)
 					jobslen = buildopts.maxjobs;
 				jobs = xreallocarray(jobs, jobslen, sizeof(jobs[0]));
-				fds = xreallocarray(fds, jobslen, sizeof(fds[0]));
+				fds = xreallocarray(fds, jobslen+1, sizeof(fds[0]));
 				for (i = next; i < jobslen; ++i) {
 					jobs[i].buf.data = NULL;
 					jobs[i].buf.len = 0;
 					jobs[i].buf.cap = 0;
 					jobs[i].next = i + 1;
-					fds[i].fd = -1;
-					fds[i].events = POLLIN;
+					fds[i+1].fd = -1;
+					fds[i+1].events = POLLIN;
 				}
 			}
-			fds[next].fd = jobstart(&jobs[next], e);
-			if (fds[next].fd < 0) {
+			fds[next+1].fd = jobstart(&jobs[next], e);
+			if (fds[next+1].fd < 0) {
 				warn("job failed to start");
 				++numfail;
 			} else {
@@ -553,16 +631,17 @@ build(void)
 				++numjobs;
 			}
 		}
-		if (numjobs == 0)
+		if (numjobs == 0 && work == 0) {
 			break;
-		if (poll(fds, jobslen, -1) < 0)
+		}
+		if (poll(fds, jobslen+1, -1) < 0)
 			fatal("poll:");
 		for (i = 0; i < jobslen; ++i) {
-			if (!fds[i].revents || jobwork(&jobs[i]))
+			if (!fds[i+1].revents || jobwork(&jobs[i]))
 				continue;
 			--numjobs;
 			jobs[i].next = next;
-			fds[i].fd = -1;
+			fds[i+1].fd = -1;
 			next = i;
 			if (jobs[i].failed)
 				++numfail;
@@ -570,6 +649,8 @@ build(void)
 	}
 	for (i = 0; i < jobslen; ++i)
 		free(jobs[i].buf.data);
+	stop_monitor_load_average(fds[0].fd);
+
 	free(jobs);
 	free(fds);
 	if (numfail > 0) {
