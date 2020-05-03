@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdint.h>  /* for uint64_t */
 
 /* set in the tv_nsec field of a node's mtime */

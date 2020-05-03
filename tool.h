@@ -1,3 +1,5 @@
+#pragma once
+
 struct tool {
 	const char *name;
 	int (*run)(int, char *[]);
