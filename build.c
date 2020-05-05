@@ -508,7 +508,7 @@ done:
 }
 
 
-static bool load_average_is_low = true;
+static bool load_average_is_low = false;
 static int       monitor_load_fd;
 static pthread_t monitor_load_thread;
 
@@ -517,11 +517,10 @@ monitor_load_average()
 {
 	while (true) {
 		bool new_load_average_is_low = get_load_average() < buildopts.maxload;
-		printf("Load = %f\n", get_load_average());
+		// warn("load = %f", get_load_average());
 		if (new_load_average_is_low && !load_average_is_low) {
 			// notify that load went down
-			char *notif = "a";
-			write(monitor_load_fd, notif, 1);
+			write(monitor_load_fd, "a", 1);
 		}
 		load_average_is_low = new_load_average_is_low;
 
@@ -540,6 +539,7 @@ static int
 start_monitor_load_average()
 {
 	if (buildopts.maxload <= 0) {
+		load_average_is_low = true;
 		return -1;
 	}
 
