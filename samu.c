@@ -155,7 +155,7 @@ main(int argc, char *argv[])
 	case '-':
 		arg = EARGF(usage());
 		if (strcmp(arg, "version") == 0) {
-			puts(ninjaversion);
+			printf("%d.%d\n", ninjamajor, ninjaminor);
 			return 0;
 		} else if (strcmp(arg, "verbose") == 0) {
 			buildopts.verbose = true;

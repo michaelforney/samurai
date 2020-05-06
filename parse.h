@@ -10,7 +10,10 @@ void parse(const char *, struct environment *);
 extern struct parseoptions parseopts;
 
 /* supported ninja version */
-extern const char *ninjaversion;
+enum {
+	ninjamajor = 1,
+	ninjaminor = 9,
+};
 
 /* default targets */
 extern struct node **deftarg;

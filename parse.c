@@ -9,7 +9,6 @@
 #include "util.h"
 
 struct parseoptions parseopts;
-const char *ninjaversion = "1.9.0";
 struct node **deftarg;
 size_t ndeftarg;
 
@@ -222,8 +221,12 @@ parsepool(struct scanner *s, struct environment *env)
 static void
 checkversion(const char *ver)
 {
-	if (strcmp(ver, ninjaversion) > 0)
-		fatal("ninja_required_version %s is newer than %s", ver, ninjaversion);
+	int major, minor = 0;
+
+	if (sscanf(ver, "%d.%d", &major, &minor) < 1)
+		fatal("invalid ninja_required_version");
+	if (major > ninjamajor || (major == ninjamajor && minor > ninjaminor))
+		fatal("ninja_required_version %s is newer than %d.%d", ver, ninjamajor, ninjaminor);
 }
 
 void
