@@ -1,16 +1,5 @@
 image: alpine/edge
-packages:
-- bison
-- flex
 sources:
-- https://git.sr.ht/~mcf/samurai
-- https://git.sr.ht/~sircmpwn/annotatec
-secrets:
-- cd4f74b3-9b4f-435f-b747-e513ba03f947
+  - https://git.sr.ht/~mcf/samurai
 tasks:
-- build: make -C samurai
-- annotate: |
-    make -C annotatec
-    cd samurai
-    ~/annotatec/annotatec -g -C 'cpp -U __GNUC__' *.c > annotations.json
-    ~/upload-annotations annotations.json mcf samurai
+  - build: make -C samurai
