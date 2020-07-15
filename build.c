@@ -227,6 +227,13 @@ formatstatus(char *buf, size_t len)
 		case 'p':
 			n = snprintf(buf, len, "%3zu%%", 100 * nfinished / ntotal);
 			break;
+		case 'o':
+			if (clock_gettime(CLOCK_MONOTONIC, &endtime) != 0) {
+				warn("clock_gettime:");
+				endtime = starttime;
+			}
+			n = snprintf(buf, len, "%.1f", nfinished / ((endtime.tv_sec - starttime.tv_sec) + 0.000000001 * (endtime.tv_nsec - starttime.tv_nsec)));
+			break;
 		case 'e':
 			if (clock_gettime(CLOCK_MONOTONIC, &endtime) != 0) {
 				warn("clock_gettime:");
