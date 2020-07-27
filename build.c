@@ -17,6 +17,7 @@
 #include "graph.h"
 #include "log.h"
 #include "util.h"
+#include "current_rate.h"
 
 struct job {
 	struct string *cmd;
@@ -33,6 +34,8 @@ static struct edge *work;
 static size_t nstarted, nfinished, ntotal;
 static bool consoleused;
 static struct timespec starttime;
+
+static struct rate edge_rate; /* how fast edges are being finished*/ 
 
 void
 buildreset(void)
@@ -234,6 +237,13 @@ formatstatus(char *buf, size_t len)
 			}
 			n = snprintf(buf, len, "%.3f", (endtime.tv_sec - starttime.tv_sec) + 0.000000001 * (endtime.tv_nsec - starttime.tv_nsec));
 			break;
+		case 'c':
+			/* no edge has finished */
+			if(edge_rate.num_timestamps < 2)
+				n = snprintf(buf, len, "?");
+			else
+				n = snprintf(buf, len, "%.1f", edge_rate.current_rate);
+			break;
 		default:
 			fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *fmt);
 			continue;  /* unreachable, but avoids warning */
@@ -428,6 +438,7 @@ jobdone(struct job *j)
 	struct pool *p;
 
 	++nfinished;
+	rate_update(&edge_rate);
 	if (waitpid(j->pid, &status, 0) < 0) {
 		warn("waitpid %d:", j->pid);
 		j->failed = true;
@@ -513,6 +524,8 @@ build(void)
 	struct edge *e;
 
 	clock_gettime(CLOCK_MONOTONIC, &starttime);
+	/* we need n + 1 timestamps to calculate the average of n jobs */
+	rate_init(&edge_rate, buildopts.maxjobs + 1);
 	formatstatus(NULL, 0);
 
 	if (!work)
