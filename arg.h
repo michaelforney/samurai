@@ -1,3 +1,5 @@
+#pragma once
+
 extern const char *argv0;
 
 #define ARGBEGIN \

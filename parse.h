@@ -1,3 +1,5 @@
+#pragma once
+
 struct environment;
 
 struct parseoptions {

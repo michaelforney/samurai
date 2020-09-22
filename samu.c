@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include <errno.h>
+#include <float.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,6 +13,7 @@
 #include "graph.h"
 #include "log.h"
 #include "parse.h"
+#include "system.h"
 #include "tool.h"
 #include "util.h"
 
@@ -93,6 +95,18 @@ jobsflag(const char *flag)
 	if (*end || num < 0)
 		fatal("invalid -j parameter");
 	buildopts.maxjobs = num > 0 ? num : -1;
+}
+
+static void
+loadflag(const char *flag)
+{
+	double value;
+	char *end;
+
+	value = strtod(flag, &end);
+	if (*end || value < 0)
+		fatal("invalid -l parameter");
+	buildopts.maxload = value > 0 ? value : -1;
 }
 
 static void
@@ -183,8 +197,7 @@ main(int argc, char *argv[])
 		buildopts.maxfail = num > 0 ? num : -1;
 		break;
 	case 'l':
-		warn("job scheduling based on load average is not implemented");
-		EARGF(usage());
+		loadflag(EARGF(usage()));
 		break;
 	case 't':
 		tool = toolget(EARGF(usage()));
@@ -200,8 +213,7 @@ main(int argc, char *argv[])
 	} ARGEND
 argdone:
 	if (!buildopts.maxjobs) {
-#ifdef _SC_NPROCESSORS_ONLN
-		int n = sysconf(_SC_NPROCESSORS_ONLN);
+		int n = get_cores_count();
 		switch (n) {
 		case -1: case 0: case 1:
 			buildopts.maxjobs = 2;
@@ -213,9 +225,10 @@ argdone:
 			buildopts.maxjobs = n + 2;
 			break;
 		}
-#else
-		buildopts.maxjobs = 2;
-#endif
+	}
+
+	if (!buildopts.maxload) {
+		buildopts.maxload = -1.0f;
 	}
 
 	buildopts.statusfmt = getenv("NINJA_STATUS");

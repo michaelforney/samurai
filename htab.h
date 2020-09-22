@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdint.h>  /* for uint64_t */
 
 struct hashtablekey {

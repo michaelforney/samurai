@@ -1,3 +1,5 @@
+#pragma once
+
 struct evalstring;
 struct string;
 

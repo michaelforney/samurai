@@ -1,7 +1,10 @@
+#pragma once
+
 struct node;
 
 struct buildoptions {
 	size_t maxjobs, maxfail;
+	double maxload;
 	_Bool verbose, explain, keepdepfile, keeprsp;
 	const char *statusfmt;
 };
