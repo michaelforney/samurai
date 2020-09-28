@@ -4,6 +4,7 @@ PREFIX=/usr/local
 BINDIR=$(PREFIX)/bin
 MANDIR=$(PREFIX)/share/man
 ALL_CFLAGS=$(CFLAGS) -std=c99 -Wall -Wextra -Wpedantic
+TERM=dumb # TERM=ansi for smart status printing (requires TIOCGWINSZ ioctl)
 OBJ=\
 	build.o\
 	deps.o\
@@ -14,6 +15,7 @@ OBJ=\
 	parse.o\
 	samu.o\
 	scan.o\
+	term-$(TERM).o \
 	tool.o\
 	tree.o\
 	util.o
@@ -27,6 +29,7 @@ HDR=\
 	log.h\
 	parse.h\
 	scan.h\
+	term.h\
 	tool.h\
 	tree.h\
 	util.h

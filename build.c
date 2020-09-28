@@ -16,6 +16,7 @@
 #include "env.h"
 #include "graph.h"
 #include "log.h"
+#include "term.h"
 #include "util.h"
 
 struct job {
@@ -33,6 +34,7 @@ static struct edge *work;
 static size_t nstarted, nfinished, ntotal;
 static bool consoleused;
 static struct timespec starttime;
+static bool dumb, newline;
 
 void
 buildreset(void)
@@ -255,12 +257,14 @@ static int
 jobstart(struct job *j, struct edge *e)
 {
 	extern char **environ;
-	size_t i;
+	size_t i, statuslen;
 	struct node *n;
 	struct string *rspfile, *content, *description;
 	int fd[2];
 	posix_spawn_file_actions_t actions;
 	char *argv[] = {"/bin/sh", "-c", NULL, NULL}, status[256];
+
+	newline = false;
 
 	++nstarted;
 	for (i = 0; i < e->nout; ++i) {
@@ -290,9 +294,12 @@ jobstart(struct job *j, struct edge *e)
 		description = buildopts.verbose ? NULL : edgevar(e, "description", true);
 		if (!description || description->n == 0)
 			description = j->cmd;
-		formatstatus(status, sizeof(status));
+		if (!dumb)
+			putchar('\r');
+		statuslen = formatstatus(status, sizeof(status));
+		statuslen = statuslen < sizeof(status) ? statuslen : sizeof(status) - 1;
 		fputs(status, stdout);
-		puts(description->s);
+		printdesc(dumb, statuslen, description);
 	}
 
 	if ((errno = posix_spawn_file_actions_init(&actions))) {
@@ -445,8 +452,12 @@ jobdone(struct job *j)
 		j->failed = true;
 	}
 	close(j->fd);
-	if (j->buf.len && (!consoleused || j->failed))
+	if (j->buf.len && (!consoleused || j->failed)) {
+		if (!dumb)
+			putchar('\n');
 		fwrite(j->buf.data, 1, j->buf.len, stdout);
+		newline = j->buf.data[j->buf.len - 1] == '\n';
+	}
 	j->buf.len = 0;
 	e = j->edge;
 	if (e->pool) {
@@ -512,6 +523,8 @@ build(void)
 	size_t i, next = 0, jobslen = 0, numjobs = 0, numfail = 0;
 	struct edge *e;
 
+	dumb = buildopts.verbose || isdumb();
+
 	clock_gettime(CLOCK_MONOTONIC, &starttime);
 	formatstatus(NULL, 0);
 
@@ -568,6 +581,8 @@ build(void)
 				++numfail;
 		}
 	}
+	if (!dumb && jobslen && !newline)
+		putchar('\n');
 	for (i = 0; i < jobslen; ++i)
 		free(jobs[i].buf.data);
 	free(jobs);
