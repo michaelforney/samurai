@@ -298,11 +298,28 @@ targets(int argc, char *argv[])
 	return 0;
 }
 
+static int list(int argc, char *argv[]);
+
 static const struct tool tools[] = {
-	{"clean", clean},
-	{"compdb", compdb},
-	{"targets", targets},
+	{"clean", "remove build outputs", clean},
+	{"compdb", "dump compilation database", compdb},
+	{"list", NULL, list},
+	{"targets", "list targets", targets},
 };
+
+static int
+list(int argc, char *argv[])
+{
+	size_t i;
+
+	printf("%s subtools:\n", argv0);
+	for (i = 0; i < LEN(tools); ++i) {
+		if (tools[i].description)
+			printf("%10s  %s\n", tools[i].name, tools[i].description);
+	}
+
+	return 0;
+}
 
 const struct tool *
 toolget(const char *name)
