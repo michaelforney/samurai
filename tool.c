@@ -298,12 +298,49 @@ targets(int argc, char *argv[])
 	return 0;
 }
 
+static int
+query(int argc, char *argv[])
+{
+	struct node *n;
+	struct edge *e;
+	char *path;
+	int i;
+	size_t j, k;
+
+	if (argc == 1) {
+		fprintf(stderr, "usage: %s ... -t query target...\n", argv0);
+		exit(2);
+	}
+	for (i = 1; i < argc; ++i) {
+		path = argv[i];
+		n = nodeget(path, 0);
+		if (!n)
+			fatal("unknown target '%s'", path);
+		printf("%s:\n", argv[i]);
+		e = n->gen;
+		if (e) {
+			printf("  input: %s\n", e->rule->name);
+			for (j = 0; j < e->nin; ++j)
+				printf("    %s\n", e->in[j]->path->s);
+		}
+		puts("  outputs:");
+		for (j = 0; j < n->nuse; ++j) {
+			e = n->use[j];
+			for (k = 0; k < e->nout; ++k)
+				printf("    %s\n", e->out[k]->path->s);
+		}
+	}
+
+	return 0;
+}
+
 static int list(int argc, char *argv[]);
 
 static const struct tool tools[] = {
 	{"clean", "remove build outputs", clean},
 	{"compdb", "dump compilation database", compdb},
 	{"list", NULL, list},
+	{"query", "show incoming/outgoing edges for a path", query},
 	{"targets", "list targets", targets},
 };
 

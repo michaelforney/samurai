@@ -29,6 +29,11 @@
 .Nm
 .Op Fl C Ar dir
 .Op Fl f Ar buildfile
+.Fl t Cm query
+.Op Ar target...
+.Nm
+.Op Fl C Ar dir
+.Op Fl f Ar buildfile
 .Fl t Cm targets
 .Op Cm depth Op Ar maxdepth
 .Nm
@@ -78,6 +83,10 @@ If the
 tool is used, a compilation database
 .Lk ( https://clang.llvm.org/docs/JSONCompilationDatabase.html )
 is printed instead.
+.Pp
+If the
+.Cm query
+tool is used, the inputs and outputs of the targets are printed instead.
 .Pp
 If the
 .Cm targets
