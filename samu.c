@@ -20,7 +20,7 @@ const char *argv0;
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: %s [-C dir] [-f buildfile] [-j maxjobs] [-k maxfail]\n", argv0);
+	fprintf(stderr, "usage: %s [-C dir] [-f buildfile] [-j maxjobs] [-k maxfail] [-n]\n", argv0);
 	exit(2);
 }
 
@@ -186,6 +186,9 @@ main(int argc, char *argv[])
 		warn("job scheduling based on load average is not implemented");
 		EARGF(usage());
 		break;
+	case 'n':
+		buildopts.dryrun = true;
+		break;
 	case 't':
 		tool = toolget(EARGF(usage()));
 		goto argdone;
@@ -251,7 +254,8 @@ retry:
 			if (n->gen->flags & FLAG_DIRTY_OUT || n->gen->nprune > 0) {
 				if (++tries > 100)
 					fatal("manifest '%s' dirty after 100 tries", manifest);
-				goto retry;
+				if (!buildopts.dryrun)
+					goto retry;
 			}
 			/* manifest was pruned; reset state, then continue with build */
 			buildreset();

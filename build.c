@@ -370,6 +370,27 @@ nodedone(struct node *n, bool prune)
 	}
 }
 
+static void
+jobdryrun(struct edge *e)
+{
+	struct string *description;
+	char status[256];
+	size_t i;
+
+	if (e->rule != &phonyrule) {
+		++nstarted;
+		description = buildopts.verbose ? NULL : edgevar(e, "description", true);
+		if (!description || description->n == 0)
+			description = edgevar(e, "command", true);
+		formatstatus(status, sizeof(status));
+		fputs(status, stdout);
+		puts(description->s);
+		++nfinished;
+	}
+	for (i = 0; i < e->nout; ++i)
+		nodedone(e->out[i], false);
+}
+
 static bool
 shouldprune(struct edge *e, struct node *n, int64_t old)
 {
@@ -524,9 +545,8 @@ build(void)
 		while (work && numjobs < buildopts.maxjobs && numfail < buildopts.maxfail) {
 			e = work;
 			work = work->worknext;
-			if (e->rule == &phonyrule) {
-				for (i = 0; i < e->nout; ++i)
-					nodedone(e->out[i], false);
+			if (e->rule == &phonyrule || buildopts.dryrun) {
+				jobdryrun(e);
 				continue;
 			}
 			if (next == jobslen) {

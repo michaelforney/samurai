@@ -1,4 +1,4 @@
-.Dd October 23, 2020
+.Dd October 24, 2020
 .Dt SAMU 1
 .Os
 .Sh NAME
@@ -12,7 +12,7 @@
 .Op Fl j Ar maxjobs
 .Op Fl k Ar maxfail
 .Op Fl w Ar warnflag=action
-.Op Fl v
+.Op Fl nv
 .Op Ar target...
 .Nm
 .Op Fl C Ar dir
@@ -144,6 +144,8 @@ Allow up to
 .Ar maxfail
 job failures.
 If negative or zero, allow any number of job failures.
+.It Fl n
+Do not actually execute the commands or update the log.
 .It Fl v
 Print full commands instead of just
 .Sy description .
