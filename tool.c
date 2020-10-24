@@ -7,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "arg.h"
+#include "build.h"
 #include "env.h"
 #include "graph.h"
 #include "tool.h"
@@ -123,6 +124,45 @@ clean(int argc, char *argv[])
 		}
 	}
 
+	return ret;
+}
+
+/* Depth-first search.  */
+static void
+targetcommands(struct node *n)
+{
+	struct edge *e = n->gen;
+	struct string *command;
+	size_t i;
+	if (!e || (e->flags & FLAG_WORK))
+		return;
+	e->flags |= FLAG_WORK;
+	for (i = 0; i < e->nin; ++i)
+		targetcommands(e->in[i]);
+	command = edgevar(e, "command", true);
+	if (command && command->n)
+		puts(command->s);
+}
+
+static int
+commands(int argc, char *argv[])
+{
+	int ret = 0;
+	struct node *n;
+
+	if (argc > 1) {
+		while (*++argv) {
+			n = nodeget(*argv, 0);
+			if (!n) {
+				warn("unknown target '%s'", *argv);
+				ret = 1;
+				continue;
+			}
+			targetcommands(n);
+		}
+	} else {
+		dodefault(targetcommands);
+	}
 	return ret;
 }
 
@@ -338,6 +378,7 @@ static int list(int argc, char *argv[]);
 
 static const struct tool tools[] = {
 	{"clean", "remove build outputs", clean},
+	{"commands", "show commands to build the given targets", commands},
 	{"compdb", "dump compilation database", compdb},
 	{"list", NULL, list},
 	{"query", "show incoming/outgoing edges for a path", query},

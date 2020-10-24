@@ -71,7 +71,7 @@ mknode(struct string *path)
 }
 
 struct node *
-nodeget(char *path, size_t len)
+nodeget(const char *path, size_t len)
 {
 	struct hashtablekey k;
 
