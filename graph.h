@@ -73,7 +73,7 @@ void graphinit(void);
 /* create a new node or return existing node */
 struct node *mknode(struct string *);
 /* lookup a node by name; returns NULL if it does not exist */
-struct node *nodeget(char *, size_t);
+struct node *nodeget(const char *, size_t);
 /* update the mtime field of a node */
 void nodestat(struct node *);
 /* get a node's path, possibly escaped for the shell */
