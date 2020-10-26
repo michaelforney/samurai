@@ -251,16 +251,30 @@ formatstatus(char *buf, size_t len)
 	return ret;
 }
 
+static void
+printstatus(struct edge *e, struct string *cmd)
+{
+	struct string *description;
+	char status[256];
+
+	description = buildopts.verbose ? NULL : edgevar(e, "description", true);
+	if (!description || description->n == 0)
+		description = cmd;
+	formatstatus(status, sizeof(status));
+	fputs(status, stdout);
+	puts(description->s);
+}
+
 static int
 jobstart(struct job *j, struct edge *e)
 {
 	extern char **environ;
 	size_t i;
 	struct node *n;
-	struct string *rspfile, *content, *description;
+	struct string *rspfile, *content;
 	int fd[2];
 	posix_spawn_file_actions_t actions;
-	char *argv[] = {"/bin/sh", "-c", NULL, NULL}, status[256];
+	char *argv[] = {"/bin/sh", "-c", NULL, NULL};
 
 	++nstarted;
 	for (i = 0; i < e->nout; ++i) {
@@ -286,14 +300,8 @@ jobstart(struct job *j, struct edge *e)
 	j->fd = fd[0];
 	argv[2] = j->cmd->s;
 
-	if (!consoleused) {
-		description = buildopts.verbose ? NULL : edgevar(e, "description", true);
-		if (!description || description->n == 0)
-			description = j->cmd;
-		formatstatus(status, sizeof(status));
-		fputs(status, stdout);
-		puts(description->s);
-	}
+	if (!consoleused)
+		printstatus(e, j->cmd);
 
 	if ((errno = posix_spawn_file_actions_init(&actions))) {
 		warn("posix_spawn_file_actions_init:");
@@ -373,18 +381,11 @@ nodedone(struct node *n, bool prune)
 static void
 jobdryrun(struct edge *e)
 {
-	struct string *description;
-	char status[256];
 	size_t i;
 
 	if (e->rule != &phonyrule) {
 		++nstarted;
-		description = buildopts.verbose ? NULL : edgevar(e, "description", true);
-		if (!description || description->n == 0)
-			description = edgevar(e, "command", true);
-		formatstatus(status, sizeof(status));
-		fputs(status, stdout);
-		puts(description->s);
+		printstatus(e, edgevar(e, "command", true));
 		++nfinished;
 	}
 	for (i = 0; i < e->nout; ++i)
