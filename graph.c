@@ -93,6 +93,8 @@ nodestat(struct node *n)
 	} else {
 #ifdef __APPLE__
 		n->mtime = (int64_t)st.st_mtime * 1000000000 + st.st_mtimensec;
+#elif defined(__sun)
+		n->mtime = (int64_t)st.st_mtim.__tv_sec * 1000000000 + st.st_mtim.__tv_nsec;
 #else
 		n->mtime = (int64_t)st.st_mtim.tv_sec * 1000000000 + st.st_mtim.tv_nsec;
 #endif
