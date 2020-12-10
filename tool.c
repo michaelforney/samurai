@@ -164,6 +164,10 @@ commands(int argc, char *argv[])
 	} else {
 		defaultnodes(targetcommands);
 	}
+
+	if (fflush(stdout) || ferror(stdout))
+		fatal("write failed");
+
 	return ret;
 }
 
@@ -255,8 +259,7 @@ compdb(int argc, char *argv[])
 	}
 	puts("\n]");
 
-	fflush(stdout);
-	if (ferror(stdout))
+	if (fflush(stdout) || ferror(stdout))
 		fatal("write failed");
 
 	return 0;
@@ -335,6 +338,9 @@ targets(int argc, char *argv[])
 	} else {
 		targetsusage();
 	}
+
+	if (fflush(stdout) || ferror(stdout))
+		fatal("write failed");
 
 	return 0;
 }
