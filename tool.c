@@ -7,9 +7,9 @@
 #include <string.h>
 #include <unistd.h>
 #include "arg.h"
-#include "build.h"
 #include "env.h"
 #include "graph.h"
+#include "parse.h"
 #include "tool.h"
 #include "util.h"
 
@@ -162,7 +162,7 @@ commands(int argc, char *argv[])
 			targetcommands(n);
 		}
 	} else {
-		dodefault(targetcommands);
+		defaultnodes(targetcommands);
 	}
 	return ret;
 }

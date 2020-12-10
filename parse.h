@@ -1,4 +1,5 @@
 struct environment;
+struct node;
 
 struct parseoptions {
 	_Bool dupbuildwarn;
@@ -15,6 +16,5 @@ enum {
 	ninjaminor = 9,
 };
 
-/* default targets */
-extern struct node **deftarg;
-extern size_t ndeftarg;
+/* execute a function with all default nodes */
+void defaultnodes(void(struct node *));

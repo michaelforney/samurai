@@ -14,5 +14,3 @@ void buildreset(void);
 void buildadd(struct node *);
 /* execute rules to build the scheduled targets */
 void build(void);
-/* execute a function with all default nodes */
-void dodefault(void (*fn)(struct node *));
