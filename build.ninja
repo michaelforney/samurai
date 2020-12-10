@@ -1,5 +1,5 @@
 cc = cc
-cflags = -Wall -Wextra -std=c99 -pedantic
+cflags = -std=c99 -Wall -Wextra -Wpedantic -Wno-unused-parameter
 
 rule cc
   command = $cc -MD -MF $out.d $cflags -c -o $out $in
