@@ -164,7 +164,9 @@ main(int argc, char *argv[])
 		}
 		break;
 	case 'C':
-		if (chdir(EARGF(usage())) < 0)
+		arg = EARGF(usage());
+		warn("entering directory '%s'", arg);
+		if (chdir(arg) < 0)
 			fatal("chdir:");
 		break;
 	case 'd':
