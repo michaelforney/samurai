@@ -29,6 +29,11 @@
 .Nm
 .Op Fl C Ar dir
 .Op Fl f Ar buildfile
+.Fl t Cm commands
+.Op Ar target...
+.Nm
+.Op Fl C Ar dir
+.Op Fl f Ar buildfile
 .Fl t Cm query
 .Op Ar target...
 .Nm
@@ -77,6 +82,11 @@ Targets built with
 rules are only removed if
 .Fl g
 is specified.
+.Pp
+If the
+.Cm commands
+tool is used, a list of shell commands used to build the specified
+(or default) targets is printed.
 .Pp
 If the
 .Cm compdb
