@@ -208,6 +208,7 @@ formatstatus(char *buf, size_t len)
 			++ret;
 			continue;
 		}
+		n = 0;
 		switch (*fmt) {
 		case 's':
 			n = snprintf(buf, len, "%zu", nstarted);
@@ -230,14 +231,14 @@ formatstatus(char *buf, size_t len)
 		case 'o':
 			if (clock_gettime(CLOCK_MONOTONIC, &endtime) != 0) {
 				warn("clock_gettime:");
-				endtime = starttime;
+				break;
 			}
 			n = snprintf(buf, len, "%.1f", nfinished / ((endtime.tv_sec - starttime.tv_sec) + 0.000000001 * (endtime.tv_nsec - starttime.tv_nsec)));
 			break;
 		case 'e':
 			if (clock_gettime(CLOCK_MONOTONIC, &endtime) != 0) {
 				warn("clock_gettime:");
-				endtime = starttime;
+				break;
 			}
 			n = snprintf(buf, len, "%.3f", (endtime.tv_sec - starttime.tv_sec) + 0.000000001 * (endtime.tv_nsec - starttime.tv_nsec));
 			break;
