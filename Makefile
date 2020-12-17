@@ -1,4 +1,5 @@
 .POSIX:
+.PHONY: all install clean
 
 PREFIX=/usr/local
 BINDIR=$(PREFIX)/bin
@@ -31,6 +32,8 @@ HDR=\
 	tree.h\
 	util.h
 
+all: samu
+
 .c.o:
 	$(CC) $(ALL_CFLAGS) -c -o $@ $<
 
@@ -47,5 +50,3 @@ install: samu samu.1
 
 clean:
 	rm -f samu $(OBJ)
-
-.PHONY: install clean
