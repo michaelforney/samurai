@@ -1,5 +1,5 @@
 .POSIX:
-.PHONY: all install clean
+.PHONY: all install install-bin install-man clean
 
 PREFIX=/usr/local
 BINDIR=$(PREFIX)/bin
@@ -42,11 +42,13 @@ samu: $(OBJ)
 
 $(OBJ): $(HDR)
 
-install: samu samu.1
+install: install-bin install-man
+install-bin: samu
 	mkdir -p $(DESTDIR)$(BINDIR)
-	cp samu $(DESTDIR)$(BINDIR)/
+	cp $< $(DESTDIR)$(BINDIR)/
+install-man: samu.1
 	mkdir -p $(DESTDIR)$(MANDIR)/man1
-	cp samu.1 $(DESTDIR)$(MANDIR)/man1/
+	cp $< $(DESTDIR)$(MANDIR)/man1/
 
 clean:
 	rm -f samu $(OBJ)
