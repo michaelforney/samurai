@@ -20,6 +20,7 @@ build scan.o: cc scan.c
 build tool.o: cc tool.c
 build tree.o: cc tree.c
 build util.o: cc util.c
-build samu: link build.o deps.o env.o graph.o htab.o log.o parse.o samu.o scan.o tool.o tree.o util.o
+build current_rate.o : cc current_rate.c
+build samu: link build.o deps.o env.o graph.o htab.o log.o parse.o samu.o scan.o tool.o tree.o util.o current_rate.o
 
 default samu
