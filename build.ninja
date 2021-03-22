@@ -1,3 +1,5 @@
+# Demo file that's build samurai
+# -- Distributions packaging samurai are expected to use the Makefile --
 cc = cc
 cflags = -std=c99 -Wall -Wextra -Wpedantic -Wno-unused-parameter
 
