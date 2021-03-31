@@ -531,7 +531,7 @@ build(void)
 	clock_gettime(CLOCK_MONOTONIC, &starttime);
 	formatstatus(NULL, 0);
 
-	if (!work)
+	if (!work || ntotal == 0)
 		warn("nothing to do");
 
 	nstarted = 0;
