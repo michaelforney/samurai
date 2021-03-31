@@ -1,6 +1,3 @@
 *.o
-*.o.d
 .*.sw*
 /samu
-/.ninja_deps
-/.ninja_log
