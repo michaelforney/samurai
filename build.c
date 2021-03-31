@@ -540,7 +540,7 @@ build(void)
 		while (work && numjobs < buildopts.maxjobs && numfail < buildopts.maxfail) {
 			e = work;
 			work = work->worknext;
-			if (buildopts.dryrun) {
+			if (e->rule != &phonyrule && buildopts.dryrun) {
 				++nstarted;
 				printstatus(e, edgevar(e, "command", true));
 				++nfinished;
