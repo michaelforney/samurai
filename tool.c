@@ -397,10 +397,8 @@ toolget(const char *name)
 
 	if (strcmp(name, "list") == 0) {
 		printf("%s subtools:\n", argv0);
-		for (i = 0; i < LEN(tools); ++i) {
-			if (tools[i].description)
-				printf("%10s  %s\n", tools[i].name, tools[i].description);
-		}
+		for (i = 0; i < LEN(tools); ++i)
+			printf("%10s  %s\n", tools[i].name, tools[i].description);
 		exit(0);
 	}
 	t = NULL;
