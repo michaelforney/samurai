@@ -528,11 +528,13 @@ build(void)
 	size_t i, next = 0, jobslen = 0, numjobs = 0, numfail = 0;
 	struct edge *e;
 
+	if (ntotal == 0) {
+		warn("nothing to do");
+		return;
+	}
+
 	clock_gettime(CLOCK_MONOTONIC, &starttime);
 	formatstatus(NULL, 0);
-
-	if (ntotal == 0)
-		warn("nothing to do");
 
 	nstarted = 0;
 	for (;;) {
