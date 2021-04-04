@@ -42,6 +42,8 @@ parserule(struct scanner *s, struct environment *env)
 		var = scanname(s);
 		parselet(s, &val);
 		ruleaddvar(r, var, val);
+		if (!val)
+			continue;
 		if (strcmp(var, "command") == 0)
 			hascommand = true;
 		else if (strcmp(var, "rspfile") == 0)
