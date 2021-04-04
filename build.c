@@ -226,7 +226,11 @@ formatstatus(char *buf, size_t len)
 			n = snprintf(buf, len, "%zu", ntotal - nstarted);
 			break;
 		case 'p':
-			n = snprintf(buf, len, "%3zu%%", 100 * nfinished / ntotal);
+			if (ntotal > 0) {
+				n = snprintf(buf, len, "%3zu%%", 100 * nfinished / ntotal);
+			} else {
+				n = snprintf(buf, len, "  0%%");
+			}
 			break;
 		case 'o':
 			if (clock_gettime(CLOCK_MONOTONIC, &endtime) != 0) {
