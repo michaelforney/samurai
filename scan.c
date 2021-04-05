@@ -202,9 +202,9 @@ scanname(struct scanner *s)
 }
 
 static void
-addstringpart(struct evalstringpart ***end, bool var)
+addstringpart(struct evalstring ***end, bool var)
 {
-	struct evalstringpart *p;
+	struct evalstring *p;
 
 	p = xmalloc(sizeof(*p));
 	p->next = NULL;
@@ -223,7 +223,7 @@ addstringpart(struct evalstringpart ***end, bool var)
 }
 
 static void
-escape(struct scanner *s, struct evalstringpart ***end)
+escape(struct scanner *s, struct evalstring ***end)
 {
 	switch (s->chr) {
 	case '$':
@@ -265,8 +265,7 @@ escape(struct scanner *s, struct evalstringpart ***end)
 struct evalstring *
 scanstring(struct scanner *s, bool path)
 {
-	struct evalstring *str;
-	struct evalstringpart *parts = NULL, **end = &parts;
+	struct evalstring *str = NULL, **end = &str;
 
 	buf.len = 0;
 	for (;;) {
@@ -296,11 +295,6 @@ out:
 		addstringpart(&end, 0);
 	if (path)
 		space(s);
-	if (!parts)
-		return NULL;
-	str = xmalloc(sizeof(*str));
-	str->parts = parts;
-
 	return str;
 }
 

@@ -10,13 +10,9 @@ struct string {
 
 /* an unevaluated string */
 struct evalstring {
-	struct evalstringpart *parts;
-};
-
-struct evalstringpart {
 	char *var;
 	struct string *str;
-	struct evalstringpart *next;
+	struct evalstring *next;
 };
 
 #define LEN(a) (sizeof(a) / sizeof((a)[0]))

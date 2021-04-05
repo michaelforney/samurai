@@ -94,18 +94,16 @@ static struct string *
 merge(struct evalstring *str, size_t n)
 {
 	struct string *result;
-	struct evalstringpart *p;
+	struct evalstring *p;
 	char *s;
 
 	result = mkstr(n);
 	s = result->s;
-	if (str) {
-		for (p = str->parts; p; p = p->next) {
-			if (!p->str)
-				continue;
-			memcpy(s, p->str->s, p->str->n);
-			s += p->str->n;
-		}
+	for (p = str; p; p = p->next) {
+		if (!p->str)
+			continue;
+		memcpy(s, p->str->s, p->str->n);
+		s += p->str->n;
 	}
 	*s = '\0';
 
@@ -116,17 +114,15 @@ struct string *
 enveval(struct environment *env, struct evalstring *str)
 {
 	size_t n;
-	struct evalstringpart *p;
+	struct evalstring *p;
 	struct string *res;
 
 	n = 0;
-	if (str) {
-		for (p = str->parts; p; p = p->next) {
-			if (p->var)
-				p->str = envvar(env, p->var);
-			if (p->str)
-				n += p->str->n;
-		}
+	for (p = str; p; p = p->next) {
+		if (p->var)
+			p->str = envvar(env, p->var);
+		if (p->str)
+			n += p->str->n;
 	}
 	res = merge(str, n);
 	delevalstr(str);
@@ -216,8 +212,7 @@ struct string *
 edgevar(struct edge *e, char *var, bool escape)
 {
 	static const void *cycle = &cycle;
-	struct evalstring *str;
-	struct evalstringpart *p;
+	struct evalstring *str, *p;
 	struct treenode *n;
 	size_t len;
 
@@ -238,7 +233,7 @@ edgevar(struct edge *e, char *var, bool escape)
 	str = n->value;
 	n->value = (void *)cycle;
 	len = 0;
-	for (p = str->parts; p; p = p->next) {
+	for (p = str; p; p = p->next) {
 		if (p->var)
 			p->str = edgevar(e, p->var, escape);
 		if (p->str)

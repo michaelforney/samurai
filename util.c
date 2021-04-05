@@ -137,20 +137,17 @@ mkstr(size_t n)
 void
 delevalstr(void *ptr)
 {
-	struct evalstring *str = ptr;
-	struct evalstringpart *p, *next;
+	struct evalstring *str = ptr, *p;
 
-	if (!str)
-		return;
-	for (p = str->parts; p; p = next) {
-		next = p->next;
+	while (str) {
+		p = str;
+		str = str->next;
 		if (p->var)
 			free(p->var);
 		else
 			free(p->str);
 		free(p);
 	}
-	free(str);
 }
 
 void
