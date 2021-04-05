@@ -7,13 +7,6 @@
 
 #define MAXH (sizeof(void *) * 8 * 3 / 2)
 
-struct treenode {
-	char *key;
-	void *value;
-	struct treenode *child[2];
-	int height;
-};
-
 void
 deltree(struct treenode *n, void delkey(void *), void delval(void *))
 {
@@ -92,7 +85,7 @@ balance(struct treenode **p)
 	return rot(p, n, h0 < h1);
 }
 
-void *
+struct treenode *
 treefind(struct treenode *n, const char *key)
 {
 	int c;
@@ -100,7 +93,7 @@ treefind(struct treenode *n, const char *key)
 	while (n) {
 		c = strcmp(key, n->key);
 		if (c == 0)
-			return n->value;
+			return n;
 		n = n->child[c > 0];
 	}
 	return NULL;

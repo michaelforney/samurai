@@ -11,8 +11,6 @@ struct string {
 /* an unevaluated string */
 struct evalstring {
 	struct evalstringpart *parts;
-	/* used to detect cycles when evaluating rule variables */
-	_Bool visited;
 };
 
 struct evalstringpart {

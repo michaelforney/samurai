@@ -72,12 +72,12 @@ mkenv(struct environment *parent)
 struct string *
 envvar(struct environment *env, char *var)
 {
-	struct string *s;
+	struct treenode *n;
 
 	do {
-		s = treefind(env->bindings, var);
-		if (s)
-			return s;
+		n = treefind(env->bindings, var);
+		if (n)
+			return n->value;
 		env = env->parent;
 	} while (env);
 
@@ -144,12 +144,12 @@ envaddrule(struct environment *env, struct rule *r)
 struct rule *
 envrule(struct environment *env, char *name)
 {
-	struct rule *r;
+	struct treenode *n;
 
 	do {
-		r = treefind(env->rules, name);
-		if (r)
-			return r;
+		n = treefind(env->rules, name);
+		if (n)
+			return n->value;
 		env = env->parent;
 	} while (env);
 
@@ -215,10 +215,11 @@ ruleaddvar(struct rule *r, char *var, struct evalstring *val)
 struct string *
 edgevar(struct edge *e, char *var, bool escape)
 {
-	struct string *val;
+	static const void *cycle = &cycle;
 	struct evalstring *str;
 	struct evalstringpart *p;
-	size_t n;
+	struct treenode *n;
+	size_t len;
 
 	if (strcmp(var, "in") == 0)
 		return pathlist(e->in, e->inimpidx, ' ', escape);
@@ -226,24 +227,25 @@ edgevar(struct edge *e, char *var, bool escape)
 		return pathlist(e->in, e->inimpidx, '\n', escape);
 	if (strcmp(var, "out") == 0)
 		return pathlist(e->out, e->outimpidx, ' ', escape);
-	val = treefind(e->env->bindings, var);
-	if (val)
-		return val;
-	str = treefind(e->rule->bindings, var);
-	if (!str)
+	n = treefind(e->env->bindings, var);
+	if (n)
+		return n->value;
+	n = treefind(e->rule->bindings, var);
+	if (!n)
 		return envvar(e->env->parent, var);
-	if (str->visited)
+	if (n->value == cycle)
 		fatal("cycle in rule variable involving '%s'", var);
-	str->visited = true;
-	n = 0;
+	str = n->value;
+	n->value = (void *)cycle;
+	len = 0;
 	for (p = str->parts; p; p = p->next) {
 		if (p->var)
 			p->str = edgevar(e, p->var, escape);
 		if (p->str)
-			n += p->str->n;
+			len += p->str->n;
 	}
-	str->visited = false;
-	return merge(str, n);
+	n->value = str;
+	return merge(str, len);
 }
 
 static void
@@ -282,11 +284,11 @@ delpool(void *ptr)
 struct pool *
 poolget(char *name)
 {
-	struct pool *p;
+	struct treenode *n;
 
-	p = treefind(pools, name);
-	if (!p)
+	n = treefind(pools, name);
+	if (!n)
 		fatal("unknown pool '%s'", name);
 
-	return p;
+	return n->value;
 }
