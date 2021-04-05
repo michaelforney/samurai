@@ -59,18 +59,10 @@ parserule(struct scanner *s, struct environment *env)
 }
 
 static void
-pushstr(struct evalstring ***end, struct evalstring *str)
-{
-	str->next = NULL;
-	**end = str;
-	*end = &str->next;
-}
-
-static void
 parseedge(struct scanner *s, struct environment *env)
 {
 	struct edge *e;
-	struct evalstring *out, *in, *str, **end;
+	struct evalstring *str, **path;
 	char *name;
 	struct string *val;
 	struct node *n;
@@ -79,13 +71,11 @@ parseedge(struct scanner *s, struct environment *env)
 
 	e = mkedge(env);
 
-	for (out = NULL, end = &out; (str = scanstring(s, true)); ++e->nout)
-		pushstr(&end, str);
-	e->outimpidx = e->nout;
-	if (scanpipe(s, 1)) {
-		for (; (str = scanstring(s, true)); ++e->nout)
-			pushstr(&end, str);
-	}
+	scanpaths(s);
+	e->outimpidx = npaths;
+	if (scanpipe(s, 1))
+		scanpaths(s);
+	e->nout = npaths;
 	if (e->nout == 0)
 		scanerror(s, "expected output path");
 	scanchar(s, ':');
@@ -94,20 +84,17 @@ parseedge(struct scanner *s, struct environment *env)
 	if (!e->rule)
 		fatal("undefined rule '%s'", name);
 	free(name);
-	for (in = NULL, end = &in; (str = scanstring(s, true)); ++e->nin)
-		pushstr(&end, str);
-	e->inimpidx = e->nin;
+	scanpaths(s);
+	e->inimpidx = npaths - e->nout;
 	p = scanpipe(s, 1 | 2);
 	if (p == 1) {
-		for (; (str = scanstring(s, true)); ++e->nin)
-			pushstr(&end, str);
+		scanpaths(s);
 		p = scanpipe(s, 2);
 	}
-	e->inorderidx = e->nin;
-	if (p == 2) {
-		for (; (str = scanstring(s, true)); ++e->nin)
-			pushstr(&end, str);
-	}
+	e->inorderidx = npaths - e->nout;
+	if (p == 2)
+		scanpaths(s);
+	e->nin = npaths - e->nout;
 	scannewline(s);
 	while (scanindent(s)) {
 		name = scanname(s);
@@ -117,9 +104,8 @@ parseedge(struct scanner *s, struct environment *env)
 	}
 
 	e->out = xreallocarray(NULL, e->nout, sizeof(e->out[0]));
-	for (i = 0; i < e->nout; out = str) {
-		str = out->next;
-		val = enveval(e->env, out);
+	for (i = 0, path = paths; i < e->nout; ++path) {
+		val = enveval(e->env, *path);
 		canonpath(val);
 		n = mknode(val);
 		if (n->gen) {
@@ -135,16 +121,15 @@ parseedge(struct scanner *s, struct environment *env)
 			++i;
 		}
 	}
-
 	e->in = xreallocarray(NULL, e->nin, sizeof(e->in[0]));
-	for (i = 0; i < e->nin; in = str, ++i) {
-		str = in->next;
-		val = enveval(e->env, in);
+	for (i = 0; i < e->nin; ++i, ++path) {
+		val = enveval(e->env, *path);
 		canonpath(val);
 		n = mknode(val);
 		e->in[i] = n;
 		nodeuse(n, e);
 	}
+	npaths = 0;
 
 	val = edgevar(e, "pool", true);
 	if (val)
@@ -172,17 +157,14 @@ parseinclude(struct scanner *s, struct environment *env, bool newscope)
 static void
 parsedefault(struct scanner *s, struct environment *env)
 {
-	struct evalstring *targ, *str, **end;
 	struct string *path;
 	struct node *n;
-	size_t ntarg;
+	size_t i;
 
-	for (targ = NULL, ntarg = 0, end = &targ; (str = scanstring(s, true)); ++ntarg)
-		pushstr(&end, str);
-	deftarg = xreallocarray(deftarg, ndeftarg + ntarg, sizeof(*deftarg));
-	for (; targ; targ = str) {
-		str = targ->next;
-		path = enveval(env, targ);
+	scanpaths(s);
+	deftarg = xreallocarray(deftarg, ndeftarg + npaths, sizeof(*deftarg));
+	for (i = 0; i < npaths; ++i) {
+		path = enveval(env, paths[i]);
 		canonpath(path);
 		n = nodeget(path->s, path->n);
 		if (!n)
@@ -191,6 +173,7 @@ parsedefault(struct scanner *s, struct environment *env)
 		deftarg[ndeftarg++] = n;
 	}
 	scannewline(s);
+	npaths = 0;
 }
 
 static void

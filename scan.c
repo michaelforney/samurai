@@ -11,6 +11,8 @@
 #undef getc
 #define getc getc_unlocked
 
+struct evalstring **paths;
+size_t npaths;
 static struct buffer buf;
 
 void
@@ -301,6 +303,21 @@ out:
 	str->visited = false;
 
 	return str;
+}
+
+void
+scanpaths(struct scanner *s)
+{
+	static size_t max;
+	struct evalstring *str;
+
+	while ((str = scanstring(s, true))) {
+		if (npaths == max) {
+			max = max ? max * 2 : 32;
+			paths = xreallocarray(paths, max, sizeof(paths[0]));
+		}
+		paths[npaths++] = str;
+	}
 }
 
 void

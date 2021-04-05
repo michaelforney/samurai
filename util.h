@@ -11,9 +11,6 @@ struct string {
 /* an unevaluated string */
 struct evalstring {
 	struct evalstringpart *parts;
-	/* used temporarily only in parse.c:parseedge to keep track of
-	 * input/output lists before we allocate the arrays. */
-	struct evalstring *next;
 	/* used to detect cycles when evaluating rule variables */
 	_Bool visited;
 };
