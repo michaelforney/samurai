@@ -211,7 +211,7 @@ ruleaddvar(struct rule *r, char *var, struct evalstring *val)
 struct string *
 edgevar(struct edge *e, char *var, bool escape)
 {
-	static const void *cycle = &cycle;
+	static void *const cycle = (void *)&cycle;
 	struct evalstring *str, *p;
 	struct treenode *n;
 	size_t len;
@@ -231,7 +231,7 @@ edgevar(struct edge *e, char *var, bool escape)
 	if (n->value == cycle)
 		fatal("cycle in rule variable involving '%s'", var);
 	str = n->value;
-	n->value = (void *)cycle;
+	n->value = cycle;
 	len = 0;
 	for (p = str; p; p = p->next) {
 		if (p->var)
