@@ -73,32 +73,32 @@ isvar(int c)
 	return issimplevar(c) || c == '.';
 }
 
-static void
-crlf(struct scanner *s)
+static bool
+newline(struct scanner *s)
 {
-	if (next(s) != '\n')
-		scanerror(s, "expected '\\n' after '\\r'");
+	switch (s->chr) {
+	case '\r':
+		if (next(s) != '\n')
+			scanerror(s, "expected '\\n' after '\\r'");
+		/* fallthrough */
+	case '\n':
+		next(s);
+		return true;
+	}
+	return false;
 }
 
 static bool
 singlespace(struct scanner *s)
 {
-	int c;
-
 	switch (s->chr) {
 	case '$':
-		c = getc(s->f);
-		switch (c) {
-		case '\r':
-			crlf(s);
-			/* fallthrough */
-		case '\n':
-			break;
-		default:
-			ungetc(c, s->f);
-			return false;
-		}
-		/* fallthrough */
+		next(s);
+		if (newline(s))
+			return true;
+		ungetc(s->chr, s->f);
+		s->chr = '$';
+		return false;
 	case ' ':
 		next(s);
 		return true;
@@ -122,8 +122,7 @@ comment(struct scanner *s)
 	if (s->chr != '#')
 		return false;
 	do next(s);
-	while (s->chr != '\n');
-	next(s);
+	while (!newline(s));
 	return true;
 }
 
@@ -162,17 +161,15 @@ scankeyword(struct scanner *s, char **var)
 		switch (s->chr) {
 		case ' ':
 			space(s);
-			if (s->chr != '#')
+			if (!comment(s) && !newline(s))
 				scanerror(s, "unexpected indent");
-			/* fallthrough */
+			break;
 		case '#':
 			comment(s);
 			break;
 		case '\r':
-			crlf(s);
-			/* fallthrough */
 		case '\n':
-			next(s);
+			newline(s);
 			break;
 		case EOF:
 			return EOF;
@@ -243,10 +240,8 @@ escape(struct scanner *s, struct evalstring ***end)
 		addstringpart(end, true);
 		break;
 	case '\r':
-		crlf(s);
-		/* fallthrough */
 	case '\n':
-		next(s);
+		newline(s);
 		space(s);
 		break;
 	default:
@@ -349,21 +344,13 @@ scanindent(struct scanner *s)
 	for (;;) {
 		indent = space(s);
 		if (!comment(s))
-			return indent;
+			return indent && !newline(s);
 	}
 }
 
 void
 scannewline(struct scanner *s)
 {
-	switch (s->chr) {
-	case '\r':
-		crlf(s);
-		/* fallthrough */
-	case '\n':
-		next(s);
-		break;
-	default:
+	if (!newline(s))
 		scanerror(s, "expected newline");
-	}
 }
