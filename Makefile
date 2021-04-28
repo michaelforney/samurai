@@ -3,7 +3,9 @@
 
 PREFIX=/usr/local
 BINDIR=$(PREFIX)/bin
-MANDIR=$(PREFIX)/share/man
+DATADIR=$(PREFIX)/share
+DOCDIR=$(DATADIR)/doc/samurai
+MANDIR=$(DATADIR)/man
 ALL_CFLAGS=$(CFLAGS) -std=c99 -Wall -Wextra -Wpedantic -Wno-unused-parameter
 OBJ=\
 	build.o\
@@ -45,6 +47,9 @@ $(OBJ): $(HDR)
 install: samu samu.1
 	mkdir -p $(DESTDIR)$(BINDIR)
 	cp samu $(DESTDIR)$(BINDIR)/
+	mkdir -p $(DESTDIR)$(DOCDIR)
+	cp LICENSE $(DESTDIR)$(DOCDIR)
+	cp README.md $(DESTDIR)$(DOCDIR)
 	mkdir -p $(DESTDIR)$(MANDIR)/man1
 	cp samu.1 $(DESTDIR)$(MANDIR)/man1/
 
