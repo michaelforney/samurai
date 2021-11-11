@@ -172,72 +172,6 @@ commands(int argc, char *argv[])
 }
 
 static void
-graphviznode(struct node *n)
-{
-	size_t i;
-	char *order_only;
-	struct edge *e;
-
-	printf("\"%p\" [label=\"%s\"]\n", (void *)n, n->path->s);
-
-	e = n->gen;
-	if (!e || (e->flags & FLAG_WORK))
-		return;
-	e->flags |= FLAG_WORK;
-
-	for (i = 0; i < e->nin; i++)
-		graphviznode(e->in[i]);
-
-	if (e->nin == 1 && e->nout == 1) {
-		printf("\"%p\" -> \"%p\" [label=\" %s\"]\n", (void *)e->in[0], (void *)e->out[0], e->rule->name);
-	} else {
-		printf("\"%p\" [label=\"%s\", shape=ellipse]\n", (void *)e, e->rule->name);
-		for (i = 0; i < e->nout; i++)
-			printf("\"%p\" -> \"%p\"\n", (void *)e, (void *)e->out[i]);
-		for (i = 0; i < e->nin; i++) {
-			order_only = "";
-			if (i >= e->inorderidx)
-				order_only = " style=dotted";
-			printf("\"%p\" -> \"%p\" [arrowhead=none%s]\n", (void *)e->in[i], (void *)e, order_only);
-		}
-	}
-}
-
-static int
-graphviz(int argc, char *argv[])
-{
-	int ret = 0;
-	struct node *n;
-
-	puts("digraph ninja {");
-	puts("rankdir=\"LR\"");
-	puts("node [fontsize=10, shape=box, height=0.25]");
-	puts("edge [fontsize=10]");
-
-	if (argc) {
-		while (*++argv) {
-			n = nodeget(*argv, 0);
-			if (!n) {
-				warn("unknown target '%s'", *argv);
-				ret = 1;
-				continue;
-			}
-			graphviznode(n);
-		}
-	} else {
-		defaultnodes(graphviznode);
-	}
-
-	puts("}");
-
-	fflush(stdout);
-	if (ferror(stdout))
-		fatal("write failed");
-
-	return ret;
-}
-
-static void
 printjson(const char *s, size_t n, bool join)
 {
 	size_t i;
@@ -329,6 +263,69 @@ compdb(int argc, char *argv[])
 		fatal("write failed");
 
 	return 0;
+}
+
+static void
+graphnode(struct node *n)
+{
+	size_t i;
+	const char *style;
+	struct edge *e;
+
+	printf("\"%p\" [label=\"%s\"]\n", (void *)n, n->path->s);
+
+	e = n->gen;
+	if (!e || (e->flags & FLAG_WORK))
+		return;
+	e->flags |= FLAG_WORK;
+
+	for (i = 0; i < e->nin; ++i)
+		graphnode(e->in[i]);
+
+	if (e->nin == 1 && e->nout == 1) {
+		printf("\"%p\" -> \"%p\" [label=\"%s\"]\n", (void *)e->in[0], (void *)e->out[0], e->rule->name);
+	} else {
+		printf("\"%p\" [label=\"%s\", shape=ellipse]\n", (void *)e, e->rule->name);
+		for (i = 0; i < e->nout; i++)
+			printf("\"%p\" -> \"%p\"\n", (void *)e, (void *)e->out[i]);
+		for (i = 0; i < e->nin; i++) {
+			style = i >= e->inorderidx ? " style=dotted" : "";
+			printf("\"%p\" -> \"%p\" [arrowhead=none%s]\n", (void *)e->in[i], (void *)e, style);
+		}
+	}
+}
+
+static int
+graph(int argc, char *argv[])
+{
+	int ret = 0;
+	struct node *n;
+
+	puts("digraph ninja {");
+	puts("rankdir=\"LR\"");
+	puts("node [fontsize=10, shape=box, height=0.25]");
+	puts("edge [fontsize=10]");
+
+	if (argc > 1) {
+		while (*++argv) {
+			n = nodeget(*argv, 0);
+			if (!n) {
+				warn("unknown target '%s'", *argv);
+				ret = 1;
+				continue;
+			}
+			graphnode(n);
+		}
+	} else {
+		defaultnodes(graphnode);
+	}
+
+	puts("}");
+
+	if (fflush(stdout) || ferror(stdout))
+		fatal("write failed");
+
+	return ret;
 }
 
 static void
@@ -451,9 +448,9 @@ static const struct tool tools[] = {
 	{"clean", "remove build outputs", clean},
 	{"commands", "show commands to build the given targets", commands},
 	{"compdb", "dump compilation database", compdb},
+	{"graph", "output graphviz dot file for targets", graph},
 	{"query", "show incoming/outgoing edges for a path", query},
 	{"targets", "list targets", targets},
-	{"graph", "output graphviz dot file for targets", graphviz},
 };
 
 const struct tool *

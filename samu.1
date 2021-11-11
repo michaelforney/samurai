@@ -34,6 +34,11 @@
 .Nm
 .Op Fl C Ar dir
 .Op Fl f Ar buildfile
+.Fl t Cm graph
+.Op Ar target...
+.Nm
+.Op Fl C Ar dir
+.Op Fl f Ar buildfile
 .Fl t Cm query
 .Op Ar target...
 .Nm
@@ -93,6 +98,10 @@ If the
 tool is used, a compilation database
 .Pq Lk https://clang.llvm.org/docs/JSONCompilationDatabase.html
 is printed instead.
+.Pp
+If the
+.Cm graph
+tool is used, a graphviz dot file is printed instead.
 .Pp
 If the
 .Cm query
@@ -184,6 +193,7 @@ The currently supported subtools are
 .Cm clean ,
 .Cm commands ,
 .Cm compdb ,
+.Cm graph ,
 .Cm query ,
 and
 .Cm targets .
