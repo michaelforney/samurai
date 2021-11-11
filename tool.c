@@ -148,17 +148,13 @@ targetcommands(struct node *n)
 static int
 commands(int argc, char *argv[])
 {
-	int ret = 0;
 	struct node *n;
 
 	if (argc > 1) {
 		while (*++argv) {
 			n = nodeget(*argv, 0);
-			if (!n) {
-				warn("unknown target '%s'", *argv);
-				ret = 1;
-				continue;
-			}
+			if (!n)
+				fatal("unknown target '%s'", *argv);
 			targetcommands(n);
 		}
 	} else {
@@ -168,7 +164,7 @@ commands(int argc, char *argv[])
 	if (fflush(stdout) || ferror(stdout))
 		fatal("write failed");
 
-	return ret;
+	return 0;
 }
 
 static void
@@ -297,7 +293,6 @@ graphnode(struct node *n)
 static int
 graph(int argc, char *argv[])
 {
-	int ret = 0;
 	struct node *n;
 
 	puts("digraph ninja {");
@@ -308,11 +303,8 @@ graph(int argc, char *argv[])
 	if (argc > 1) {
 		while (*++argv) {
 			n = nodeget(*argv, 0);
-			if (!n) {
-				warn("unknown target '%s'", *argv);
-				ret = 1;
-				continue;
-			}
+			if (!n)
+				fatal("unknown target '%s'", *argv);
 			graphnode(n);
 		}
 	} else {
@@ -324,7 +316,7 @@ graph(int argc, char *argv[])
 	if (fflush(stdout) || ferror(stdout))
 		fatal("write failed");
 
-	return ret;
+	return 0;
 }
 
 static int
