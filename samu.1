@@ -11,6 +11,7 @@
 .Op Fl f Ar buildfile
 .Op Fl j Ar maxjobs
 .Op Fl k Ar maxfail
+.Op Fl l Ar maxload
 .Op Fl w Ar warnflag=action
 .Op Fl nv
 .Op Ar target...
@@ -163,6 +164,10 @@ Allow up to
 .Ar maxfail
 job failures.
 If negative or zero, allow any number of job failures.
+.It Fl l
+Do not spawn new jobs if the system load percentage is greater than
+.Ar maxload .
+If zero, spawn jobs as soon as possible.
 .It Fl n
 Do not actually execute the commands or update the log.
 .It Fl v
@@ -217,9 +222,10 @@ that get applied before those specified on the command-line.
 The only options allowed in
 .Ev SAMUFLAGS
 are
-.Fl v
+.Fl v ,
+.Fl j
 and
-.Fl j .
+.Fl l .
 .It Ev NINJA_STATUS
 The status output printed to the left of each rule description, using printf-like conversion specifiers.
 If unset, the default is "[%s/%t] ".

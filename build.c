@@ -1,4 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
+#ifndef NO_GETLOADAVG
+#define _BSD_SOURCE /* for getloadavg */
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -520,12 +523,30 @@ done:
 	return false;
 }
 
+/* queries the system load average */
+static double
+queryload(void)
+{
+#ifdef NO_GETLOADAVG
+	return 0;
+#else
+	double load;
+
+	if (getloadavg(&load, 1) == -1) {
+		warn("getloadavg:");
+		load = 100.0;
+	}
+
+	return load;
+#endif
+}
+
 void
 build(void)
 {
 	struct job *jobs = NULL;
 	struct pollfd *fds = NULL;
-	size_t i, next = 0, jobslen = 0, numjobs = 0, numfail = 0;
+	size_t i, next = 0, jobslen = 0, maxjobs = buildopts.maxjobs, numjobs = 0, numfail = 0;
 	struct edge *e;
 
 	if (ntotal == 0) {
@@ -538,8 +559,11 @@ build(void)
 
 	nstarted = 0;
 	for (;;) {
+		/* limit number of of jobs based on load */
+		if (buildopts.maxload)
+			maxjobs = queryload() > buildopts.maxload ? 1 : buildopts.maxjobs;
 		/* start ready edges */
-		while (work && numjobs < buildopts.maxjobs && numfail < buildopts.maxfail) {
+		while (work && numjobs < maxjobs && numfail < buildopts.maxfail) {
 			e = work;
 			work = work->worknext;
 			if (e->rule != &phonyrule && buildopts.dryrun) {
@@ -578,7 +602,7 @@ build(void)
 		}
 		if (numjobs == 0)
 			break;
-		if (poll(fds, jobslen, -1) < 0)
+		if (poll(fds, jobslen, 5000) < 0)
 			fatal("poll:");
 		for (i = 0; i < jobslen; ++i) {
 			if (!fds[i].revents || jobwork(&jobs[i]))
