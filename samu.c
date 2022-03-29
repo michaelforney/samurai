@@ -20,7 +20,7 @@ const char *argv0;
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: %s [-C dir] [-f buildfile] [-j maxjobs] [-k maxfail] [-n]\n", argv0);
+	fprintf(stderr, "usage: %s [-C dir] [-f buildfile] [-j maxjobs] [-k maxfail] [-l maxload] [-n]\n", argv0);
 	exit(2);
 }
 
@@ -48,6 +48,23 @@ debugflag(const char *flag)
 		buildopts.keeprsp = true;
 	else
 		fatal("unknown debug flag '%s'", flag);
+}
+
+static void
+loadflag(const char *flag)
+{
+#ifdef NO_GETLOADAVG
+	warn("job scheduling based on load average is not implemented");
+#else
+	double value;
+	char *end;
+	errno = 0;
+
+	value = strtod(flag, &end);
+	if (*end || value < 0 || errno != 0)
+		fatal("invalid -l parameter");
+	buildopts.maxload = value;
+#endif
 }
 
 static void
@@ -99,6 +116,9 @@ parseenvargs(char *env)
 		break;
 	case 'v':
 		buildopts.verbose = true;
+		break;
+	case 'l':
+		loadflag(EARGF(usage()));
 		break;
 	default:
 		fatal("invalid option in SAMUFLAGS");
@@ -163,8 +183,7 @@ main(int argc, char *argv[])
 		buildopts.maxfail = num > 0 ? num : -1;
 		break;
 	case 'l':
-		warn("job scheduling based on load average is not implemented");
-		EARGF(usage());
+		loadflag(EARGF(usage()));
 		break;
 	case 'n':
 		buildopts.dryrun = true;
