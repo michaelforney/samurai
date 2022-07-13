@@ -203,8 +203,8 @@ main(int argc, char *argv[])
 argdone:
 	if (!buildopts.maxjobs) {
 #ifdef _SC_NPROCESSORS_ONLN
-		int n = sysconf(_SC_NPROCESSORS_ONLN);
-		switch (n) {
+		int nproc = sysconf(_SC_NPROCESSORS_ONLN);
+		switch (nproc) {
 		case -1: case 0: case 1:
 			buildopts.maxjobs = 2;
 			break;
@@ -212,7 +212,7 @@ argdone:
 			buildopts.maxjobs = 3;
 			break;
 		default:
-			buildopts.maxjobs = n + 2;
+			buildopts.maxjobs = nproc + 2;
 			break;
 		}
 #else
