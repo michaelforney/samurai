@@ -1,6 +1,12 @@
 #define _POSIX_C_SOURCE 200809L
+/* expose getloadavg */
 #ifndef NO_GETLOADAVG
-#define _BSD_SOURCE /* for getloadavg */
+#if defined(__APPLE__) && defined(__MACH__)
+#define _DARWIN_C_SOURCE
+#else
+#define _BSD_SOURCE
+#define _DEFAULT_SOURCE /* silence glibc >= 2.19 warning */
+#endif
 #endif
 #include <errno.h>
 #include <fcntl.h>
