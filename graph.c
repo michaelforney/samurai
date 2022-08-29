@@ -119,7 +119,7 @@ nodepath(struct node *n, bool escape)
 	escape = false;
 	nquote = 0;
 	for (s = n->path->s; *s; ++s) {
-		if (!isalnum((int)(*s)) && !strchr("_+-./", *s))
+		if (!isalnum(*(unsigned char *)s) && !strchr("_+-./", *s))
 			escape = true;
 		if (*s == '\'')
 			++nquote;
