@@ -18,7 +18,7 @@ cleanpath(struct string *path)
 {
 	if (path) {
 		if (remove(path->s) == 0) {
-			printf("remove %s\n", path->s);
+			info("remove %s\n", path->s);
 		} else if (errno != ENOENT) {
 			warn("remove %s:", path->s);
 			return -1;

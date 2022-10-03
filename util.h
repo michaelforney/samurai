@@ -19,6 +19,9 @@ struct evalstring {
 
 void warn(const char *, ...);
 void fatal(const char *, ...);
+void info(const char *, ...);
+void vwarn_custom(const char *fmt, va_list ap);
+void warn_custom(const char *fmt, ...);
 
 void *xmalloc(size_t);
 void *xreallocarray(void *, size_t, size_t);

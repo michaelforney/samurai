@@ -272,8 +272,7 @@ printstatus(struct edge *e, struct string *cmd)
 	if (!description || description->n == 0)
 		description = cmd;
 	formatstatus(status, sizeof(status));
-	fputs(status, stdout);
-	puts(description->s);
+	info("%s%s\n", status, description->s);
 }
 
 static int

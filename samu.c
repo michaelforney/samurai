@@ -16,11 +16,12 @@
 #include "util.h"
 
 const char *argv0;
+bool quiet;
 
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: %s [-C dir] [-f buildfile] [-j maxjobs] [-k maxfail] [-l maxload] [-n]\n", argv0);
+	fprintf(stderr, "usage: %s [-C dir] [-f buildfile] [-j maxjobs] [-k maxfail] [-l maxload] [-n] [-q]\n", argv0);
 	exit(2);
 }
 
@@ -187,6 +188,9 @@ main(int argc, char *argv[])
 		break;
 	case 'n':
 		buildopts.dryrun = true;
+		break;
+	case 'q':
+		quiet = true;
 		break;
 	case 't':
 		tool = toolget(EARGF(usage()));

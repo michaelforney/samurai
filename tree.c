@@ -1,5 +1,6 @@
 /* Based on musl's src/search/tsearch.c, by Szabolcs Nagy.
  * See LICENSE file for copyright details. */
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include "tree.h"

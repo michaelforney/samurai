@@ -10,10 +10,35 @@
 #include "util.h"
 
 extern const char *argv0;
+extern bool quiet;
+
+void
+vwarn_custom(const char *fmt, va_list ap)
+{
+	if (quiet) {
+		return;
+	}
+
+	vfprintf(stderr, fmt, ap);
+}
+
+void
+warn_custom(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vwarn_custom(fmt, ap);
+	va_end(ap);
+}
 
 static void
 vwarn(const char *fmt, va_list ap)
 {
+	if (quiet) {
+		return;
+	}
+
 	fprintf(stderr, "%s: ", argv0);
 	vfprintf(stderr, fmt, ap);
 	if (fmt[0] && fmt[strlen(fmt) - 1] == ':') {
@@ -43,6 +68,20 @@ fatal(const char *fmt, ...)
 	vwarn(fmt, ap);
 	va_end(ap);
 	exit(1);
+}
+
+void
+info(const char *fmt, ...)
+{
+	if (quiet) {
+		return;
+	}
+
+	va_list ap;
+
+	va_start(ap, fmt);
+	vfprintf(stdout, fmt, ap);
+	va_end(ap);
 }
 
 void *

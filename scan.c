@@ -39,11 +39,11 @@ scanerror(struct scanner *s, const char *fmt, ...)
 	extern const char *argv0;
 	va_list ap;
 
-	fprintf(stderr, "%s: %s:%d:%d: ", argv0, s->path, s->line, s->col);
+	warn_custom("%s: %s:%d:%d: ", argv0, s->path, s->line, s->col);
 	va_start(ap, fmt);
-	vfprintf(stderr, fmt, ap);
+	vwarn_custom(fmt, ap);
 	va_end(ap);
-	putc('\n', stderr);
+	warn_custom("\n");
 	exit(1);
 }
 
