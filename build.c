@@ -28,7 +28,7 @@ struct job {
 	bool failed;
 };
 
-struct buildoptions buildopts = {.maxfail = 1};
+struct buildoptions buildopts = {.maxfail = 1, .gmakepipe = {-1, -1} };
 static struct edge *work;
 static size_t nstarted, nfinished, ntotal;
 static bool consoleused;
@@ -542,13 +542,19 @@ void
 build(void)
 {
 	struct job *jobs = NULL;
-	struct pollfd *fds = NULL;
-	size_t i, next = 0, jobslen = 0, maxjobs = buildopts.maxjobs, numjobs = 0, numfail = 0;
+	struct pollfd *fds = NULL, tokenin = { .fd = -1, .events = POLLIN };
+	size_t i, next = 0, jobslen = 0, maxjobs = buildopts.maxjobs, numjobs = 0, numfail = 0, gmakeread;
 	struct edge *e;
+	char gmaketokens[512], *gmakelatest = gmaketokens;
 
 	if (ntotal == 0) {
 		warn("nothing to do");
 		return;
+	}
+
+	if (buildopts.gmakepipe[0] >= 0) {
+		maxjobs = 1; /* will change dynamically as tokens are exchanged */
+		tokenin.fd = buildopts.gmakepipe[0];
 	}
 
 	clock_gettime(CLOCK_MONOTONIC, &starttime);
@@ -556,6 +562,17 @@ build(void)
 
 	nstarted = 0;
 	for (;;) {
+		/* see if GNU/make has authorized more jobs */
+		if (poll(&tokenin, 1, 0) > 0) {
+			gmakeread = gmakelatest - gmaketokens;
+			gmakeread = read(buildopts.gmakepipe[0], gmakelatest, 512 - gmakeread > ntotal - nstarted ? ntotal - nstarted : 512 - gmakeread);
+			if (gmakeread < 0) {
+				warn("read from jobserver:");
+				gmakeread = 0;
+			}
+			gmakelatest += gmakeread;
+			maxjobs += gmakeread;
+		}
 		/* limit number of of jobs based on load */
 		if (buildopts.maxload)
 			maxjobs = queryload() > buildopts.maxload ? 1 : buildopts.maxjobs;
@@ -610,6 +627,19 @@ build(void)
 			next = i;
 			if (jobs[i].failed)
 				++numfail;
+			/* must return the GNU/tokens once a job is done */
+			if (buildopts.gmakepipe[1] > 0 && gmakelatest != gmaketokens) {
+				if (write(buildopts.gmakepipe[1], --gmakelatest, 1) < 0) {
+					warn("write to jobserver:");
+				}
+				--maxjobs;
+			}
+		}
+	}
+	/* return remaining GNU/tokens */
+	if (buildopts.gmakepipe[1] >= 0) {
+		if (write(buildopts.gmakepipe[1], gmaketokens, gmakelatest - gmaketokens) < 0) {
+			warn("last write to jobserver:");
 		}
 	}
 	for (i = 0; i < jobslen; ++i)
