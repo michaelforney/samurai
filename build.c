@@ -33,6 +33,7 @@ static struct edge *work;
 static size_t nstarted, nfinished, ntotal;
 static bool consoleused;
 static struct timespec starttime;
+static char gmaketokens[512], *gmakelatest = gmaketokens;
 
 void
 buildreset(void)
@@ -319,6 +320,15 @@ jobstart(struct job *j, struct edge *e)
 		warn("posix_spawn_file_actions_addclose:");
 		goto err3;
 	}
+	if (buildopts.gmakepipe[0] >= 0) {
+		/* do not allow children to steal GNU/tokens */
+		for (i = 0; i < 2; ++i) {
+			if ((errno = posix_spawn_file_actions_addclose(&actions, buildopts.gmakepipe[i]))) {
+				warn("posix_spawn_file_actions_addclose:");
+				goto err3;
+			}
+		}
+	}
 	if (e->pool != &consolepool) {
 		if ((errno = posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0))) {
 			warn("posix_spawn_file_actions_addopen:");
@@ -538,14 +548,24 @@ queryload(void)
 #endif
 }
 
+/* returns remaining GNU/tokens */
+static void
+returngmake(void)
+{
+	if (buildopts.gmakepipe[1] >= 0) {
+		if (write(buildopts.gmakepipe[1], gmaketokens, gmakelatest - gmaketokens) < 0)
+			warn("last write to jobserver:");
+	}
+}
+
 void
 build(void)
 {
 	struct job *jobs = NULL;
 	struct pollfd *fds = NULL, tokenin = { .fd = -1, .events = POLLIN };
-	size_t i, next = 0, jobslen = 0, maxjobs = buildopts.maxjobs, numjobs = 0, numfail = 0, gmakeread;
+	size_t i, next = 0, jobslen = 0, maxjobs = buildopts.maxjobs, numjobs = 0, numfail = 0;
+	ssize_t gmakeread;
 	struct edge *e;
-	char gmaketokens[512], *gmakelatest = gmaketokens;
 
 	if (ntotal == 0) {
 		warn("nothing to do");
@@ -553,8 +573,12 @@ build(void)
 	}
 
 	if (buildopts.gmakepipe[0] >= 0) {
-		maxjobs = 1; /* will change dynamically as tokens are exchanged */
-		tokenin.fd = buildopts.gmakepipe[0];
+		if (atexit(returngmake) == 0) {
+			maxjobs = 1; /* will change dynamically as tokens are exchanged */
+			tokenin.fd = buildopts.gmakepipe[0];
+		} else {
+			warn("unable to register an atexit() function");
+		}
 	}
 
 	clock_gettime(CLOCK_MONOTONIC, &starttime);
@@ -565,7 +589,7 @@ build(void)
 		/* see if GNU/make has authorized more jobs */
 		if (poll(&tokenin, 1, 0) > 0) {
 			gmakeread = gmakelatest - gmaketokens;
-			gmakeread = read(buildopts.gmakepipe[0], gmakelatest, 512 - gmakeread > ntotal - nstarted ? ntotal - nstarted : 512 - gmakeread);
+			gmakeread = read(buildopts.gmakepipe[0], gmakelatest, 512 - (size_t)gmakeread > ntotal - nstarted ? ntotal - nstarted : 512 - gmakeread);
 			if (gmakeread < 0) {
 				warn("read from jobserver:");
 				gmakeread = 0;
@@ -634,12 +658,6 @@ build(void)
 				}
 				--maxjobs;
 			}
-		}
-	}
-	/* return remaining GNU/tokens */
-	if (buildopts.gmakepipe[1] >= 0) {
-		if (write(buildopts.gmakepipe[1], gmaketokens, gmakelatest - gmaketokens) < 0) {
-			warn("last write to jobserver:");
 		}
 	}
 	for (i = 0; i < jobslen; ++i)
