@@ -556,14 +556,26 @@ static void
 returngmake(void)
 {
 	if (buildopts.gmakepipe[1] >= 0) {
-		if (write(buildopts.gmakepipe[1], gmaketokens, gmakelatest - gmaketokens) < 0)
+		if (write(buildopts.gmakepipe[1], gmaketokens, gmakelatest - gmaketokens) < 0) {
 			warn("last write to jobserver:");
+		} else {
+			gmakelatest = gmaketokens;
+		}
 	}
+}
+
+static void
+termsignal(int signum)
+{
+	write(2, "samu: terminating due to signal\n", 32);
+	returngmake();
+	_exit(128 + signum);
 }
 
 void
 build(void)
 {
+	struct sigaction sact = { 0 };
 	struct job *jobs = NULL;
 	struct pollfd *fds = NULL, tokenin = { .fd = -1, .events = POLLIN };
 	size_t i, next = 0, jobslen = 0, maxjobs = buildopts.maxjobs, numjobs = 0, numfail = 0;
@@ -579,6 +591,10 @@ build(void)
 		if (atexit(returngmake) == 0) {
 			maxjobs = 1; /* will change dynamically as tokens are exchanged */
 			tokenin.fd = buildopts.gmakepipe[0];
+			sact.sa_handler = termsignal;
+			sigaction(SIGTERM, &sact, NULL);
+			sigaction(SIGINT, &sact, NULL);
+			sigaction(SIGPIPE, &sact, NULL);
 		} else {
 			warn("unable to register an atexit() function");
 		}
