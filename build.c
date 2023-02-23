@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #ifndef NO_GETLOADAVG
 #define _BSD_SOURCE /* for getloadavg */
+#define _DARWIN_C_SOURCE /* for getloadavg */
 #endif
 #include <errno.h>
 #include <fcntl.h>
