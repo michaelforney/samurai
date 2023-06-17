@@ -58,7 +58,7 @@ xmalloc(size_t n)
 }
 
 static void *
-reallocarray(void *p, size_t n, size_t m)
+reallocarray_(void *p, size_t n, size_t m)
 {
 	if (m && n > SIZE_MAX / m) {
 		errno = ENOMEM;
@@ -70,7 +70,7 @@ reallocarray(void *p, size_t n, size_t m)
 void *
 xreallocarray(void *p, size_t n, size_t m)
 {
-	p = reallocarray(p, n, m);
+	p = reallocarray_(p, n, m);
 	if (!p)
 		fatal("reallocarray:");
 
