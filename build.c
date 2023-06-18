@@ -449,7 +449,7 @@ jobdone(struct job *j)
 		j->failed = true;
 	} else if (WIFEXITED(status)) {
 		if (WEXITSTATUS(status) != 0) {
-			warn("job failed: %s", j->cmd->s);
+			warn("job failed with status %d: %s", WEXITSTATUS(status), j->cmd->s);
 			j->failed = true;
 		}
 	} else if (WIFSIGNALED(status)) {
