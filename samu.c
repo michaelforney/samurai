@@ -54,9 +54,7 @@ debugflag(const char *flag)
 static void
 loadflag(const char *flag)
 {
-#ifdef NO_GETLOADAVG
-	warn("job scheduling based on load average is not implemented");
-#else
+#ifdef HAVE_GETLOADAVG
 	double value;
 	char *end;
 	errno = 0;
@@ -65,6 +63,8 @@ loadflag(const char *flag)
 	if (*end || value < 0 || errno != 0)
 		fatal("invalid -l parameter");
 	buildopts.maxload = value;
+#else
+	warn("job scheduling based on load average is not supported");
 #endif
 }
 
@@ -260,8 +260,8 @@ argdone:
 		buildopts.maxload = 0;
 	} else if (!buildopts.maxjobs) {
 #ifdef _SC_NPROCESSORS_ONLN
-		int n = sysconf(_SC_NPROCESSORS_ONLN);
-		switch (n) {
+		int nproc = sysconf(_SC_NPROCESSORS_ONLN);
+		switch (nproc) {
 		case -1: case 0: case 1:
 			buildopts.maxjobs = 2;
 			break;
@@ -269,7 +269,7 @@ argdone:
 			buildopts.maxjobs = 3;
 			break;
 		default:
-			buildopts.maxjobs = n + 2;
+			buildopts.maxjobs = nproc + 2;
 			break;
 		}
 #else

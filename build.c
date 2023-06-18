@@ -1,7 +1,4 @@
 #define _POSIX_C_SOURCE 200809L
-#ifndef NO_GETLOADAVG
-#define _BSD_SOURCE /* for getloadavg */
-#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -462,7 +459,7 @@ jobdone(struct job *j)
 		j->failed = true;
 	} else if (WIFEXITED(status)) {
 		if (WEXITSTATUS(status) != 0) {
-			warn("job failed: %s", j->cmd->s);
+			warn("job failed with status %d: %s", WEXITSTATUS(status), j->cmd->s);
 			j->failed = true;
 		}
 	} else if (WIFSIGNALED(status)) {
@@ -537,9 +534,7 @@ done:
 static double
 queryload(void)
 {
-#ifdef NO_GETLOADAVG
-	return 0;
-#else
+#ifdef HAVE_GETLOADAVG
 	double load;
 
 	if (getloadavg(&load, 1) == -1) {
@@ -548,6 +543,8 @@ queryload(void)
 	}
 
 	return load;
+#else
+	return 0;
 #endif
 }
 

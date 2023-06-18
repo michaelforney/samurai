@@ -19,9 +19,10 @@ It is feature-complete and supports most of the same options as ninja.
 
 samurai requires various POSIX.1-2008 interfaces.
 
-Scheduling jobs based on load average requires through the non-standard, but
-widely available `getloadavg` function. This feature can be disabled by
-defining the `NO_GETLOADAVG` macro when calling the C compiler.
+Scheduling jobs based on load average requires the non-standard
+`getloadavg` function. This feature can be enabled by defining
+`HAVE_GETLOADAVG` in your `CFLAGS`, along with any other necessary
+definitions for your platform.
 
 ## Differences from ninja
 
