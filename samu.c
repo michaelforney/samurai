@@ -101,18 +101,21 @@ jobserverflags(const char *flag)
 
 	if (!flag)
 		return;
-	if (sscanf(flag, "%d,%d", &read_end, &write_end) == 2 && read_end >= 0 && write_end >= 0) {
-		check[0].fd = read_end;
-		check[1].fd = write_end;
+	if (sscanf(flag, "%d,%d", &read_end, &write_end) == 2) {
+		/* prepare error message */
+		errno = EBADF;
 	} else if (sscanf(flag,"fifo:%ms", &fifo_path) == 1) {
-		check[0].fd = open(fifo_path, O_RDONLY);
-		check[1].fd = open(fifo_path, O_WRONLY);
+		read_end = open(fifo_path, O_RDONLY);
+		write_end = open(fifo_path, O_WRONLY);
 		free(fifo_path);
 	} else {
 		fatal("invalid jobserver parameter");
 	}
-	if (poll(check, 2, 0) == -1 || check[0].revents & POLLNVAL || check[1].revents & POLLNVAL) {
-		fatal("jobserver fds are not open");
+
+	check[0].fd = read_end;
+	check[1].fd = write_end;
+	if (write_end <= 0 || read_end <= 0 || poll(check, 2, 0) == -1 || check[0].revents & POLLNVAL || check[1].revents & POLLNVAL) {
+		fatal("invalid jobserver fds:");
 		return;
 	}
 	buildopts.gmakepipe[0] = check[0].fd;
