@@ -549,23 +549,28 @@ queryload(void)
 }
 
 /* returns remaining GNU/tokens */
-static void
+static ssize_t
 returngmake(void)
 {
-	if (buildopts.gmakepipe[1] >= 0) {
-		if (write(buildopts.gmakepipe[1], gmaketokens, gmakelatest - gmaketokens) < 0) {
-			warn("last write to jobserver:");
-		} else {
+	ssize_t returned = 0;
+	if (buildopts.gmakepipe[1] >= 0)
+		if ((returned = write(buildopts.gmakepipe[1], gmaketokens, gmakelatest - gmaketokens)) >= 0)
 			gmakelatest = gmaketokens;
-		}
-	}
+	return returned;
+}
+
+static void
+gmakeatexit(void)
+{
+	if (returngmake() < 0)
+		warn("last write to jobserver:");
 }
 
 static void
 termsignal(int signum)
 {
-	write(2, "samu: terminating due to signal\n", 32);
-	returngmake();
+	write(2, "terminating due to signal\n", 27);
+	(void)returngmake();
 	_exit(128 + signum);
 }
 
@@ -585,7 +590,7 @@ build(void)
 	}
 
 	if (buildopts.gmakepipe[0] >= 0) {
-		if (atexit(returngmake) == 0) {
+		if (atexit(gmakeatexit) == 0) {
 			maxjobs = 1; /* will change dynamically as tokens are exchanged */
 			tokenin.fd = buildopts.gmakepipe[0];
 			sact.sa_handler = termsignal;
