@@ -6,6 +6,7 @@
 #include <string.h>
 #include <unistd.h>  /* for chdir */
 #include <poll.h>   /* for poll  */
+#include <fcntl.h> /* for open */
 #include "arg.h"
 #include "build.h"
 #include "deps.h"
@@ -95,24 +96,28 @@ static void
 jobserverflags(const char *flag)
 {
 	int read_end, write_end;
+	char *fifo_path;
 	struct pollfd check[2];
 
 	if (!flag)
 		return;
 	if (sscanf(flag, "%d,%d", &read_end, &write_end) == 2 && read_end >= 0 && write_end >= 0) {
-		/* assert valid fds */
 		check[0].fd = read_end;
 		check[1].fd = write_end;
-		if (poll(check, 2, 0) == -1 || check[0].revents & POLLNVAL || check[1].revents & POLLNVAL) {
-			fatal("jobserver fds are not open");
-			return;
-		}
-		buildopts.gmakepipe[0] = read_end;
-		buildopts.gmakepipe[1] = write_end;
-		warn("using GNU Make jobserver");
+	} else if (sscanf(flag,"fifo:%ms", &fifo_path) == 1) {
+		check[0].fd = open(fifo_path, O_RDONLY);
+		check[1].fd = open(fifo_path, O_WRONLY);
+		free(fifo_path);
 	} else {
 		fatal("invalid jobserver parameter");
 	}
+	if (poll(check, 2, 0) == -1 || check[0].revents & POLLNVAL || check[1].revents & POLLNVAL) {
+		fatal("jobserver fds are not open");
+		return;
+	}
+	buildopts.gmakepipe[0] = check[0].fd;
+	buildopts.gmakepipe[1] = check[1].fd;
+	warn("using GNU Make jobserver");
 }
 
 static void
