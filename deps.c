@@ -328,21 +328,14 @@ depsparse(const char *name, bool allowmissing)
 					if (++n % 2 == 0)
 						bufadd(&buf, '\\');
 				} while (c == '\\');
-				switch (c) {
-				case '#':
-					/* assume no comments */
-					for (; n > 2; n -= 2)
-						bufadd(&buf, '\\');
+				if ((c == ' ' || c == '\t') && n % 2 != 0)
 					break;
-				case ' ':
-				case '\t':
-					if (n % 2 != 0)
-						break;
-					/* fallthrough */
-				default:
-					for (; n > 0; n -= 2)
-						bufadd(&buf, '\\');
-					continue;
+				for (; n > 2; n -= 2)
+					bufadd(&buf, '\\');
+				switch (c) {
+				case '#':  break;
+				case '\n': c = ' '; continue;
+				default:   bufadd(&buf, '\\'); continue;
 				}
 				break;
 			case '$':
