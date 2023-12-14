@@ -4,13 +4,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>  /* for chdir */
 #include "arg.h"
 #include "build.h"
 #include "deps.h"
 #include "env.h"
 #include "graph.h"
 #include "log.h"
+#include "os.h"
 #include "parse.h"
 #include "tool.h"
 #include "util.h"
@@ -164,7 +164,7 @@ main(int argc, char *argv[])
 	case 'C':
 		arg = EARGF(usage());
 		warn("entering directory '%s'", arg);
-		if (chdir(arg) < 0)
+		if (!os_chdir(arg))
 			fatal("chdir:");
 		break;
 	case 'd':

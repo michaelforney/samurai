@@ -1,6 +1,7 @@
 .POSIX:
 .PHONY: all install clean
 
+OS=posix
 PREFIX=/usr/local
 BINDIR=$(PREFIX)/bin
 MANDIR=$(PREFIX)/share/man
@@ -17,7 +18,8 @@ OBJ=\
 	scan.o\
 	tool.o\
 	tree.o\
-	util.o
+	util.o\
+	$(OS).o
 HDR=\
 	arg.h\
 	build.h\
@@ -26,6 +28,7 @@ HDR=\
 	graph.h\
 	htab.h\
 	log.h\
+	os.h\
 	parse.h\
 	scan.h\
 	tool.h\
