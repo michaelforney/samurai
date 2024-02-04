@@ -341,7 +341,7 @@ depsparse(const char *name, bool allowmissing)
 			case '$':
 				c = getc(f);
 				if (c != '$') {
-					warn("bad depfile: contains variable reference");
+					warn("bad depfile '%s': contains variable reference", name);
 					goto err;
 				}
 				break;
@@ -351,7 +351,7 @@ depsparse(const char *name, bool allowmissing)
 		}
 		if (sawcolon) {
 			if (!isspace(c) && c != EOF) {
-				warn("bad depfile: '%c' is not a valid target character", c);
+				warn("bad depfile '%s': '%c' is not a valid target character", name, c);
 				goto err;
 			}
 			if (buf.len > 0) {
@@ -377,7 +377,7 @@ depsparse(const char *name, bool allowmissing)
 			if (c == EOF)
 				break;
 			if (c != ':') {
-				warn("bad depfile: expected ':', saw '%c'", c);
+				warn("bad depfile '%s': expected ':', saw '%c'", name, c);
 				goto err;
 			}
 			if (!out) {
@@ -385,7 +385,7 @@ depsparse(const char *name, bool allowmissing)
 				memcpy(out->s, buf.data, buf.len);
 				out->s[buf.len] = '\0';
 			} else if (out->n != buf.len || memcmp(buf.data, out->s, buf.len) != 0) {
-				warn("bad depfile: multiple outputs: %.*s != %s", (int)buf.len, buf.data, out->s);
+				warn("bad depfile '%s': multiple outputs: %.*s != %s", name, (int)buf.len, buf.data, out->s);
 				goto err;
 			}
 			sawcolon = true;
@@ -395,7 +395,7 @@ depsparse(const char *name, bool allowmissing)
 		for (;;) {
 			if (c == '\\') {
 				if (getc(f) != '\n') {
-					warn("bad depfile: '\\' only allowed before newline");
+					warn("bad depfile '%s': '\\' only allowed before newline", name);
 					goto err;
 				}
 			} else if (!isblank(c)) {
@@ -405,7 +405,7 @@ depsparse(const char *name, bool allowmissing)
 		}
 	}
 	if (ferror(f)) {
-		warn("depfile read:");
+		warn("depfile read '%s':", name);
 		goto err;
 	}
 	fclose(f);
