@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>  /* for chdir */
+#include <poll.h>   /* for poll  */
+#include <fcntl.h> /* for open */
 #include "arg.h"
 #include "build.h"
 #include "deps.h"
@@ -91,6 +93,61 @@ jobsflag(const char *flag)
 }
 
 static void
+jobserverflags(const char *flag)
+{
+	int read_end, write_end;
+	char *fifo_path;
+	struct pollfd check[2];
+
+	if (!flag)
+		return;
+	if (sscanf(flag, "%d,%d", &read_end, &write_end) == 2) {
+		/* prepare error message */
+		errno = EBADF;
+	} else if (sscanf(flag,"fifo:%ms", &fifo_path) == 1) {
+		read_end = open(fifo_path, O_RDONLY);
+		write_end = open(fifo_path, O_WRONLY);
+		free(fifo_path);
+	} else {
+		fatal("invalid jobserver parameter");
+	}
+
+	check[0].fd = read_end;
+	check[1].fd = write_end;
+	if (write_end <= 0 || read_end <= 0 || poll(check, 2, 0) == -1 || check[0].revents & POLLNVAL || check[1].revents & POLLNVAL) {
+		fatal("invalid jobserver fds:");
+		return;
+	}
+	buildopts.gmakepipe[0] = check[0].fd;
+	buildopts.gmakepipe[1] = check[1].fd;
+	warn("using GNU Make jobserver");
+}
+
+static void
+parsegmakeflags(char *env) {
+	char *arg;
+
+	if (!env)
+		return;
+	env = xmemdup(env, strlen(env) + 1);
+
+	arg = strtok(env, " ");
+	/* first word might contain dry run */
+	if (arg && strchr(arg, 'n'))
+		buildopts.dryrun = true;
+	arg = strtok(NULL, " ");
+	while (arg) {
+		if (strncmp(arg, "-j", 2) == 0) {
+			/* handled by parent process */
+		} else if (strncmp(arg, "--jobserver-auth=", 17) == 0 || strncmp(arg, "--jobserver-fds=", 16) == 0) {
+			jobserverflags(strchr(arg, '=')+1);
+		}
+		arg = strtok(NULL, " ");
+	}
+	free(env);
+}
+
+static void
 parseenvargs(char *env)
 {
 	char *arg, *argvbuf[64], **argv = argvbuf;
@@ -149,6 +206,7 @@ main(int argc, char *argv[])
 
 	argv0 = progname(argv[0], "samu");
 	parseenvargs(getenv("SAMUFLAGS"));
+	parsegmakeflags(getenv("MAKEFLAGS"));
 	ARGBEGIN {
 	case '-':
 		arg = EARGF(usage());
@@ -201,7 +259,14 @@ main(int argc, char *argv[])
 		usage();
 	} ARGEND
 argdone:
-	if (!buildopts.maxjobs) {
+	if (buildopts.gmakepipe[0] >= 0) {
+		if (buildopts.maxjobs)
+			warn("ignoring -j setting as GNU Make job client is enabled");
+		if (buildopts.maxload)
+			warn("ignoring -l setting as GNU Make job client is enabled");
+		buildopts.maxjobs = -1;
+		buildopts.maxload = 0;
+	} else if (!buildopts.maxjobs) {
 #ifdef _SC_NPROCESSORS_ONLN
 		int nproc = sysconf(_SC_NPROCESSORS_ONLN);
 		switch (nproc) {

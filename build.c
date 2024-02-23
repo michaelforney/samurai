@@ -28,11 +28,12 @@ struct job {
 	bool failed;
 };
 
-struct buildoptions buildopts = {.maxfail = 1};
+struct buildoptions buildopts = {.maxfail = 1, .gmakepipe = {-1, -1} };
 static struct edge *work;
 static size_t nstarted, nfinished, ntotal;
 static bool consoleused;
 static struct timespec starttime;
+static char gmaketokens[512], *gmakelatest = gmaketokens;
 
 void
 buildreset(void)
@@ -319,6 +320,15 @@ jobstart(struct job *j, struct edge *e)
 		warn("posix_spawn_file_actions_addclose:");
 		goto err3;
 	}
+	if (buildopts.gmakepipe[0] >= 0) {
+		/* do not allow children to steal GNU/tokens */
+		for (i = 0; i < 2; ++i) {
+			if ((errno = posix_spawn_file_actions_addclose(&actions, buildopts.gmakepipe[i]))) {
+				warn("posix_spawn_file_actions_addclose:");
+				goto err3;
+			}
+		}
+	}
 	if (e->pool != &consolepool) {
 		if ((errno = posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0))) {
 			warn("posix_spawn_file_actions_addopen:");
@@ -538,12 +548,40 @@ queryload(void)
 #endif
 }
 
+/* returns remaining GNU/tokens */
+static ssize_t
+returngmake(void)
+{
+	ssize_t returned = 0;
+	if (buildopts.gmakepipe[1] >= 0)
+		if ((returned = write(buildopts.gmakepipe[1], gmaketokens, gmakelatest - gmaketokens)) >= 0)
+			gmakelatest = gmaketokens;
+	return returned;
+}
+
+static void
+gmakeatexit(void)
+{
+	if (returngmake() < 0)
+		warn("last write to jobserver:");
+}
+
+static void
+termsignal(int signum)
+{
+	write(2, "terminating due to signal\n", 27);
+	(void)returngmake();
+	_exit(128 + signum);
+}
+
 void
 build(void)
 {
+	struct sigaction sact = { 0 };
 	struct job *jobs = NULL;
-	struct pollfd *fds = NULL;
+	struct pollfd *fds = NULL, tokenin = { .fd = -1, .events = POLLIN };
 	size_t i, next = 0, jobslen = 0, maxjobs = buildopts.maxjobs, numjobs = 0, numfail = 0;
+	ssize_t gmakeread;
 	struct edge *e;
 
 	if (ntotal == 0) {
@@ -551,11 +589,35 @@ build(void)
 		return;
 	}
 
+	if (buildopts.gmakepipe[0] >= 0) {
+		if (atexit(gmakeatexit) == 0) {
+			maxjobs = 1; /* will change dynamically as tokens are exchanged */
+			tokenin.fd = buildopts.gmakepipe[0];
+			sact.sa_handler = termsignal;
+			sigaction(SIGTERM, &sact, NULL);
+			sigaction(SIGINT, &sact, NULL);
+			sigaction(SIGPIPE, &sact, NULL);
+		} else {
+			warn("unable to register an atexit() function");
+		}
+	}
+
 	clock_gettime(CLOCK_MONOTONIC, &starttime);
 	formatstatus(NULL, 0);
 
 	nstarted = 0;
 	for (;;) {
+		/* see if GNU/make has authorized more jobs */
+		if (poll(&tokenin, 1, 0) > 0) {
+			gmakeread = gmakelatest - gmaketokens;
+			gmakeread = read(buildopts.gmakepipe[0], gmakelatest, 512 - (size_t)gmakeread > ntotal - nstarted ? ntotal - nstarted : 512 - gmakeread);
+			if (gmakeread < 0) {
+				warn("read from jobserver:");
+				gmakeread = 0;
+			}
+			gmakelatest += gmakeread;
+			maxjobs += gmakeread;
+		}
 		/* limit number of of jobs based on load */
 		if (buildopts.maxload)
 			maxjobs = queryload() > buildopts.maxload ? 1 : buildopts.maxjobs;
@@ -610,6 +672,13 @@ build(void)
 			next = i;
 			if (jobs[i].failed)
 				++numfail;
+			/* must return the GNU/tokens once a job is done */
+			if (buildopts.gmakepipe[1] > 0 && gmakelatest != gmaketokens) {
+				if (write(buildopts.gmakepipe[1], --gmakelatest, 1) < 0) {
+					warn("write to jobserver:");
+				}
+				--maxjobs;
+			}
 		}
 	}
 	for (i = 0; i < jobslen; ++i)
