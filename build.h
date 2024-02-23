@@ -5,7 +5,7 @@ struct buildoptions {
 	_Bool verbose, explain, keepdepfile, keeprsp, dryrun;
 	const char *statusfmt;
 	double maxload;
-	int gmakepipe[2];
+	int jobserver[2];
 };
 
 extern struct buildoptions buildopts;

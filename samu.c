@@ -4,9 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>  /* for chdir */
+#include <unistd.h> /* for chdir */
 #include <poll.h>   /* for poll  */
-#include <fcntl.h> /* for open */
+#include <fcntl.h>  /* for open, fcntl */
 #include "arg.h"
 #include "build.h"
 #include "deps.h"
@@ -93,58 +93,61 @@ jobsflag(const char *flag)
 }
 
 static void
-jobserverflags(const char *flag)
+parsegmakeflags(const char *flag)
 {
-	int read_end, write_end;
-	char *fifo_path;
-	struct pollfd check[2];
+	char authbuf[1024];
+	const char *auth, *end;
+	size_t authlen;
+	int rfd, wfd;
 
 	if (!flag)
 		return;
-	if (sscanf(flag, "%d,%d", &read_end, &write_end) == 2) {
-		/* prepare error message */
-		errno = EBADF;
-	} else if (sscanf(flag,"fifo:%ms", &fifo_path) == 1) {
-		read_end = open(fifo_path, O_RDONLY);
-		write_end = open(fifo_path, O_WRONLY);
-		free(fifo_path);
-	} else {
-		fatal("invalid jobserver parameter");
-	}
-
-	check[0].fd = read_end;
-	check[1].fd = write_end;
-	if (write_end <= 0 || read_end <= 0 || poll(check, 2, 0) == -1 || check[0].revents & POLLNVAL || check[1].revents & POLLNVAL) {
-		fatal("invalid jobserver fds:");
-		return;
-	}
-	buildopts.gmakepipe[0] = check[0].fd;
-	buildopts.gmakepipe[1] = check[1].fd;
-	warn("using GNU Make jobserver");
-}
-
-static void
-parsegmakeflags(char *env) {
-	char *arg;
-
-	if (!env)
-		return;
-	env = xmemdup(env, strlen(env) + 1);
-
-	arg = strtok(env, " ");
-	/* first word might contain dry run */
-	if (arg && strchr(arg, 'n'))
-		buildopts.dryrun = true;
-	arg = strtok(NULL, " ");
-	while (arg) {
-		if (strncmp(arg, "-j", 2) == 0) {
-			/* handled by parent process */
-		} else if (strncmp(arg, "--jobserver-auth=", 17) == 0 || strncmp(arg, "--jobserver-fds=", 16) == 0) {
-			jobserverflags(strchr(arg, '=')+1);
+	for (; *flag != ' '; ++flag) {
+		switch (*flag) {
+		case 'n':
+			buildopts.dryrun = true;
+			break;
+		case '\0':
+			return;
 		}
-		arg = strtok(NULL, " ");
 	}
-	free(env);
+	while (flag) {
+		++flag;
+		end = strchr(flag, ' ');
+		if (strncmp(flag, "--jobserver-auth=", 17) == 0) {
+			auth = flag + 17;
+			authlen = end ? end - auth : strlen(auth);
+		}
+		flag = end;
+	}
+	if (authlen >= sizeof(authbuf)) {
+		warn("jobserver: MAKEFLAGS option is too long; ignoring");
+		return;
+	}
+	memcpy(authbuf, auth, authlen);
+	authbuf[authlen] = 0;
+	auth = authbuf;
+
+	if (strncmp(auth, "fifo:", 5) == 0) {
+		auth += 5;
+		rfd = wfd = open(auth, O_RDONLY | O_CLOEXEC);
+		if (rfd < 0) {
+			warn("jobserver: open %s:", auth);
+			return;
+		}
+	} else if (sscanf(auth, "%d,%d", &rfd, &wfd) == 2) {
+		if (rfd < 0 || wfd < 0)
+			return;  /* jobserver is disabled */
+		if (fcntl(rfd, F_SETFD, FD_CLOEXEC) != 0 || fcntl(wfd, F_SETFD, FD_CLOEXEC) != 0) {
+			warn("jobserver: fcntl set FD_CLOEXEC:");
+			return;
+		}
+	} else {
+		warn("jobserver: MAKEFLAGS option has unrecognized format; ignoring");
+		return;
+	}
+	buildops.jobserver[0] = rfd;
+	buildops.jobserver[1] = wfd;
 }
 
 static void

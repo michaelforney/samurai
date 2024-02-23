@@ -33,7 +33,7 @@ static struct edge *work;
 static size_t nstarted, nfinished, ntotal;
 static bool consoleused;
 static struct timespec starttime;
-static char gmaketokens[512], *gmakelatest = gmaketokens;
+static char jobtokens[512], *gmakelatest = gmaketokens;
 
 void
 buildreset(void)
@@ -320,15 +320,6 @@ jobstart(struct job *j, struct edge *e)
 		warn("posix_spawn_file_actions_addclose:");
 		goto err3;
 	}
-	if (buildopts.gmakepipe[0] >= 0) {
-		/* do not allow children to steal GNU/tokens */
-		for (i = 0; i < 2; ++i) {
-			if ((errno = posix_spawn_file_actions_addclose(&actions, buildopts.gmakepipe[i]))) {
-				warn("posix_spawn_file_actions_addclose:");
-				goto err3;
-			}
-		}
-	}
 	if (e->pool != &consolepool) {
 		if ((errno = posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0))) {
 			warn("posix_spawn_file_actions_addopen:");
@@ -548,30 +539,13 @@ queryload(void)
 #endif
 }
 
-/* returns remaining GNU/tokens */
-static ssize_t
-returngmake(void)
-{
-	ssize_t returned = 0;
-	if (buildopts.gmakepipe[1] >= 0)
-		if ((returned = write(buildopts.gmakepipe[1], gmaketokens, gmakelatest - gmaketokens)) >= 0)
-			gmakelatest = gmaketokens;
-	return returned;
-}
-
 static void
-gmakeatexit(void)
+jobserverclose(void)
 {
-	if (returngmake() < 0)
-		warn("last write to jobserver:");
-}
-
-static void
-termsignal(int signum)
-{
-	write(2, "terminating due to signal\n", 27);
-	(void)returngmake();
-	_exit(128 + signum);
+	if (buildopts.jobserver[1] == -1)
+		return;
+	if (write(buildopts.jobserver[1], jobtokens, njobtokens) < 0)
+		warn("jobserver: write:");
 }
 
 void
@@ -589,7 +563,9 @@ build(void)
 		return;
 	}
 
-	if (buildopts.gmakepipe[0] >= 0) {
+	if (buildopts.jobserver[0] != -1) {
+		maxjobs = 0;
+		fds = xmalloc(sizeof *fds);
 		if (atexit(gmakeatexit) == 0) {
 			maxjobs = 1; /* will change dynamically as tokens are exchanged */
 			tokenin.fd = buildopts.gmakepipe[0];
@@ -640,18 +616,18 @@ build(void)
 				if (jobslen > buildopts.maxjobs)
 					jobslen = buildopts.maxjobs;
 				jobs = xreallocarray(jobs, jobslen, sizeof(jobs[0]));
-				fds = xreallocarray(fds, jobslen, sizeof(fds[0]));
+				fds = xreallocarray(fds, 1 + jobslen, sizeof(fds[0]));
 				for (i = next; i < jobslen; ++i) {
 					jobs[i].buf.data = NULL;
 					jobs[i].buf.len = 0;
 					jobs[i].buf.cap = 0;
 					jobs[i].next = i + 1;
-					fds[i].fd = -1;
-					fds[i].events = POLLIN;
+					fds[1 + i].fd = -1;
+					fds[1 + i].events = POLLIN;
 				}
 			}
-			fds[next].fd = jobstart(&jobs[next], e);
-			if (fds[next].fd < 0) {
+			fds[1 + next].fd = jobstart(&jobs[next], e);
+			if (fds[1 + next].fd < 0) {
 				warn("job failed to start");
 				++numfail;
 			} else {
@@ -661,9 +637,11 @@ build(void)
 		}
 		if (numjobs == 0)
 			break;
-		if (poll(fds, jobslen, 5000) < 0)
+		if (poll(fds, 1 + jobslen, 5000) < 0)
 			fatal("poll:");
-		for (i = 0; i < jobslen; ++i) {
+		if (fds[0].revents) {
+		}
+		for (i = 1; i <= jobslen; ++i) {
 			if (!fds[i].revents || jobwork(&jobs[i]))
 				continue;
 			--numjobs;
