@@ -24,6 +24,29 @@ Scheduling jobs based on load average requires the non-standard
 `HAVE_GETLOADAVG` in your `CFLAGS`, along with any other necessary
 definitions for your platform.
 
+## Compilation on Windows
+
+The Windows port is a WIP. Development is done with MSYS2 + mingw-w64
+but compilation with Visual Studio is regularly checked.
+
+### MSYS2
+
+Steps are:
+ * install MSYS2, and the following mingw x86_64 packages:
+  * `make`
+  * `gcc toolchain`
+
+Launch MSYS2 Migw64 terminal and enter `samurai` subdirectory. Then run
+
+```
+make CC=gcc OS=windows
+```
+
+### Visual Studio
+
+ * open the x64 Native Tools Command Prompt from the start menu.
+ * cl.exe /D_CRT_SECURE_NO_WARNINGS=1 /W3 build.c deps.c env.c graph.c htab.c log.c parse.c samu.c scan.c tool.c tree.c util.c windows.c /link /out:samu.exe
+
 ## Differences from ninja
 
 samurai tries to match ninja behavior as much as possible, but there

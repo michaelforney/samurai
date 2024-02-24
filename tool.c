@@ -5,10 +5,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include "arg.h"
 #include "env.h"
 #include "graph.h"
+#include "os.h"
 #include "parse.h"
 #include "tool.h"
 #include "util.h"
@@ -210,7 +210,7 @@ compdb(int argc, char *argv[])
 		return 2;
 	} ARGEND
 
-	if (!getcwd(dir, sizeof(dir)))
+	if (!os_getcwd(dir, sizeof(dir)))
 		fatal("getcwd:");
 
 	putchar('[');

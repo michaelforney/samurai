@@ -1,13 +1,13 @@
-#define _POSIX_C_SOURCE 200809L
 #include <ctype.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
 #include "env.h"
 #include "graph.h"
 #include "htab.h"
+#include "os.h"
 #include "util.h"
 
 static struct hashtable *allnodes;
@@ -84,26 +84,7 @@ nodeget(const char *path, size_t len)
 void
 nodestat(struct node *n)
 {
-	struct stat st;
-
-	if (stat(n->path->s, &st) < 0) {
-		if (errno != ENOENT)
-			fatal("stat %s:", n->path->s);
-		n->mtime = MTIME_MISSING;
-	} else {
-#ifdef __APPLE__
-		n->mtime = (int64_t)st.st_mtime * 1000000000 + st.st_mtimensec;
-/*
-Illumos hides the members of st_mtim when you define _POSIX_C_SOURCE
-since it has not been updated to support POSIX.1-2008:
-https://www.illumos.org/issues/13327
-*/
-#elif defined(__sun)
-		n->mtime = (int64_t)st.st_mtim.__tv_sec * 1000000000 + st.st_mtim.__tv_nsec;
-#else
-		n->mtime = (int64_t)st.st_mtim.tv_sec * 1000000000 + st.st_mtim.tv_nsec;
-#endif
-	}
+	n->mtime = os_query_mtime(n->path->s);
 }
 
 struct string *

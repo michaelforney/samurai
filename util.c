@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include "os.h"
 #include "util.h"
 
 extern const char *argv0;
@@ -232,7 +233,7 @@ makedirs(struct string *path, bool parent)
 	while (++s <= end - parent) {
 		if (*s != '\0')
 			continue;
-		if (ret == 0 && mkdir(path->s, 0777) < 0 && errno != EEXIST) {
+		if (ret == 0 && !os_mkdir(path->s)) {
 			warn("mkdir %s:", path->s);
 			ret = -1;
 		}
