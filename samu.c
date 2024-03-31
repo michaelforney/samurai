@@ -95,31 +95,22 @@ jobsflag(const char *flag)
 static void
 jobserverflags(const char *flag)
 {
-	int read_end, write_end;
-	char *fifo_path;
-	struct pollfd check[2];
+	int rfd, wfd;
 
 	if (!flag)
 		return;
-	if (sscanf(flag, "%d,%d", &read_end, &write_end) == 2) {
+	if (sscanf(flag, "%d,%d", &rfd, &wfd) == 2) {
 		/* prepare error message */
 		errno = EBADF;
-	} else if (sscanf(flag,"fifo:%ms", &fifo_path) == 1) {
-		read_end = open(fifo_path, O_RDONLY);
-		write_end = open(fifo_path, O_WRONLY);
-		free(fifo_path);
+	} else if (strncmp(flag, "fifo:", 5) == 0) {
+		rfd = open(flag + 5, O_RDONLY);
+		wfd = open(flag + 5, O_WRONLY);
 	} else {
 		fatal("invalid jobserver parameter");
 	}
 
-	check[0].fd = read_end;
-	check[1].fd = write_end;
-	if (write_end <= 0 || read_end <= 0 || poll(check, 2, 0) == -1 || check[0].revents & POLLNVAL || check[1].revents & POLLNVAL) {
-		fatal("invalid jobserver fds:");
-		return;
-	}
-	buildopts.gmakepipe[0] = check[0].fd;
-	buildopts.gmakepipe[1] = check[1].fd;
+	buildopts.gmakepipe[0] = rfd;
+	buildopts.gmakepipe[1] = wfd;
 	warn("using GNU Make jobserver");
 }
 
@@ -132,12 +123,10 @@ parsegmakeflags(char *env) {
 	env = xmemdup(env, strlen(env) + 1);
 
 	arg = strtok(env, " ");
-	/* first word might contain dry run */
-	if (arg && strchr(arg, 'n'))
-		buildopts.dryrun = true;
-	arg = strtok(NULL, " ");
 	while (arg) {
-		if (strncmp(arg, "-j", 2) == 0) {
+		if (arg[0] && arg[0] != '-' && strchr(arg, 'n')) {
+			buildopts.dryrun = true;
+		} else if (strncmp(arg, "-j", 2) == 0) {
 			/* handled by parent process */
 		} else if (strncmp(arg, "--jobserver-auth=", 17) == 0 || strncmp(arg, "--jobserver-fds=", 16) == 0) {
 			jobserverflags(strchr(arg, '=')+1);
