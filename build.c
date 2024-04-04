@@ -327,7 +327,7 @@ jobstart(struct job *j, struct edge *e)
 		warn("posix_spawn_file_actions_addclose:");
 		goto err3;
 	}
-	if (buildopts.gmakepipe[0] >= 0) {
+	if (isjobserverclient()) {
 		/* do not allow children to steal GNU/tokens */
 		for (i = 0; i < 2; ++i) {
 			if ((errno = posix_spawn_file_actions_addclose(&actions, buildopts.gmakepipe[i]))) {
@@ -539,19 +539,22 @@ done:
 
 /* queries the system load average */
 static double
-queryload(void)
+reachedload(void)
 {
 #ifdef HAVE_GETLOADAVG
 	double load;
 
-	if (getloadavg(&load, 1) == -1) {
-		warn("getloadavg:");
-		load = 100.0;
+	if (buildopts.maxload > 0) {
+		if (getloadavg(&load, 1) == -1) {
+			warn("getloadavg:");
+			return true;
+		}
+		return load > buildopts.maxload;
+	} else {
+		return false;
 	}
-
-	return load;
 #else
-	return 0;
+	return false;
 #endif
 }
 
@@ -598,10 +601,10 @@ build(void)
 
 	fds = xmalloc(sizeof(fds[0]));
 	fds[0].fd = buildopts.gmakepipe[0];
+	fds[0].events = 0;
 	if (isjobserverclient()) {
-		fds[0].revents = POLLIN;
+		fds[0].events &= POLLIN;
 		if (atexit(gmakeatexit) == 0) {
-			maxjobs = 1; /* will change dynamically as tokens are exchanged */
 			sact.sa_handler = termsignal;
 			sigaction(SIGTERM, &sact, NULL);
 			sigaction(SIGINT, &sact, NULL);
@@ -617,8 +620,7 @@ build(void)
 	nstarted = 0;
 	for (;;) {
 		/* limit number of of jobs based on load */
-		if (buildopts.maxload)
-			maxjobs = queryload() > buildopts.maxload ? 1 : buildopts.maxjobs;
+		maxjobs = reachedload() ? 1 : buildopts.maxjobs;
 		/* limit number of jobs based on gmake tokens */
 		if (isjobserverclient())
 			maxjobs = maxjobs > 1 + (size_t)(gmakelatest - gmaketokens) ? 1 + (size_t)(gmakelatest - gmaketokens) : maxjobs;
@@ -663,7 +665,7 @@ build(void)
 		}
 		if (numjobs == 0)
 			break;
-		if (poll(fds, jobslen, 5000) < 0)
+		if (poll(fds, 1 + jobslen, 5000) < 0)
 			fatal("poll:");
 		for (i = 0; i < jobslen; ++i) {
 			if (!fds[1+i].revents || jobwork(&jobs[i]))
@@ -675,13 +677,13 @@ build(void)
 			if (jobs[i].failed)
 				++numfail;
 			/* return a token */
-			if (isjobserverclient() && gmakelatest != gmaketokens) {
+			if (isjobserverclient() && gmakelatest > gmaketokens) {
 				if (write(buildopts.gmakepipe[1], --gmakelatest, 1) < 0)
 					warn("write to jobserver:");
 			}
 		}
-		if (fds[0].revents & POLLIN && isjobserverclient() && numjobs < maxjobs) {
-			gmakeread = read(buildopts.gmakepipe[0], gmakelatest, maxjobs - numjobs);
+		if (fds[0].revents & POLLIN && isjobserverclient() && nstarted < ntotal && !reachedload()) {
+			gmakeread = read(buildopts.gmakepipe[0], gmakelatest, buildopts.maxjobs - numjobs);
 			if (gmakeread < 0) {
 				warn("read from jobserver:");
 				gmakeread = 0;
