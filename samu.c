@@ -5,8 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>  /* for chdir */
-#include <poll.h>   /* for poll  */
-#include <fcntl.h> /* for open */
+#include <fcntl.h>   /* for open */
 #include "arg.h"
 #include "build.h"
 #include "deps.h"
@@ -127,7 +126,7 @@ parsegmakeflags(char *env) {
 		if (arg[0] && arg[0] != '-' && strchr(arg, 'n')) {
 			buildopts.dryrun = true;
 		} else if (strncmp(arg, "-j", 2) == 0) {
-			/* handled by parent process */
+			jobsflag(arg + 2);
 		} else if (strncmp(arg, "--jobserver-auth=", 17) == 0 || strncmp(arg, "--jobserver-fds=", 16) == 0) {
 			jobserverflags(strchr(arg, '=')+1);
 		}
@@ -248,14 +247,7 @@ main(int argc, char *argv[])
 		usage();
 	} ARGEND
 argdone:
-	if (buildopts.gmakepipe[0] >= 0) {
-		if (buildopts.maxjobs)
-			warn("ignoring -j setting as GNU Make job client is enabled");
-		if (buildopts.maxload)
-			warn("ignoring -l setting as GNU Make job client is enabled");
-		buildopts.maxjobs = -1;
-		buildopts.maxload = 0;
-	} else if (!buildopts.maxjobs) {
+	if (!buildopts.maxjobs) {
 #ifdef _SC_NPROCESSORS_ONLN
 		int nproc = sysconf(_SC_NPROCESSORS_ONLN);
 		switch (nproc) {
