@@ -99,11 +99,10 @@ jobserverflags(const char *flag)
 	if (!flag)
 		return;
 	if (sscanf(flag, "%d,%d", &rfd, &wfd) == 2) {
-		/* prepare error message */
-		errno = EBADF;
+		;
 	} else if (strncmp(flag, "fifo:", 5) == 0) {
-		rfd = open(flag + 5, O_RDONLY);
-		wfd = open(flag + 5, O_WRONLY);
+		if ((rfd = wfd = open(flag + 5, O_RDWR)) == -1)
+			fatal("unable to open jobserver fifo:");
 	} else {
 		fatal("invalid jobserver parameter");
 	}
@@ -127,8 +126,8 @@ parsegmakeflags(char *env) {
 			buildopts.dryrun = true;
 		} else if (strncmp(arg, "-j", 2) == 0) {
 			jobsflag(arg + 2);
-		} else if (strncmp(arg, "--jobserver-auth=", 17) == 0 || strncmp(arg, "--jobserver-fds=", 16) == 0) {
-			jobserverflags(strchr(arg, '=')+1);
+		} else if (strncmp(arg, "--jobserver-auth=", 17) == 0) {
+			jobserverflags(arg + 17);
 		}
 		arg = strtok(NULL, " ");
 	}

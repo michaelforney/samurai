@@ -327,15 +327,6 @@ jobstart(struct job *j, struct edge *e)
 		warn("posix_spawn_file_actions_addclose:");
 		goto err3;
 	}
-	if (isjobserverclient()) {
-		/* do not allow children to steal GNU/tokens */
-		for (i = 0; i < 2; ++i) {
-			if ((errno = posix_spawn_file_actions_addclose(&actions, buildopts.gmakepipe[i]))) {
-				warn("posix_spawn_file_actions_addclose:");
-				goto err3;
-			}
-		}
-	}
 	if (e->pool != &consolepool) {
 		if ((errno = posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0))) {
 			warn("posix_spawn_file_actions_addopen:");
@@ -538,7 +529,7 @@ done:
 }
 
 /* queries the system load average */
-static double
+static bool
 reachedload(void)
 {
 #ifdef HAVE_GETLOADAVG
@@ -603,7 +594,7 @@ build(void)
 	fds[0].fd = buildopts.gmakepipe[0];
 	fds[0].events = 0;
 	if (isjobserverclient()) {
-		fds[0].events &= POLLIN;
+		fds[0].events |= POLLIN;
 		if (atexit(gmakeatexit) == 0) {
 			sact.sa_handler = termsignal;
 			sigaction(SIGTERM, &sact, NULL);
