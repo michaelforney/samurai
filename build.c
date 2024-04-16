@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <poll.h>
 #include <signal.h>
 #include <spawn.h>
@@ -17,6 +18,7 @@
 #include "env.h"
 #include "graph.h"
 #include "log.h"
+#include "token.h"
 #include "util.h"
 
 struct job {
@@ -580,6 +582,7 @@ build(void)
 	struct pollfd *fds = NULL;
 	size_t i, next = 0, jobslen = 0, maxjobs = buildopts.maxjobs, numjobs = 0, numfail = 0;
 	struct edge *e;
+	int jobserver_rfd;
 	struct sigaction sa;
 
 	if (ntotal == 0) {
@@ -595,6 +598,11 @@ build(void)
 
 	clock_gettime(CLOCK_MONOTONIC, &starttime);
 	formatstatus(NULL, 0);
+	jobserver_rfd = tokeninit();
+
+	/* if running under job server start as many jobs as allowed */
+	if (jobserver_rfd != -1)
+		buildopts.maxjobs = INT_MAX;
 
 	nstarted = 0;
 	for (;;) {
@@ -604,23 +612,26 @@ build(void)
 		/* start ready edges */
 		while (have_work() && numjobs < maxjobs && numfail < buildopts.maxfail) {
 			e = work;
-			work = work->worknext;
 			if (e->rule != &phonyrule && buildopts.dryrun) {
 				++nstarted;
 				printstatus(e, edgevar(e, "command", true));
 				++nfinished;
 			}
 			if (e->rule == &phonyrule || buildopts.dryrun) {
+				work = work->worknext;
 				for (i = 0; i < e->nout; ++i)
 					nodedone(e->out[i], false);
 				continue;
 			}
+			if (!tokenget(e))
+				break;
+			work = work->worknext;
 			if (next == jobslen) {
 				jobslen = jobslen ? jobslen * 2 : 8;
 				if (jobslen > buildopts.maxjobs)
 					jobslen = buildopts.maxjobs;
 				jobs = xreallocarray(jobs, jobslen, sizeof(jobs[0]));
-				fds = xreallocarray(fds, jobslen, sizeof(fds[0]));
+				fds = xreallocarray(fds, jobslen + 1, sizeof(fds[0]));
 				for (i = next; i < jobslen; ++i) {
 					jobs[i].buf.data = NULL;
 					jobs[i].buf.len = 0;
@@ -629,6 +640,8 @@ build(void)
 					fds[i].fd = -1;
 					fds[i].events = POLLIN;
 				}
+				fds[jobslen].fd = jobserver_rfd;
+				fds[jobslen].events = POLLIN;
 			}
 			fds[next].fd = jobstart(&jobs[next], e);
 			if (fds[next].fd < 0) {
@@ -639,9 +652,13 @@ build(void)
 				++numjobs;
 			}
 		}
-		if (numjobs == 0)
+		if (!have_work() && !numjobs)
 			break;
-		if (poll(fds, jobslen, 5000) < 0 && errno != EINTR)
+		/*
+		 * the last slot is for the jobserver and is only used to
+		 * kick samurai out of poll()
+		 */
+		if (poll(fds, jobslen + 1, 5000) < 0 && errno != EINTR)
 			fatal("poll:");
 		for (i = 0; i < jobslen; ++i) {
 			if (fds[i].fd == -1)
@@ -651,6 +668,7 @@ build(void)
 			else if (!fds[i].revents || jobwork(&jobs[i]))
 				continue;
 
+			tokenput();
 			--numjobs;
 			jobs[i].next = next;
 			fds[i].fd = -1;
