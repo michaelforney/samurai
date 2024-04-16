@@ -182,6 +182,35 @@ static void tokenexit(void)
 	}
 }
 
+/* --jobserver-auth=fifo:PATH - open named pipe for both reading and writing */
+static int parse_makeflags_fifo(const char *makeflags)
+{
+	char *fname;
+	size_t len = 0;
+
+	if (isspace(*makeflags))
+		return false;
+
+	do
+		len++;
+	while (!isspace(makeflags[len]));
+
+	fname = xmemdup(makeflags, len + 1);
+	fname[len] = '\0';
+
+	parent_rfd = open(fname, O_RDONLY);
+	if (parent_rfd == -1)
+		return errno;
+
+	parent_wfd = open(fname, O_WRONLY);
+	if (parent_wfd == -1)
+		return errno;
+
+	fcntl(parent_rfd, F_SETFD, 1);
+	fcntl(parent_wfd, F_SETFD, 1);
+	return 0;
+}
+
 static bool c_isdigit(char ch)
 {
 	return ch >= '0' && ch <= '9';
@@ -228,7 +257,9 @@ int tokeninit(void)
 	char *makeflags = getenv("MAKEFLAGS");
 	const char *p;
 	const char *makearg = NULL;
-	int ret, fd[2];
+	int fd[2];
+	int ret = 0;
+
 	sigset_t blocked, old;
 
 	if (!makeflags)
@@ -252,7 +283,10 @@ int tokeninit(void)
 	if (!makearg)
 		goto out;
 
-	ret = parse_makeflags_pipe(makearg);
+	if (!memcmp(makearg, "fifo:", 5))
+		ret = parse_makeflags_fifo(makearg + 5);
+	else
+		ret = parse_makeflags_pipe(makearg);
 
 	if (ret) {
 		if (ret > 0)
