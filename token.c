@@ -182,9 +182,38 @@ static void tokenexit(void)
 	}
 }
 
+static bool c_isdigit(char ch)
+{
+	return ch >= '0' && ch <= '9';
+}
+
+/* --jobserver-auth=R,W - file descriptors provided on the command line */
 static int parse_makeflags_pipe(const char *makeflags)
 {
-	return -1;
+	if (!c_isdigit(*makeflags))
+		return false;
+	parent_rfd = 0;
+	do
+		parent_rfd = parent_rfd * 10 + (*makeflags++ - '0');
+	while (c_isdigit(*makeflags));
+	if (*makeflags != ',')
+		return -1;
+	if (fcntl(parent_rfd, F_GETFL) == -1)
+		return errno;
+
+	makeflags++;
+	if (!c_isdigit(*makeflags))
+		return -1;
+	parent_wfd = 0;
+	do
+		parent_wfd = parent_wfd * 10 + (*makeflags++ - '0');
+	while (c_isdigit(*makeflags));
+	if (*makeflags && !isspace(*makeflags))
+		return -1;
+	if (fcntl(parent_wfd, F_GETFL) == -1)
+		return errno;
+
+	return 0;
 }
 
 #define FLAG1 "--jobserver-auth="
