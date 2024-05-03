@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
@@ -33,6 +34,10 @@ static struct edge *work;
 static size_t nstarted, nfinished, ntotal;
 static bool consoleused;
 static struct timespec starttime;
+
+/* for signal handling */
+static volatile sig_atomic_t killall;
+static volatile sig_atomic_t stopsig;
 
 void
 buildreset(void)
@@ -113,6 +118,11 @@ queue(struct edge *e)
 	}
 	e->worknext = *front;
 	*front = e;
+}
+
+static bool have_work(void)
+{
+	return work && !stopsig;
 }
 
 void
@@ -453,7 +463,8 @@ jobdone(struct job *j)
 			j->failed = true;
 		}
 	} else if (WIFSIGNALED(status)) {
-		warn("job terminated due to signal %d: %s", WTERMSIG(status), j->cmd->s);
+		if (stopsig != WTERMSIG(status))
+			warn("job terminated due to signal %d: %s", WTERMSIG(status), j->cmd->s);
 		j->failed = true;
 	} else {
 		/* cannot happen according to POSIX */
@@ -465,6 +476,8 @@ jobdone(struct job *j)
 		fwrite(j->buf.data, 1, j->buf.len, stdout);
 	j->buf.len = 0;
 	e = j->edge;
+	j->edge = NULL;
+
 	if (e->pool) {
 		p = e->pool;
 
@@ -546,6 +559,20 @@ queryload(void)
 #endif
 }
 
+static void sighandler(int sig)
+{
+	/*
+	 * Both SIGINT and SIGTERM will not start any more processes,
+	 * but only SIGTERM needs to be forwarded to samurai's child
+	 * processes.  That's because samurai is a process group leader
+	 * and SIGINT has already been sent to all children, and they
+	 * will stop on their own.
+	 */
+	if (sig == SIGTERM)
+		killall = true;
+	stopsig = sig;
+}
+
 void
 build(void)
 {
@@ -553,11 +580,18 @@ build(void)
 	struct pollfd *fds = NULL;
 	size_t i, next = 0, jobslen = 0, maxjobs = buildopts.maxjobs, numjobs = 0, numfail = 0;
 	struct edge *e;
+	struct sigaction sa;
 
 	if (ntotal == 0) {
 		warn("nothing to do");
 		return;
 	}
+
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = sighandler;
+	sa.sa_flags = SA_RESTART;
+	sigaction(SIGTERM, &sa, NULL);
+	sigaction(SIGINT, &sa, NULL);
 
 	clock_gettime(CLOCK_MONOTONIC, &starttime);
 	formatstatus(NULL, 0);
@@ -568,7 +602,7 @@ build(void)
 		if (buildopts.maxload)
 			maxjobs = queryload() > buildopts.maxload ? 1 : buildopts.maxjobs;
 		/* start ready edges */
-		while (work && numjobs < maxjobs && numfail < buildopts.maxfail) {
+		while (have_work() && numjobs < maxjobs && numfail < buildopts.maxfail) {
 			e = work;
 			work = work->worknext;
 			if (e->rule != &phonyrule && buildopts.dryrun) {
@@ -607,11 +641,16 @@ build(void)
 		}
 		if (numjobs == 0)
 			break;
-		if (poll(fds, jobslen, 5000) < 0)
+		if (poll(fds, jobslen, 5000) < 0 && errno != EINTR)
 			fatal("poll:");
 		for (i = 0; i < jobslen; ++i) {
-			if (!fds[i].revents || jobwork(&jobs[i]))
+			if (fds[i].fd == -1)
 				continue;
+			else if (killall)
+				jobkill(&jobs[i]);
+			else if (!fds[i].revents || jobwork(&jobs[i]))
+				continue;
+
 			--numjobs;
 			jobs[i].next = next;
 			fds[i].fd = -1;
@@ -627,6 +666,10 @@ build(void)
 	if (numfail > 0) {
 		if (numfail < buildopts.maxfail)
 			fatal("cannot make progress due to previous errors");
+		else if (stopsig == SIGINT)
+			fatal("interrupted by user");
+		else if (stopsig)
+			fatal("interrupted by signal %d", stopsig);
 		else if (numfail > 1)
 			fatal("subcommands failed");
 		else
