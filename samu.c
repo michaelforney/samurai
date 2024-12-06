@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>  /* for chdir */
+#include <fcntl.h>   /* for open */
 #include "arg.h"
 #include "build.h"
 #include "deps.h"
@@ -91,6 +92,49 @@ jobsflag(const char *flag)
 }
 
 static void
+jobserverflags(const char *flag)
+{
+	int rfd, wfd;
+
+	if (!flag)
+		return;
+	if (sscanf(flag, "%d,%d", &rfd, &wfd) == 2) {
+		;
+	} else if (strncmp(flag, "fifo:", 5) == 0) {
+		if ((rfd = wfd = open(flag + 5, O_RDWR)) == -1)
+			fatal("unable to open jobserver fifo:");
+	} else {
+		fatal("invalid jobserver parameter");
+	}
+
+	buildopts.gmakepipe[0] = rfd;
+	buildopts.gmakepipe[1] = wfd;
+	warn("using GNU Make jobserver");
+}
+
+static void
+parsegmakeflags(char *env) {
+	char *arg;
+
+	if (!env)
+		return;
+	env = xmemdup(env, strlen(env) + 1);
+
+	arg = strtok(env, " ");
+	while (arg) {
+		if (arg[0] && arg[0] != '-' && strchr(arg, 'n')) {
+			buildopts.dryrun = true;
+		} else if (strncmp(arg, "-j", 2) == 0) {
+			jobsflag(arg + 2);
+		} else if (strncmp(arg, "--jobserver-auth=", 17) == 0) {
+			jobserverflags(arg + 17);
+		}
+		arg = strtok(NULL, " ");
+	}
+	free(env);
+}
+
+static void
 parseenvargs(char *env)
 {
 	char *arg, *argvbuf[64], **argv = argvbuf;
@@ -149,6 +193,7 @@ main(int argc, char *argv[])
 
 	argv0 = progname(argv[0], "samu");
 	parseenvargs(getenv("SAMUFLAGS"));
+	parsegmakeflags(getenv("MAKEFLAGS"));
 	ARGBEGIN {
 	case '-':
 		arg = EARGF(usage());

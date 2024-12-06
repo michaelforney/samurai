@@ -28,11 +28,12 @@ struct job {
 	bool failed;
 };
 
-struct buildoptions buildopts = {.maxfail = 1};
+struct buildoptions buildopts = {.maxfail = 1, .gmakepipe = {-1, -1} };
 static struct edge *work;
 static size_t nstarted, nfinished, ntotal;
 static bool consoleused;
 static struct timespec starttime;
+static char gmaketokens[512], *gmakelatest = gmaketokens;
 
 void
 buildreset(void)
@@ -41,6 +42,13 @@ buildreset(void)
 
 	for (e = alledges; e; e = e->allnext)
 		e->flags &= ~FLAG_WORK;
+}
+
+/* returns whether GNU make jobserver mode is enabled */
+static inline bool
+isjobserverclient(void)
+{
+	return buildopts.gmakepipe[0] >= 0 && buildopts.gmakepipe[1] >= 0;
 }
 
 /* returns whether n1 is newer than n2, or false if n1 is NULL */
@@ -521,34 +529,80 @@ done:
 }
 
 /* queries the system load average */
-static double
-queryload(void)
+static bool
+reachedload(void)
 {
 #ifdef HAVE_GETLOADAVG
 	double load;
 
-	if (getloadavg(&load, 1) == -1) {
-		warn("getloadavg:");
-		load = 100.0;
+	if (buildopts.maxload > 0) {
+		if (getloadavg(&load, 1) == -1) {
+			warn("getloadavg:");
+			return true;
+		}
+		return load > buildopts.maxload;
+	} else {
+		return false;
 	}
-
-	return load;
 #else
-	return 0;
+	return false;
 #endif
+}
+
+/* returns remaining GNU/tokens */
+static ssize_t
+returngmake(void)
+{
+	ssize_t returned = 0;
+	if (isjobserverclient())
+		if ((returned = write(buildopts.gmakepipe[1], gmaketokens, gmakelatest - gmaketokens)) >= 0)
+			gmakelatest = gmaketokens;
+	return returned;
+}
+
+static void
+gmakeatexit(void)
+{
+	if (returngmake() < 0)
+		warn("last write to jobserver:");
+}
+
+static void
+termsignal(int signum)
+{
+	write(2, "terminating due to signal\n", 27);
+	(void)returngmake();
+	_exit(128 + signum);
 }
 
 void
 build(void)
 {
+	struct sigaction sact = { 0 };
 	struct job *jobs = NULL;
 	struct pollfd *fds = NULL;
 	size_t i, next = 0, jobslen = 0, maxjobs = buildopts.maxjobs, numjobs = 0, numfail = 0;
+	ssize_t gmakeread;
 	struct edge *e;
 
 	if (ntotal == 0) {
 		warn("nothing to do");
 		return;
+	}
+
+	fds = xmalloc(sizeof(fds[0]));
+	fds[0].fd = buildopts.gmakepipe[0];
+	fds[0].events = 0;
+	if (isjobserverclient()) {
+		fds[0].events |= POLLIN;
+		if (atexit(gmakeatexit) == 0) {
+			sact.sa_handler = termsignal;
+			sigaction(SIGTERM, &sact, NULL);
+			sigaction(SIGINT, &sact, NULL);
+			sigaction(SIGPIPE, &sact, NULL);
+		} else {
+			warn("unable to register an atexit() function");
+		}
 	}
 
 	clock_gettime(CLOCK_MONOTONIC, &starttime);
@@ -557,8 +611,10 @@ build(void)
 	nstarted = 0;
 	for (;;) {
 		/* limit number of of jobs based on load */
-		if (buildopts.maxload)
-			maxjobs = queryload() > buildopts.maxload ? 1 : buildopts.maxjobs;
+		maxjobs = reachedload() ? 1 : buildopts.maxjobs;
+		/* limit number of jobs based on gmake tokens */
+		if (isjobserverclient())
+			maxjobs = maxjobs > 1 + (size_t)(gmakelatest - gmaketokens) ? 1 + (size_t)(gmakelatest - gmaketokens) : maxjobs;
 		/* start ready edges */
 		while (work && numjobs < maxjobs && numfail < buildopts.maxfail) {
 			e = work;
@@ -578,18 +634,19 @@ build(void)
 				if (jobslen > buildopts.maxjobs)
 					jobslen = buildopts.maxjobs;
 				jobs = xreallocarray(jobs, jobslen, sizeof(jobs[0]));
-				fds = xreallocarray(fds, jobslen, sizeof(fds[0]));
+				fds = xreallocarray(fds, 1 + jobslen, sizeof(fds[0]));
 				for (i = next; i < jobslen; ++i) {
 					jobs[i].buf.data = NULL;
 					jobs[i].buf.len = 0;
 					jobs[i].buf.cap = 0;
 					jobs[i].next = i + 1;
-					fds[i].fd = -1;
-					fds[i].events = POLLIN;
+					fds[1+i].fd = -1;
+					fds[1+i].events = POLLIN;
 				}
 			}
-			fds[next].fd = jobstart(&jobs[next], e);
-			if (fds[next].fd < 0) {
+
+			fds[1+next].fd = jobstart(&jobs[next], e);
+			if (fds[1+next].fd < 0) {
 				warn("job failed to start");
 				++numfail;
 			} else {
@@ -599,17 +656,30 @@ build(void)
 		}
 		if (numjobs == 0)
 			break;
-		if (poll(fds, jobslen, 5000) < 0)
+		if (poll(fds, 1 + jobslen, 5000) < 0)
 			fatal("poll:");
 		for (i = 0; i < jobslen; ++i) {
-			if (!fds[i].revents || jobwork(&jobs[i]))
+			if (!fds[1+i].revents || jobwork(&jobs[i]))
 				continue;
 			--numjobs;
 			jobs[i].next = next;
-			fds[i].fd = -1;
+			fds[1+i].fd = -1;
 			next = i;
 			if (jobs[i].failed)
 				++numfail;
+			/* return a token */
+			if (isjobserverclient() && gmakelatest > gmaketokens) {
+				if (write(buildopts.gmakepipe[1], --gmakelatest, 1) < 0)
+					warn("write to jobserver:");
+			}
+		}
+		if (fds[0].revents & POLLIN && isjobserverclient() && nstarted < ntotal && !reachedload()) {
+			gmakeread = read(buildopts.gmakepipe[0], gmakelatest, buildopts.maxjobs - numjobs);
+			if (gmakeread < 0) {
+				warn("read from jobserver:");
+				gmakeread = 0;
+			}
+			gmakelatest += gmakeread;
 		}
 	}
 	for (i = 0; i < jobslen; ++i)
