@@ -66,6 +66,9 @@ struct edge {
 	struct edge *worknext;
 	/* used for alledges linked list */
 	struct edge *allnext;
+
+	/* has the edge requested a token from the job server */
+	_Bool reserve;
 };
 
 void graphinit(void);

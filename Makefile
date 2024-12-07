@@ -4,7 +4,7 @@
 PREFIX=/usr/local
 BINDIR=$(PREFIX)/bin
 MANDIR=$(PREFIX)/share/man
-ALL_CFLAGS=$(CFLAGS) -std=c99 -Wall -Wextra -Wshadow -Wmissing-prototypes -Wpedantic -Wno-unused-parameter
+ALL_CFLAGS=$(CFLAGS) -std=c99 -Wall -Wextra -Wshadow -Wmissing-prototypes -Wpedantic -Wno-unused-parameter -pthread
 OBJ=\
 	build.o\
 	deps.o\
@@ -15,6 +15,7 @@ OBJ=\
 	parse.o\
 	samu.o\
 	scan.o\
+	token.o\
 	tool.o\
 	tree.o\
 	util.o
@@ -28,6 +29,7 @@ HDR=\
 	log.h\
 	parse.h\
 	scan.h\
+	token.h\
 	tool.h\
 	tree.h\
 	util.h
