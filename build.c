@@ -484,6 +484,14 @@ jobdone(struct job *j)
 		edgedone(e);
 }
 
+static void
+jobkill(struct job *j)
+{
+	kill(j->pid, SIGTERM);
+	j->failed = true;
+	jobdone(j);
+}
+
 /* returns whether a job still has work to do. if not, sets j->failed */
 static bool
 jobwork(struct job *j)
@@ -507,16 +515,16 @@ jobwork(struct job *j)
 		j->buf.len += n;
 		return true;
 	}
-	if (n == 0)
-		goto done;
-	warn("read:");
+	if (n < 0) {
+		warn("read:");
+		goto kill;
+	}
+
+	jobdone(j);
+	return false;
 
 kill:
-	kill(j->pid, SIGTERM);
-	j->failed = true;
-done:
-	jobdone(j);
-
+	jobkill(j);
 	return false;
 }
 
