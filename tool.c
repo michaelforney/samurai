@@ -268,7 +268,9 @@ graphnode(struct node *n)
 	size_t i;
 	const char *style;
 
-	printf("\"%p\" [label=\"%s\"]\n", (void *)n, n->path->s);
+	printf("\"%p\" [label=\"", (void *)n);
+	printquoted(n->path->s, n->path->n, false);
+	printf("\"]\n");
 
 	if (!e || (e->flags & FLAG_WORK))
 		return;
