@@ -168,7 +168,7 @@ commands(int argc, char *argv[])
 }
 
 static void
-printjson(const char *s, size_t n, bool join)
+printquoted(const char *s, size_t n, bool join)
 {
 	size_t i;
 	char c;
@@ -225,28 +225,28 @@ compdb(int argc, char *argv[])
 					putchar(',');
 
 				printf("\n  {\n    \"directory\": \"");
-				printjson(dir, -1, false);
+				printquoted(dir, -1, false);
 
 				printf("\",\n    \"command\": \"");
 				cmd = edgevar(e, "command", true);
 				rspfile = expandrsp ? edgevar(e, "rspfile", true) : NULL;
 				p = rspfile ? strstr(cmd->s, rspfile->s) : NULL;
 				if (!p || p == cmd->s || p[-1] != '@') {
-					printjson(cmd->s, cmd->n, false);
+					printquoted(cmd->s, cmd->n, false);
 				} else {
 					off = p - cmd->s;
-					printjson(cmd->s, off - 1, false);
+					printquoted(cmd->s, off - 1, false);
 					content = edgevar(e, "rspfile_content", true);
-					printjson(content->s, content->n, true);
+					printquoted(content->s, content->n, true);
 					off += rspfile->n;
-					printjson(cmd->s + off, cmd->n - off, false);
+					printquoted(cmd->s + off, cmd->n - off, false);
 				}
 
 				printf("\",\n    \"file\": \"");
-				printjson(e->in[0]->path->s, -1, false);
+				printquoted(e->in[0]->path->s, -1, false);
 
 				printf("\",\n    \"output\": \"");
-				printjson(e->out[0]->path->s, -1, false);
+				printquoted(e->out[0]->path->s, -1, false);
 
 				printf("\"\n  }");
 				break;
