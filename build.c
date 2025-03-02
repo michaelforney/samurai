@@ -2,12 +2,14 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <poll.h>
 #include <signal.h>
 #include <spawn.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
@@ -16,6 +18,7 @@
 #include "env.h"
 #include "graph.h"
 #include "log.h"
+#include "token.h"
 #include "util.h"
 
 struct job {
@@ -33,6 +36,10 @@ static struct edge *work;
 static size_t nstarted, nfinished, ntotal;
 static bool consoleused;
 static struct timespec starttime;
+
+/* for signal handling */
+static volatile sig_atomic_t killall;
+static volatile sig_atomic_t stopsig;
 
 void
 buildreset(void)
@@ -113,6 +120,11 @@ queue(struct edge *e)
 	}
 	e->worknext = *front;
 	*front = e;
+}
+
+static bool have_work(void)
+{
+	return work && !stopsig;
 }
 
 void
@@ -453,7 +465,8 @@ jobdone(struct job *j)
 			j->failed = true;
 		}
 	} else if (WIFSIGNALED(status)) {
-		warn("job terminated due to signal %d: %s", WTERMSIG(status), j->cmd->s);
+		if (stopsig != WTERMSIG(status))
+			warn("job terminated due to signal %d: %s", WTERMSIG(status), j->cmd->s);
 		j->failed = true;
 	} else {
 		/* cannot happen according to POSIX */
@@ -465,6 +478,8 @@ jobdone(struct job *j)
 		fwrite(j->buf.data, 1, j->buf.len, stdout);
 	j->buf.len = 0;
 	e = j->edge;
+	j->edge = NULL;
+
 	if (e->pool) {
 		p = e->pool;
 
@@ -482,6 +497,14 @@ jobdone(struct job *j)
 	}
 	if (!j->failed)
 		edgedone(e);
+}
+
+static void
+jobkill(struct job *j)
+{
+	kill(j->pid, SIGTERM);
+	j->failed = true;
+	jobdone(j);
 }
 
 /* returns whether a job still has work to do. if not, sets j->failed */
@@ -507,16 +530,16 @@ jobwork(struct job *j)
 		j->buf.len += n;
 		return true;
 	}
-	if (n == 0)
-		goto done;
-	warn("read:");
+	if (n < 0) {
+		warn("read:");
+		goto kill;
+	}
+
+	jobdone(j);
+	return false;
 
 kill:
-	kill(j->pid, SIGTERM);
-	j->failed = true;
-done:
-	jobdone(j);
-
+	jobkill(j);
 	return false;
 }
 
@@ -538,6 +561,20 @@ queryload(void)
 #endif
 }
 
+static void sighandler(int sig)
+{
+	/*
+	 * Both SIGINT and SIGTERM will not start any more processes,
+	 * but only SIGTERM needs to be forwarded to samurai's child
+	 * processes.  That's because samurai is a process group leader
+	 * and SIGINT has already been sent to all children, and they
+	 * will stop on their own.
+	 */
+	if (sig == SIGTERM)
+		killall = true;
+	stopsig = sig;
+}
+
 void
 build(void)
 {
@@ -545,14 +582,27 @@ build(void)
 	struct pollfd *fds = NULL;
 	size_t i, next = 0, jobslen = 0, maxjobs = buildopts.maxjobs, numjobs = 0, numfail = 0;
 	struct edge *e;
+	int jobserver_rfd;
+	struct sigaction sa;
 
 	if (ntotal == 0) {
 		warn("nothing to do");
 		return;
 	}
 
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = sighandler;
+	sa.sa_flags = SA_RESTART;
+	sigaction(SIGTERM, &sa, NULL);
+	sigaction(SIGINT, &sa, NULL);
+
 	clock_gettime(CLOCK_MONOTONIC, &starttime);
 	formatstatus(NULL, 0);
+	jobserver_rfd = tokeninit();
+
+	/* if running under job server start as many jobs as allowed */
+	if (jobserver_rfd != -1)
+		buildopts.maxjobs = INT_MAX;
 
 	nstarted = 0;
 	for (;;) {
@@ -560,25 +610,28 @@ build(void)
 		if (buildopts.maxload)
 			maxjobs = queryload() > buildopts.maxload ? 1 : buildopts.maxjobs;
 		/* start ready edges */
-		while (work && numjobs < maxjobs && numfail < buildopts.maxfail) {
+		while (have_work() && numjobs < maxjobs && numfail < buildopts.maxfail) {
 			e = work;
-			work = work->worknext;
 			if (e->rule != &phonyrule && buildopts.dryrun) {
 				++nstarted;
 				printstatus(e, edgevar(e, "command", true));
 				++nfinished;
 			}
 			if (e->rule == &phonyrule || buildopts.dryrun) {
+				work = work->worknext;
 				for (i = 0; i < e->nout; ++i)
 					nodedone(e->out[i], false);
 				continue;
 			}
+			if (!tokenget(e))
+				break;
+			work = work->worknext;
 			if (next == jobslen) {
 				jobslen = jobslen ? jobslen * 2 : 8;
 				if (jobslen > buildopts.maxjobs)
 					jobslen = buildopts.maxjobs;
 				jobs = xreallocarray(jobs, jobslen, sizeof(jobs[0]));
-				fds = xreallocarray(fds, jobslen, sizeof(fds[0]));
+				fds = xreallocarray(fds, jobslen + 1, sizeof(fds[0]));
 				for (i = next; i < jobslen; ++i) {
 					jobs[i].buf.data = NULL;
 					jobs[i].buf.len = 0;
@@ -587,6 +640,8 @@ build(void)
 					fds[i].fd = -1;
 					fds[i].events = POLLIN;
 				}
+				fds[jobslen].fd = jobserver_rfd;
+				fds[jobslen].events = POLLIN;
 			}
 			fds[next].fd = jobstart(&jobs[next], e);
 			if (fds[next].fd < 0) {
@@ -597,13 +652,23 @@ build(void)
 				++numjobs;
 			}
 		}
-		if (numjobs == 0)
+		if (!have_work() && !numjobs)
 			break;
-		if (poll(fds, jobslen, 5000) < 0)
+		/*
+		 * the last slot is for the jobserver and is only used to
+		 * kick samurai out of poll()
+		 */
+		if (poll(fds, jobslen + 1, 5000) < 0 && errno != EINTR)
 			fatal("poll:");
 		for (i = 0; i < jobslen; ++i) {
-			if (!fds[i].revents || jobwork(&jobs[i]))
+			if (fds[i].fd == -1)
 				continue;
+			else if (killall)
+				jobkill(&jobs[i]);
+			else if (!fds[i].revents || jobwork(&jobs[i]))
+				continue;
+
+			tokenput();
 			--numjobs;
 			jobs[i].next = next;
 			fds[i].fd = -1;
@@ -619,6 +684,10 @@ build(void)
 	if (numfail > 0) {
 		if (numfail < buildopts.maxfail)
 			fatal("cannot make progress due to previous errors");
+		else if (stopsig == SIGINT)
+			fatal("interrupted by user");
+		else if (stopsig)
+			fatal("interrupted by signal %d", stopsig);
 		else if (numfail > 1)
 			fatal("subcommands failed");
 		else
