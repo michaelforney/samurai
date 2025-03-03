@@ -5,6 +5,7 @@ PREFIX=/usr/local
 BINDIR=$(PREFIX)/bin
 MANDIR=$(PREFIX)/share/man
 ALL_CFLAGS=$(CFLAGS) -std=c99 -Wall -Wextra -Wshadow -Wmissing-prototypes -Wpedantic -Wno-unused-parameter
+LDLIBS=-lrt
 OBJ=\
 	build.o\
 	deps.o\
@@ -38,7 +39,7 @@ all: samu
 	$(CC) $(ALL_CFLAGS) -c -o $@ $<
 
 samu: $(OBJ)
-	$(CC) $(LDFLAGS) -o $@ $(OBJ)
+	$(CC) $(LDFLAGS) $(LDLIBS) -o $@ $(OBJ)
 
 $(OBJ): $(HDR)
 
