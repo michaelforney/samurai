@@ -189,7 +189,14 @@ depsinit(const char *builddir)
 			entry = &entries[id];
 			entry->mtime = (int64_t)buf[2] << 32 | buf[1];
 			e = entry->node->gen;
-			if (!e || !edgevar(e, "deps", true))
+            bool has_deps;
+            {
+                struct string* deps = edgevar(e, "deps", true);
+                has_deps = (bool)deps;
+                if (deps)
+                    free(deps);
+            }
+            if (!e || !has_deps)
 				continue;
 			sz /= 4;
 			free(entry->deps.node);
@@ -407,11 +414,15 @@ depsparse(const char *name, bool allowmissing)
 	if (ferror(f)) {
 		warn("depfile read '%s':", name);
 		goto err;
-	}
+    }
+    if (out)
+        free(out);
 	fclose(f);
 	return &deps;
 
 err:
+    if (out)
+        free(out);
 	fclose(f);
 	return NULL;
 }
@@ -429,6 +440,7 @@ depsload(struct edge *e)
 	n = e->out[0];
 	deptype = edgevar(e, "deps", true);
 	if (deptype) {
+        free(deptype);
 		if (n->id != -1 && n->mtime <= entries[n->id].mtime)
 			deps = &entries[n->id].deps;
 		else if (buildopts.explain)
@@ -460,21 +472,34 @@ depsrecord(struct edge *e)
 	bool update;
 
 	deptype = edgevar(e, "deps", true);
-	if (!deptype || deptype->n == 0)
-		return;
+    if (!deptype) {
+        return;
+    }
+    if (deptype->n == 0) {
+        free(deptype);
+        return;
+    }
 	if (strcmp(deptype->s, "gcc") != 0) {
 		warn("unsuported deps type: %s", deptype->s);
+        free(deptype);
 		return;
 	}
+    free(deptype);
 	depfile = edgevar(e, "depfile", false);
-	if (!depfile || depfile->n == 0) {
+    if (!depfile) {
 		warn("deps but no depfile");
 		return;
 	}
+    if (depfile->n == 0) {
+        warn("deps but no depfile");
+        free(depfile);
+        return;
+    }
 	out = e->out[0];
 	deps = depsparse(depfile->s, true);
 	if (!buildopts.keepdepfile)
 		remove(depfile->s);
+    free(depfile);
 	if (!deps)
 		return;
 	update = false;

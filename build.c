@@ -114,8 +114,7 @@ buildadd(struct node *n)
 {
 	struct edge *e;
 	struct node *newest;
-	size_t i;
-	bool generator, restat;
+    size_t i;
 
 	e = n->gen;
 	if (!e) {
@@ -153,15 +152,19 @@ buildadd(struct node *n)
 			++e->nblock;
 	}
 	/* all outputs are dirty if any are older than the newest input */
-	generator = edgevar(e, "generator", true);
-	restat = edgevar(e, "restat", true);
+    struct string* generator = edgevar(e, "generator", true);
+    struct string* restat = edgevar(e, "restat", true);
 	for (i = 0; i < e->nout && !(e->flags & FLAG_DIRTY_OUT); ++i) {
 		n = e->out[i];
-		if (isdirty(n, newest, generator, restat)) {
+        if (isdirty(n, newest, (bool)generator, (bool)restat)) {
 			n->dirty = true;
 			e->flags |= FLAG_DIRTY_OUT;
 		}
 	}
+    if (generator)
+        free(generator);
+    if (restat)
+        free(restat);
 	if (e->flags & FLAG_DIRTY) {
 		for (i = 0; i < e->nout; ++i) {
 			n = e->out[i];
@@ -265,6 +268,7 @@ printstatus(struct edge *e, struct string *cmd)
 	formatstatus(status, sizeof(status));
 	fputs(status, stdout);
 	puts(description->s);
+    free(description);
 }
 
 static int
@@ -289,6 +293,8 @@ jobstart(struct osjob_ctx *osctx, struct osjob *oj, struct job *j, struct edge *
 			goto err0;
 	}
 	j->edge = e;
+    if (j->cmd)
+        free(j->cmd);
 	j->cmd = edgevar(e, "command", true);
 
 	if (!consoleused)
@@ -362,18 +368,19 @@ edgedone(struct edge *e)
 {
 	struct node *n;
 	size_t i;
-	struct string *rspfile;
-	bool restat;
+    struct string *rspfile;
 	int64_t old;
 
-	restat = edgevar(e, "restat", true);
+    struct string * restat = edgevar(e, "restat", true);
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
 		old = n->mtime;
 		nodestat(n);
 		n->logmtime = n->mtime == MTIME_MISSING ? 0 : n->mtime;
-		nodedone(n, restat && shouldprune(e, n, old));
+        nodedone(n, (bool)restat && shouldprune(e, n, old));
 	}
+    if (restat)
+        free(restat);
 	rspfile = edgevar(e, "rspfile", false);
 	if (rspfile && !buildopts.keeprsp)
 		remove(rspfile->s);
@@ -484,6 +491,7 @@ build(void)
 
 	if (ntotal == 0) {
 		warn("nothing to do");
+        osjob_ctx_close(osctx);
 		return;
 	}
 
@@ -546,8 +554,12 @@ build(void)
 	}
 	for (i = 0; i < jobslen; ++i) {
 		free(jobs[i].buf.data);
+        free(jobs[i].cmd);
 	}
-	free(jobs);
+    if (jobs)
+        free(jobs);
+    if (osjobs)
+        free(osjobs);
 	osjob_ctx_close(osctx);
 	if (numfail > 0) {
 		if (numfail < buildopts.maxfail)

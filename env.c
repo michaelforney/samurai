@@ -234,6 +234,7 @@ edgevar(struct edge *e, char *var, bool escape)
 	n->value = cycle;
 	len = 0;
 	for (p = str; p; p = p->next) {
+        // leaks memory here. p->str no cleaned up in all cases
 		if (p->var)
 			p->str = edgevar(e, p->var, escape);
 		if (p->str)

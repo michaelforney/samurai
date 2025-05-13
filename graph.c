@@ -175,6 +175,7 @@ edgehash(struct edge *e)
 	} else {
 		e->hash = murmurhash64a(cmd->s, cmd->n);
 	}
+    free(cmd);
 }
 
 static struct edge *

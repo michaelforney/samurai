@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #define _POSIX_C_SOURCE 200809L
 
 #include <errno.h>
@@ -17,11 +18,6 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
-struct osjob_ctx {
-	struct pollfd* pfds;
-	size_t pfds_len;
-};
 
 void
 osgetcwd(char *buf, size_t len)
@@ -111,23 +107,41 @@ osclock_gettime_monotonic(struct ostimespec* time)
 	return 0;
 }
 
-pid_t
-oswaitpid(pid_t pid, int *status, int options)
+////////////// Jobs
+
+struct osjob_ctx {
+    struct pollfd* pfds;
+    size_t pfds_len;
+};
+
+
+struct osjob_ctx*
+osjob_ctx_create()
 {
-	return waitpid(pid, status, options);
+    struct osjob_ctx* result = xmalloc(sizeof(struct osjob_ctx));
+    memset(result, 0, sizeof(*result));
+    return result;
 }
 
-int osjob_close(struct osjob* ojob)
+void
+osjob_ctx_close(struct osjob_ctx* ctx)
+{
+    if (ctx->pfds)
+        free(ctx->pfds);
+    free(ctx);
+}
+
+int osjob_close(struct osjob_ctx* ctx, struct osjob* ojob)
 {
 
-	close(ojob->fd);
+    close(ojob->fd);
 	kill(ojob->pid, SIGTERM);
 	memset(ojob, 0, sizeof(*ojob));
 	return 0;
 }
 
 int
-osjob_done(struct osjob* ojob, struct string* cmd)
+osjob_done(struct osjob_ctx* ctx, struct osjob* ojob, struct string* cmd)
 {
 	int status;
 	if (waitpid(ojob->pid, &status, 0) < 0) {
@@ -140,9 +154,9 @@ osjob_done(struct osjob* ojob, struct string* cmd)
 		warn("job failed with status %d: %s", WEXITSTATUS(status), cmd->s);
 		goto err;
 	}
-	return osjob_close(ojob);
+	return osjob_close(ctx, ojob);
 err:
-	osjob_close(ojob);
+	osjob_close(ctx, ojob);
 	return -1;
 }
 
@@ -176,14 +190,14 @@ osjob_wait(struct osjob_ctx *ctx, struct osjob* ojobs, size_t jobslen, int timeo
 }
 
 ssize_t
-osjob_work(struct osjob *ojob, void *buf, size_t buflen)
+osjob_work(struct osjob_ctx *ctx, struct osjob *ojob, void *buf, size_t buflen)
 {
 	assert(ojob->has_data);
 	return read(ojob->fd, buf, buflen);
 }
 
 int
-osjob_create(struct osjob *created, struct string *cmd, bool console)
+osjob_create(struct osjob_ctx *ctx, struct osjob *created, struct string *cmd, bool console)
 {
 	extern char **environ;
 	int fd[2];

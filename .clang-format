@@ -5,7 +5,7 @@ AlignEscapedNewlines: DontAlign
 AlwaysBreakAfterDefinitionReturnType: All
 BreakBeforeBraces: Linux
 ColumnLimit: 0
-IndentWidth: 8
+IndentWidth: 4
 SortIncludes: false
-TabWidth: 8
+TabWidth: 4
 UseTab: ForIndentation
