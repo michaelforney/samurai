@@ -1,16 +1,11 @@
-#define _POSIX_C_SOURCE 200809L
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
-#include <poll.h>
 #include <signal.h>
-#include <spawn.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/wait.h>
-#include <time.h>
-#include <unistd.h>
+#include <string.h>
 #include "build.h"
 #include "deps.h"
 #include "env.h"
@@ -23,9 +18,7 @@ struct job {
 	struct string *cmd;
 	struct edge *edge;
 	struct buffer buf;
-	size_t next;
-	pid_t pid;
-	int fd;
+        size_t next;
 	bool failed;
 };
 
@@ -33,7 +26,7 @@ struct buildoptions buildopts = {.maxfail = 1};
 static struct edge *work;
 static size_t nstarted, nfinished, ntotal;
 static bool consoleused;
-static struct timespec starttime;
+static struct ostimespec starttime;
 
 void
 buildreset(void)
@@ -198,7 +191,7 @@ formatstatus(char *buf, size_t len)
 	const char *fmt;
 	size_t ret = 0;
 	int n;
-	struct timespec endtime;
+	struct ostimespec endtime;
 
 	for (fmt = buildopts.statusfmt; *fmt; ++fmt) {
 		if (*fmt != '%' || *++fmt == '%') {
@@ -230,14 +223,14 @@ formatstatus(char *buf, size_t len)
 			n = snprintf(buf, len, "%3zu%%", 100 * nfinished / ntotal);
 			break;
 		case 'o':
-			if (clock_gettime(CLOCK_MONOTONIC, &endtime) != 0) {
+			if (osclock_gettime_monotonic(&endtime) != 0) {
 				warn("clock_gettime:");
 				break;
 			}
 			n = snprintf(buf, len, "%.1f", nfinished / ((endtime.tv_sec - starttime.tv_sec) + 0.000000001 * (endtime.tv_nsec - starttime.tv_nsec)));
 			break;
 		case 'e':
-			if (clock_gettime(CLOCK_MONOTONIC, &endtime) != 0) {
+			if (osclock_gettime_monotonic(&endtime) != 0) {
 				warn("clock_gettime:");
 				break;
 			}
@@ -275,15 +268,11 @@ printstatus(struct edge *e, struct string *cmd)
 }
 
 static int
-jobstart(struct job *j, struct edge *e)
+jobstart(struct osjob* oj, struct job *j, struct edge *e)
 {
-	extern char **environ;
 	size_t i;
 	struct node *n;
 	struct string *rspfile, *content;
-	int fd[2];
-	posix_spawn_file_actions_t actions;
-	char *argv[] = {"/bin/sh", "-c", NULL, NULL};
 
 	++nstarted;
 	for (i = 0; i < e->nout; ++i) {
@@ -299,67 +288,26 @@ jobstart(struct job *j, struct edge *e)
 		if (writefile(rspfile->s, content) < 0)
 			goto err0;
 	}
-
-	if (pipe(fd) < 0) {
-		warn("pipe:");
-		goto err1;
-	}
 	j->edge = e;
 	j->cmd = edgevar(e, "command", true);
-	j->fd = fd[0];
-	argv[2] = j->cmd->s;
 
 	if (!consoleused)
 		printstatus(e, j->cmd);
 
-	if ((errno = posix_spawn_file_actions_init(&actions))) {
-		warn("posix_spawn_file_actions_init:");
-		goto err2;
+        if (osjob_create(oj, j->cmd, e->pool == &consolepool) < 0) {
+		goto err1;
 	}
-	if ((errno = posix_spawn_file_actions_addclose(&actions, fd[0]))) {
-		warn("posix_spawn_file_actions_addclose:");
-		goto err3;
-	}
-	if (e->pool != &consolepool) {
-		if ((errno = posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0))) {
-			warn("posix_spawn_file_actions_addopen:");
-			goto err3;
-		}
-		if ((errno = posix_spawn_file_actions_adddup2(&actions, fd[1], 1))) {
-			warn("posix_spawn_file_actions_adddup2:");
-			goto err3;
-		}
-		if ((errno = posix_spawn_file_actions_adddup2(&actions, fd[1], 2))) {
-			warn("posix_spawn_file_actions_adddup2:");
-			goto err3;
-		}
-		if ((errno = posix_spawn_file_actions_addclose(&actions, fd[1]))) {
-			warn("posix_spawn_file_actions_addclose:");
-			goto err3;
-		}
-	}
-	if ((errno = posix_spawn(&j->pid, argv[0], &actions, NULL, argv, environ))) {
-		warn("posix_spawn %s:", j->cmd->s);
-		goto err3;
-	}
-	posix_spawn_file_actions_destroy(&actions);
-	close(fd[1]);
+
 	j->failed = false;
 	if (e->pool == &consolepool)
 		consoleused = true;
-
-	return j->fd;
-
-err3:
-	posix_spawn_file_actions_destroy(&actions);
-err2:
-	close(fd[0]);
-	close(fd[1]);
+        oj->valid = true;
+        return 0;
 err1:
 	if (rspfile && !buildopts.keeprsp)
 		remove(rspfile->s);
 err0:
-	return -1;
+        return -1;
 }
 
 static void
@@ -438,30 +386,15 @@ edgedone(struct edge *e)
 }
 
 static void
-jobdone(struct job *j)
+jobdone(struct job *j, struct osjob* oj)
 {
-	int status;
 	struct edge *e, *new;
 	struct pool *p;
 
 	++nfinished;
-	if (waitpid(j->pid, &status, 0) < 0) {
-		warn("waitpid %d:", j->pid);
-		j->failed = true;
-	} else if (WIFEXITED(status)) {
-		if (WEXITSTATUS(status) != 0) {
-			warn("job failed with status %d: %s", WEXITSTATUS(status), j->cmd->s);
-			j->failed = true;
-		}
-	} else if (WIFSIGNALED(status)) {
-		warn("job terminated due to signal %d: %s", WTERMSIG(status), j->cmd->s);
-		j->failed = true;
-	} else {
-		/* cannot happen according to POSIX */
-		warn("job status unknown: %s", j->cmd->s);
+        if (osjob_done(oj, j->cmd) < 0) {
 		j->failed = true;
 	}
-	close(j->fd);
 	if (j->buf.len && (!consoleused || j->failed))
 		fwrite(j->buf.data, 1, j->buf.len, stdout);
 	j->buf.len = 0;
@@ -487,7 +420,7 @@ jobdone(struct job *j)
 
 /* returns whether a job still has work to do. if not, sets j->failed */
 static bool
-jobwork(struct job *j)
+jobwork(struct job *j, struct osjob* ojob)
 {
 	char *newdata;
 	size_t newcap;
@@ -503,20 +436,20 @@ jobwork(struct job *j)
 		j->buf.cap = newcap;
 		j->buf.data = newdata;
 	}
-	n = read(j->fd, j->buf.data + j->buf.len, j->buf.cap - j->buf.len);
-	if (n > 0) {
-		j->buf.len += n;
+        ssize_t result = osjob_work(ojob, j->buf.data + j->buf.len, j->buf.cap - j->buf.len);
+	if (result > 0) {
+		j->buf.len += result;
 		return true;
-	}
-	if (n == 0)
+	} else if (result == 0) {
 		goto done;
-	warn("read:");
-
+	} else {
+		warn("read:");
 kill:
-	kill(j->pid, SIGTERM);
-	j->failed = true;
+                osjob_close(ojob);
+		j->failed = true;
+	}
 done:
-	jobdone(j);
+        jobdone(j, ojob);
 
 	return false;
 }
@@ -543,7 +476,8 @@ void
 build(void)
 {
 	struct job *jobs = NULL;
-	struct pollfd *fds = NULL;
+    struct osjob* osjobs = NULL;
+	struct osjob_ctx osctx = {0};
 	size_t i, next = 0, jobslen = 0, maxjobs = buildopts.maxjobs, numjobs = 0, numfail = 0;
 	struct edge *e;
 
@@ -552,7 +486,7 @@ build(void)
 		return;
 	}
 
-	clock_gettime(CLOCK_MONOTONIC, &starttime);
+	osclock_gettime_monotonic(&starttime);
 	formatstatus(NULL, 0);
 
 	nstarted = 0;
@@ -579,18 +513,14 @@ build(void)
 				if (jobslen > buildopts.maxjobs)
 					jobslen = buildopts.maxjobs;
 				jobs = xreallocarray(jobs, jobslen, sizeof(jobs[0]));
-				fds = xreallocarray(fds, jobslen, sizeof(fds[0]));
-				for (i = next; i < jobslen; ++i) {
-					jobs[i].buf.data = NULL;
-					jobs[i].buf.len = 0;
-					jobs[i].buf.cap = 0;
-					jobs[i].next = i + 1;
-					fds[i].fd = -1;
-					fds[i].events = POLLIN;
+				osjobs = xreallocarray(osjobs, jobslen, sizeof(osjobs[0]));
+                                for (i = next; i < jobslen; ++i) {
+                                        jobs[i] = (struct job){0};
+                                        jobs[i].next = i + 1;
+                                        osjobs[i] = (struct osjob){0};
 				}
-			}
-			fds[next].fd = jobstart(&jobs[next], e);
-			if (fds[next].fd < 0) {
+                        }
+                        if (jobstart(&osjobs[next], &jobs[next], e) < 0) {
 				warn("job failed to start");
 				++numfail;
 			} else {
@@ -600,23 +530,23 @@ build(void)
 		}
 		if (numjobs == 0)
 			break;
-		if (poll(fds, jobslen, 5000) < 0)
-			fatal("poll:");
+		if (osjob_wait(&osctx, osjobs, jobslen, 5000) < 0)
+			fatal("osjob_wait:");
 		for (i = 0; i < jobslen; ++i) {
-			if (!fds[i].revents || jobwork(&jobs[i]))
+                        if (!osjobs[i].valid || !osjobs[i].has_data || jobwork(&jobs[i], &osjobs[i]))
 				continue;
 			--numjobs;
 			jobs[i].next = next;
-			fds[i].fd = -1;
+                        osjobs[i].valid = false;
 			next = i;
 			if (jobs[i].failed)
 				++numfail;
 		}
 	}
-	for (i = 0; i < jobslen; ++i)
+	for (i = 0; i < jobslen; ++i) {
 		free(jobs[i].buf.data);
+	}
 	free(jobs);
-	free(fds);
 	if (numfail > 0) {
 		if (numfail < buildopts.maxfail)
 			fatal("cannot make progress due to previous errors");

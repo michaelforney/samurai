@@ -6,6 +6,7 @@
 #include "graph.h"
 #include "log.h"
 #include "util.h"
+#include "os.h"
 
 static FILE *logfile;
 static const char *logname = ".ninja_log";

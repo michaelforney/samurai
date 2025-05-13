@@ -1,3 +1,11 @@
 *.o
 .*.sw*
 /samu
+out/
+.vs/
+.vscode/
+.cache/
+build/
+CMakeUserPresets.json
+CMakePresets.json
+*.user

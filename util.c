@@ -152,6 +152,7 @@ delevalstr(void *ptr)
 void
 canonpath(struct string *path)
 {
+	// TODO: canon for win32
 	char *component[60];
 	int n;
 	char *s, *d, *end;
