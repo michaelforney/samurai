@@ -18,7 +18,7 @@ struct job {
 	struct string *cmd;
 	struct edge *edge;
 	struct buffer buf;
-        size_t next;
+    size_t next;
 	bool failed;
 };
 
@@ -268,7 +268,7 @@ printstatus(struct edge *e, struct string *cmd)
 }
 
 static int
-jobstart(struct osjob* oj, struct job *j, struct edge *e)
+jobstart(struct osjob_ctx *osctx, struct osjob *oj, struct job *j, struct edge *e)
 {
 	size_t i;
 	struct node *n;
@@ -294,7 +294,8 @@ jobstart(struct osjob* oj, struct job *j, struct edge *e)
 	if (!consoleused)
 		printstatus(e, j->cmd);
 
-        if (osjob_create(oj, j->cmd, e->pool == &consolepool) < 0) {
+	bool use_console = e->pool == &consolepool;
+	if (osjob_create(osctx, oj, j->cmd, use_console) < 0) {
 		goto err1;
 	}
 
@@ -386,13 +387,13 @@ edgedone(struct edge *e)
 }
 
 static void
-jobdone(struct job *j, struct osjob* oj)
+jobdone(struct osjob_ctx *osctx, struct job *j, struct osjob *oj)
 {
 	struct edge *e, *new;
 	struct pool *p;
 
 	++nfinished;
-        if (osjob_done(oj, j->cmd) < 0) {
+	if (osjob_done(osctx, oj, j->cmd) < 0) {
 		j->failed = true;
 	}
 	if (j->buf.len && (!consoleused || j->failed))
@@ -420,7 +421,7 @@ jobdone(struct job *j, struct osjob* oj)
 
 /* returns whether a job still has work to do. if not, sets j->failed */
 static bool
-jobwork(struct job *j, struct osjob* ojob)
+jobwork(struct osjob_ctx* osctx, struct job *j, struct osjob *ojob)
 {
 	char *newdata;
 	size_t newcap;
@@ -436,7 +437,7 @@ jobwork(struct job *j, struct osjob* ojob)
 		j->buf.cap = newcap;
 		j->buf.data = newdata;
 	}
-        ssize_t result = osjob_work(ojob, j->buf.data + j->buf.len, j->buf.cap - j->buf.len);
+	ssize_t result = osjob_work(osctx, ojob, j->buf.data + j->buf.len, j->buf.cap - j->buf.len);
 	if (result > 0) {
 		j->buf.len += result;
 		return true;
@@ -445,11 +446,11 @@ jobwork(struct job *j, struct osjob* ojob)
 	} else {
 		warn("read:");
 kill:
-                osjob_close(ojob);
+		osjob_close(osctx, ojob);
 		j->failed = true;
 	}
 done:
-        jobdone(j, ojob);
+	jobdone(osctx, j, ojob);
 
 	return false;
 }
@@ -477,7 +478,7 @@ build(void)
 {
 	struct job *jobs = NULL;
     struct osjob* osjobs = NULL;
-	struct osjob_ctx osctx = {0};
+	struct osjob_ctx* osctx = osjob_ctx_create();
 	size_t i, next = 0, jobslen = 0, maxjobs = buildopts.maxjobs, numjobs = 0, numfail = 0;
 	struct edge *e;
 
@@ -514,13 +515,13 @@ build(void)
 					jobslen = buildopts.maxjobs;
 				jobs = xreallocarray(jobs, jobslen, sizeof(jobs[0]));
 				osjobs = xreallocarray(osjobs, jobslen, sizeof(osjobs[0]));
-                                for (i = next; i < jobslen; ++i) {
-                                        jobs[i] = (struct job){0};
-                                        jobs[i].next = i + 1;
-                                        osjobs[i] = (struct osjob){0};
+				for (i = next; i < jobslen; ++i) {
+                    jobs[i] = (struct job){0};
+                    jobs[i].next = i + 1;
+                    osjobs[i] = (struct osjob){0};
 				}
-                        }
-                        if (jobstart(&osjobs[next], &jobs[next], e) < 0) {
+            }
+			if (jobstart(osctx, &osjobs[next], &jobs[next], e) < 0) {
 				warn("job failed to start");
 				++numfail;
 			} else {
@@ -530,14 +531,14 @@ build(void)
 		}
 		if (numjobs == 0)
 			break;
-		if (osjob_wait(&osctx, osjobs, jobslen, 5000) < 0)
+		if (osjob_wait(osctx, osjobs, jobslen, 5000) < 0)
 			fatal("osjob_wait:");
 		for (i = 0; i < jobslen; ++i) {
-                        if (!osjobs[i].valid || !osjobs[i].has_data || jobwork(&jobs[i], &osjobs[i]))
+			if (!osjobs[i].valid || !osjobs[i].has_data || jobwork(osctx, &jobs[i], &osjobs[i]))
 				continue;
 			--numjobs;
 			jobs[i].next = next;
-                        osjobs[i].valid = false;
+            osjobs[i].valid = false;
 			next = i;
 			if (jobs[i].failed)
 				++numfail;
@@ -547,6 +548,7 @@ build(void)
 		free(jobs[i].buf.data);
 	}
 	free(jobs);
+	osjob_ctx_close(osctx);
 	if (numfail > 0) {
 		if (numfail < buildopts.maxfail)
 			fatal("cannot make progress due to previous errors");

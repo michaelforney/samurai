@@ -18,6 +18,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+struct osjob_ctx {
+	struct pollfd* pfds;
+	size_t pfds_len;
+};
+
 void
 osgetcwd(char *buf, size_t len)
 {

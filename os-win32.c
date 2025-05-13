@@ -117,115 +117,20 @@ osclock_gettime_monotonic(struct ostimespec* ts)
 	return 0;
 }
 
-pid_t
-oswaitpid(pid_t hProcess, int *status, int options)
+///////////////////////////// JOBS
+
+static HANDLE 
+win_create_nul()
 {
-
-	DWORD dwExitCode = 0;
-
-	if (hProcess == (HANDLE)-1) {
-		return (pid_t)-1;
-	}
-
-	// Check if the process is still running
-	if (!GetExitCodeProcess(hProcess, &dwExitCode)) {
-		warn("GetExitCodeProcess:");
-		return (pid_t)-1;
-	}
-	if (dwExitCode == STILL_ACTIVE) {
-		if (options & WNOHANG) {
-			// Process is still running and we don't want to wait
-			return 0;
-		} else {
-			// Wait for the process to exit
-			WaitForSingleObject(hProcess, INFINITE);
-			GetExitCodeProcess(hProcess, &dwExitCode);
-		}
-	}
-	if (status) {
-		*status = (int)dwExitCode;
-	}
-	CloseHandle(hProcess);
-	return hProcess;
-}
-
-ssize_t
-osread(fd_t fd, void* buf, size_t buflen)
-{
-	if (buflen == 0) {
-		// POSIX allows read with size 0 (may return 0 or error)
-		return 0;
-	}
-
-	char *buffer = (char *)buf;
-	ssize_t total_read = 0;
-	const DWORD max_chunk = 0xFFFFFFFF; // MAXDWORD
-
-	while (buflen > 0) {
-		DWORD chunk = buflen > max_chunk ? max_chunk : (DWORD)buflen;
-		DWORD bytes_read = 0;
-
-		if (!ReadFile(fd, buffer, chunk, &bytes_read, NULL)) {
-			const DWORD err = GetLastError();
-
-			if (total_read > 0) {
-				// Return partial read (POSIX allows this)
-				return total_read;
-			}
-
-			switch (err) {
-			case ERROR_BROKEN_PIPE:
-				return 0; // Treat as EOF for closed pipe
-
-			case ERROR_OPERATION_ABORTED:
-				errno = EINTR;
-				break;
-
-			case ERROR_NO_DATA:
-			case ERROR_IO_PENDING:
-				errno = EAGAIN;
-				break;
-
-			case ERROR_INVALID_HANDLE:
-			case ERROR_ACCESS_DENIED:
-				errno = EBADF;
-				break;
-
-			case ERROR_NOT_ENOUGH_MEMORY:
-				errno = ENOMEM;
-				break;
-
-			case ERROR_HANDLE_EOF:
-				return 0; // Explicit EOF indication
-
-			default:
-				errno = EIO;
-				break;
-			}
-
-			warn("ReadFile");
-			return -1;
-		}
-
-		if (bytes_read == 0) {
-			// Regular EOF condition
-			break;
-		}
-
-		total_read += bytes_read;
-		buffer += bytes_read;
-		buflen -= bytes_read;
-	}
-
-	return total_read ? total_read : (ssize_t)0;
-}
-
-void
-oskill(pid_t pid, int signal)
-{
-	if (!TerminateProcess(pid, signal)) {
-		fatal("TerminateProcess:");
-	}
+	SECURITY_ATTRIBUTES sa = {sizeof(sa)};
+	sa.bInheritHandle = TRUE;
+	// Must be inheritable so subprocesses can dup to children.
+	HANDLE nul = CreateFileA("NUL", GENERIC_READ,
+		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+		&sa, OPEN_EXISTING, 0, NULL);
+	if (nul == INVALID_HANDLE_VALUE)
+		fatal("couldn't open nul:");
+	return nul;
 }
 
 static int
@@ -235,70 +140,21 @@ pipe_check_ready(HANDLE pipe)
 	return PeekNamedPipe(pipe, NULL, 0, NULL, &avail, NULL) && avail > 0;
 }
 
+
 int
-ospoll(struct pollfd *fds, nfds_t nfds, int timeout)
+osjob_create(struct osjob_ctx *ctx, struct osjob *created, struct string *cmd, bool console)
 {
-	while (nfds > MAXIMUM_WAIT_OBJECTS) {
-		int subcnt = ospoll(fds, MAXIMUM_WAIT_OBJECTS, timeout); //increases timeout
-		if (subcnt) {
-			return subcnt;
-		}
-		fds += MAXIMUM_WAIT_OBJECTS;
-		nfds -= MAXIMUM_WAIT_OBJECTS;
-	}
+	// taken and modified from ninja-build
+	char pipe_name[100] = {0};
+	snprintf(pipe_name, sizeof(pipe_name), "\\\\.\\pipe\\samu_pid%lu_sp%p", GetCurrentProcessId(), (void *)created);
 
-	int cnt = 0, wait_cnt = 0;
-	HANDLE h[MAXIMUM_WAIT_OBJECTS];
+	created->pipe = CreateNamedPipeA(pipe_name,
+	                                   PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
+	                                   PIPE_TYPE_BYTE,
+	                                   PIPE_UNLIMITED_INSTANCES,
+	                                   0, 0, INFINITE, NULL);
 
-	for (int i = 0; i < nfds; i++) {
-		assert(fds[i].fd);
-		assert(GetFileType(fds[i].fd) == FILE_TYPE_PIPE);
-		fds[i].revents = 0;
-		if (pipe_check_ready(fds[i].fd)) {
-			fds[i].revents = POLLIN;
-			cnt++;
-		} else if (wait_cnt < MAXIMUM_WAIT_OBJECTS) {
-			h[wait_cnt++] = fds[i].fd;
-		}
-	}
-
-	if (cnt) {
-		return cnt;
-	}
-
-	if (!wait_cnt) {
-		return 0;
-	}
-
-	DWORD res = WaitForMultipleObjects(wait_cnt, h, 0, timeout < 0 ? INFINITE : timeout);
-	if (res >= WAIT_OBJECT_0 && res < WAIT_OBJECT_0 + wait_cnt) {
-		for (int i = 0; i < nfds; i++) {
-			struct pollfd *pfd = fds + i;
-			if (pfd->fd == h[res - WAIT_OBJECT_0] && (pfd->revents = pipe_check_ready(pfd->fd) ? POLLIN : 0)) {
-				cnt++;
-			}
-		}
-	} else if (res == WAIT_FAILED) {
-		errno = EINVAL;
-		return -1;
-	}
-	return res == WAIT_TIMEOUT ? 0 : cnt;
-}
-
-// taken and modified from ninja-build
-int
-oscreate_job(struct osjob *created, struct string* cmd, bool console)
-{
-	char pipe_name[100] = {""};
-	snprintf(pipe_name, sizeof(pipe_name), "\\\\.\\pipe\\samu_pid%lu_sp%p", GetCurrentProcessId(), cmd->s);
-
-	created->output = CreateNamedPipeA(pipe_name,
-	   PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
-	   PIPE_TYPE_BYTE,
-	   PIPE_UNLIMITED_INSTANCES,
-	   0, 0, INFINITE, NULL);
-
-	if (created->output == INVALID_HANDLE_VALUE) {
+	if (created->pipe == INVALID_HANDLE_VALUE) {
 		fatal("CreateNamedPipe: %s", pipe_name);
 	}
 
@@ -307,59 +163,42 @@ oscreate_job(struct osjob *created, struct string* cmd, bool console)
 	HANDLE child_pipe;
 	{
 		HANDLE output_write_handle =
-			CreateFileA(pipe_name, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+		    CreateFileA(pipe_name, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
 		HANDLE curr = GetCurrentProcess();
 		if (!DuplicateHandle(curr, output_write_handle,
 		                     curr, &child_pipe,
-							 0, TRUE, DUPLICATE_SAME_ACCESS)) {
+		                     0, TRUE, DUPLICATE_SAME_ACCESS)) {
 			fatal("DuplicateHandle");
 		}
 		CloseHandle(output_write_handle);
 	}
 
-	HANDLE nul;
-	{
+	HANDLE nul = win_create_nul();
 
-		SECURITY_ATTRIBUTES security_attributes;
-		memset(&security_attributes, 0, sizeof(SECURITY_ATTRIBUTES));
-		security_attributes.nLength = sizeof(SECURITY_ATTRIBUTES);
-		security_attributes.bInheritHandle = TRUE;
-
-		nul =
-		    CreateFileA("NUL", GENERIC_READ,
-		                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-		                &security_attributes, OPEN_EXISTING, 0, NULL);
-	}
-
-
-	STARTUPINFOA startup_info;
-	memset(&startup_info, 0, sizeof(startup_info));
-	startup_info.cb = sizeof(STARTUPINFO);
+	STARTUPINFOA sa = {sizeof(sa)};
 	if (!console) {
-		startup_info.dwFlags = STARTF_USESTDHANDLES;
-		startup_info.hStdInput = nul;
-		startup_info.hStdOutput = child_pipe;
-		startup_info.hStdError = child_pipe;
+		sa.dwFlags = STARTF_USESTDHANDLES;
+		sa.hStdInput = nul;
+		sa.hStdOutput = child_pipe;
+		sa.hStdError = child_pipe;
 	}
 
-	
 	PROCESS_INFORMATION process_info;
 	memset(&process_info, 0, sizeof(process_info));
 	{
 		WORD process_flags = 0;
 		if (!CreateProcessA(NULL, cmd->s, NULL, NULL,
-			/* inherit handles */ TRUE, process_flags,
-		    NULL, NULL, &startup_info, &process_info)) 
-		{
+		                    /* inherit handles */ TRUE, process_flags,
+		                    NULL, NULL, &sa, &process_info)) {
 			DWORD error = GetLastError();
 
 			if (error == ERROR_FILE_NOT_FOUND) {
 				if (child_pipe) {
 					CloseHandle(child_pipe);
 				}
-				if (created->output) {
-					CloseHandle(created->output);
-					created->output = 0;
+				if (created->pipe) {
+					CloseHandle(created->pipe);
+					created->pipe = 0;
 				}
 				CloseHandle(nul);
 				return -1;
@@ -371,13 +210,26 @@ oscreate_job(struct osjob *created, struct string* cmd, bool console)
 	if (child_pipe)
 		CloseHandle(child_pipe);
 	CloseHandle(nul);
-	created->pid = process_info.hProcess;
+	created->proc = process_info.hProcess;
 	CloseHandle(process_info.hThread);
 	return 0;
 }
 
-void
-osclose_job(struct osjob *ojob)
+/*ojobs is array of osjob*, entries may be NULL (invalid osjob).*/
+int osjob_wait(struct osjob_ctx *ctx, struct osjob *ojobs, size_t jobs_count, int timeout);
+/*read out into buffer*/
+ssize_t osjob_work(struct osjob_ctx *ctx, struct osjob *ojob, void *buf, size_t buflen);
+int osjob_close(struct osjob_ctx *ctx, struct osjob *ojob);
+int osjob_done(struct osjob_ctx *ctx, struct osjob *ojob, struct string *cmd);
+void osjob_ctx_init(struct osjob_ctx* ctx)
 {
-	CloseHandle(ojob->output);
+
 }
+
+void osjob_ctx_close(struct osjob_ctx* ctx)
+{
+
+}
+
+
+

@@ -10,31 +10,27 @@ struct ostimespec {
 
 #ifdef _WIN32
     typedef void* HANDLE;
-    typedef HANDLE fd_t;
-    typedef HANDLE pid_t;
     typedef long long ssize_t;
 
-
-    #define WNOHANG 1
-
-    #define WEXITSTATUS(status)   status
-    #define WTERMSIG(status)      0
-    #define WSTOPSIG(status)      WEXITSTATUS(status)
-    #define WIFEXITED(status)     (WTERMSIG(status) == 0)
-    #define WIFSIGNALED(status)   0
-
     #define setvbuf(stream, buff, mode, len) (void)0
+
+
+    struct osjob {
+	    bool has_data;
+	    bool valid;
+
+        HANDLE pipe;
+	    HANDLE proc;
+    };
+
 #else
     #include "poll.h"
     struct osjob {
         bool has_data;
         bool valid;
+
         int pid;
         int fd;
-    };
-    struct osjob_ctx {
-        struct pollfd* pfds;
-        size_t pfds_len;
     };
 #endif
 
@@ -51,12 +47,14 @@ int64_t osmtime(const char *);
 /* get current monotonic time */
 int osclock_gettime_monotonic(struct ostimespec*);
 
+// os-specific job functions
+
 struct osjob_ctx;
 
-int osjob_create(struct osjob *created, struct string *cmd, bool console);
-/*ojobs is array of osjob*, entries may be NULL (invalid osjob).*/
-int osjob_wait(struct osjob_ctx *ctx, struct osjob *ojobs, size_t jobs_count, int timeout);
-/*read out into buffer*/
-ssize_t osjob_work(struct osjob *ojob, void* buf, size_t buflen);
-int osjob_close(struct osjob* ojob);
-int osjob_done(struct osjob* ojob, struct string* cmd);
+struct osjob_ctx* osjob_ctx_create();
+void osjob_ctx_close(struct osjob_ctx* ctx);
+int osjob_create(struct osjob_ctx *ctx, struct osjob *created, struct string *cmd, bool console);
+int osjob_wait(struct osjob_ctx *ctx, struct osjob ojobs[], size_t jobs_count, int timeout);
+ssize_t osjob_work(struct osjob_ctx *ctx, struct osjob *ojob, void *buf, size_t buflen);
+int osjob_done(struct osjob_ctx *ctx, struct osjob *ojob, struct string *cmd);
+int osjob_close(struct osjob_ctx *ctx, struct osjob *ojob);
