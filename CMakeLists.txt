@@ -17,7 +17,7 @@ set(SOURCE
 )
 
 if (WIN32)
-    list(APPEND SOURCE os-win32.c)
+    list(APPEND SOURCE os-win32.c samu.manifest)
 elseif(UNIX)
     list(APPEND SOURCE os-posix.c)
 endif()

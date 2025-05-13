@@ -1,12 +1,11 @@
-#define WIN32_LEAN_AND_MEAN
-
 #include <assert.h>
 #include <stdlib.h>
-#include <windows.h>
 
 #include "os.h"
 #include "graph.h"
 #include "util.h"
+
+#define BUFFER_SIZE 4096
 
 void
 osgetcwd(char *buf, size_t len)
@@ -133,103 +132,133 @@ win_create_nul()
 	return nul;
 }
 
-static int
-pipe_check_ready(HANDLE pipe)
+struct osjob_ctx {
+	HANDLE iocp;
+};
+
+struct osjob_ctx*
+osjob_ctx_create()
 {
-	DWORD avail = 0;
-	return PeekNamedPipe(pipe, NULL, 0, NULL, &avail, NULL) && avail > 0;
+	struct osjob_ctx *result = xmalloc(sizeof(*result));
+	result->iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
+	if (result->iocp == INVALID_HANDLE_VALUE) {
+		fatal("CreateIoCompletionPort:");
+	}
+	return result;
 }
 
+void
+osjob_ctx_close(struct osjob_ctx *osctx)
+{
+	CloseHandle(osctx->iocp);
+	free(osctx);
+}
 
 int
-osjob_create(struct osjob_ctx *ctx, struct osjob *created, struct string *cmd, bool console)
+osjob_create(struct osjob_ctx *osctx, struct osjob *created, struct string *cmd, bool console)
 {
-	// taken and modified from ninja-build
-	char pipe_name[100] = {0};
-	snprintf(pipe_name, sizeof(pipe_name), "\\\\.\\pipe\\samu_pid%lu_sp%p", GetCurrentProcessId(), (void *)created);
-
-	created->pipe = CreateNamedPipeA(pipe_name,
-	                                   PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
-	                                   PIPE_TYPE_BYTE,
-	                                   PIPE_UNLIMITED_INSTANCES,
-	                                   0, 0, INFINITE, NULL);
-
-	if (created->pipe == INVALID_HANDLE_VALUE) {
-		fatal("CreateNamedPipe: %s", pipe_name);
-	}
-
-	// here CreateIoCompletionPort() can be used to make subprocesses cancellable using centralized ioport
-
-	HANDLE child_pipe;
-	{
-		HANDLE output_write_handle =
-		    CreateFileA(pipe_name, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
-		HANDLE curr = GetCurrentProcess();
-		if (!DuplicateHandle(curr, output_write_handle,
-		                     curr, &child_pipe,
-		                     0, TRUE, DUPLICATE_SAME_ACCESS)) {
-			fatal("DuplicateHandle");
-		}
-		CloseHandle(output_write_handle);
-	}
-
+	HANDLE stdoutRead, stdoutWrite;
+	SECURITY_ATTRIBUTES sa = {sizeof(sa), NULL, TRUE};
+	if (!CreatePipe(&stdoutRead, &stdoutWrite, &sa, 0))
+		return -1;
+	SetHandleInformation(stdoutRead, HANDLE_FLAG_INHERIT, 0);
+	
 	HANDLE nul = win_create_nul();
+	
+	STARTUPINFOA si = {sizeof(si)};
+	si.dwFlags = STARTF_USESTDHANDLES;
+	si.hStdOutput = stdoutWrite;
+	si.hStdError = stdoutWrite;
+	si.hStdInput = nul;
 
-	STARTUPINFOA sa = {sizeof(sa)};
-	if (!console) {
-		sa.dwFlags = STARTF_USESTDHANDLES;
-		sa.hStdInput = nul;
-		sa.hStdOutput = child_pipe;
-		sa.hStdError = child_pipe;
+	PROCESS_INFORMATION pi;
+	BOOL inheritHandles = TRUE;
+	DWORD flags = 0;
+
+	if (!CreateProcessA(NULL, cmd->s, NULL, NULL, inheritHandles, flags, NULL, NULL, &si, &pi)) {
+		CloseHandle(stdoutRead);
+		CloseHandle(stdoutWrite);
+		CloseHandle(nul);
+		return -1;
 	}
 
-	PROCESS_INFORMATION process_info;
-	memset(&process_info, 0, sizeof(process_info));
-	{
-		WORD process_flags = 0;
-		if (!CreateProcessA(NULL, cmd->s, NULL, NULL,
-		                    /* inherit handles */ TRUE, process_flags,
-		                    NULL, NULL, &sa, &process_info)) {
-			DWORD error = GetLastError();
-
-			if (error == ERROR_FILE_NOT_FOUND) {
-				if (child_pipe) {
-					CloseHandle(child_pipe);
-				}
-				if (created->pipe) {
-					CloseHandle(created->pipe);
-					created->pipe = 0;
-				}
-				CloseHandle(nul);
-				return -1;
-			} else {
-				fatal("CreateProcess: %s", cmd->s);
-			}
-		}
-	}
-	if (child_pipe)
-		CloseHandle(child_pipe);
+	CloseHandle(stdoutWrite);
 	CloseHandle(nul);
-	created->proc = process_info.hProcess;
-	CloseHandle(process_info.hThread);
+	CloseHandle(pi.hThread);
+
+	created->output = stdoutRead;
+	created->hProcess = pi.hProcess;
+	created->valid = true;
+	created->has_data = false;
+	created->overlapped = (OVERLAPPED){0};
+
+	CreateIoCompletionPort(created->output, osctx->iocp, (ULONG_PTR)created, 0);
+
+	if (!ReadFile(created->output, NULL, BUFFER_SIZE,
+	              NULL, &created->overlapped) &&
+	    GetLastError() != ERROR_IO_PENDING) {
+		osjob_close(osctx, created);
+		return -1;
+	}
+
 	return 0;
 }
 
-/*ojobs is array of osjob*, entries may be NULL (invalid osjob).*/
-int osjob_wait(struct osjob_ctx *ctx, struct osjob *ojobs, size_t jobs_count, int timeout);
-/*read out into buffer*/
-ssize_t osjob_work(struct osjob_ctx *ctx, struct osjob *ojob, void *buf, size_t buflen);
-int osjob_close(struct osjob_ctx *ctx, struct osjob *ojob);
-int osjob_done(struct osjob_ctx *ctx, struct osjob *ojob, struct string *cmd);
-void osjob_ctx_init(struct osjob_ctx* ctx)
+int osjob_wait(struct osjob_ctx* osctx, struct osjob ojobs[], size_t jobs_count, int timeout)
 {
+	OVERLAPPED_ENTRY entries[64];
+	ULONG num_entries = 0;
+	const DWORD timeout_ms = timeout == -1 ? INFINITE : timeout;
 
+	if (!GetQueuedCompletionStatusEx(osctx->iocp, entries, 64, &num_entries,
+	                                 timeout_ms, FALSE)) {
+		return GetLastError() == WAIT_TIMEOUT ? 0 : -1;
+	}
+
+	for (ULONG i = 0; i < num_entries; i++) {
+		struct osjob *job = (struct osjob *)entries[i].lpCompletionKey;
+		const DWORD bytes = entries[i].dwNumberOfBytesTransferred;
+		job->to_read = bytes;
+		job->has_data = true;
+	}
+	return 0;
 }
 
-void osjob_ctx_close(struct osjob_ctx* ctx)
+ssize_t osjob_work(struct osjob_ctx* osctx, struct osjob* ojob, void* buf, size_t buflen)
 {
-
+	assert(ojob->has_data);
+	if (ojob->to_read == 0) { // EOF/process exit
+		return 0;
+	} else { // Data available
+		DWORD read;
+		if (!ReadFile(ojob->output, buf, buflen, &read, &ojob->overlapped) &&
+		    GetLastError() != ERROR_IO_PENDING) {
+			ojob->valid = false;
+			return -1;
+		}
+		return read;
+	}
 }
 
+int osjob_done(struct osjob_ctx* osctx, struct osjob* ojob, struct string* cmd)
+{
+	WaitForSingleObject(ojob->hProcess, INFINITE);
+	int exit_code;
+	GetExitCodeProcess(ojob->hProcess, &exit_code);
+	if (exit_code != 0) {
+		warn("job failed with status %d: %s", exit_code, cmd->s);
+		osjob_close(osctx, ojob);
+		return -1;
+	}
+	return osjob_close(osctx, ojob);
+}
+
+int osjob_close(struct osjob_ctx* osctx, struct osjob* ojob)
+{
+	CloseHandle(ojob->hProcess);
+	CloseHandle(ojob->output);
+	memset(ojob, 0, sizeof(*ojob));
+	return 0;
+}
 
 

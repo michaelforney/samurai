@@ -9,6 +9,10 @@ struct ostimespec {
 };
 
 #ifdef _WIN32
+
+    #define WIN32_LEAN_AND_MEAN
+    #include <windows.h>
+
     typedef void* HANDLE;
     typedef long long ssize_t;
 
@@ -19,8 +23,11 @@ struct ostimespec {
 	    bool has_data;
 	    bool valid;
 
-        HANDLE pipe;
-	    HANDLE proc;
+	    OVERLAPPED overlapped;
+	    HANDLE output;
+	    HANDLE hProcess;
+
+        DWORD to_read;
     };
 
 #else
