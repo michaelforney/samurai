@@ -204,9 +204,8 @@ osjob_create(struct osjob_ctx *osctx, struct osjob *created, struct string *cmd,
 	    FILE_FLAG_OVERLAPPED,
 	    NULL);
 	if (stdoutWrite == INVALID_HANDLE_VALUE) {
-		DWORD err = GetLastError();
 		CloseHandle(stdoutRead);
-		warn("CreateFile(pipe): %lu", err);
+		warn("CreateFile(pipe):");
 		return -1;
 	}
 
