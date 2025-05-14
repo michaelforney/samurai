@@ -8,4 +8,5 @@ out/
 build/
 CMakeUserPresets.json
 CMakePresets.json
+CMakeSettings.json
 *.user

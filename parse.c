@@ -132,8 +132,10 @@ parseedge(struct scanner *s, struct environment *env)
 	npaths = 0;
 
 	val = edgevar(e, "pool", true);
-	if (val)
+	if (val) {
 		e->pool = poolget(val->s);
+		free(val);
+	}
 }
 
 static void

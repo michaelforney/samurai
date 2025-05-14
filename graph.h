@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <stdbool.h>
 #include <stdint.h>  /* for uint64_t */
 
 /* set in the tv_nsec field of a node's mtime */
@@ -27,7 +28,7 @@ struct node {
 	int32_t id;
 
 	/* does the node need to be rebuilt */
-	_Bool dirty;
+	bool dirty;
 };
 
 /* build rule, i.e., edge between inputs and outputs */
