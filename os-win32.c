@@ -5,8 +5,6 @@
 #include "graph.h"
 #include "util.h"
 
-#define BUFFER_SIZE 4096
-
 void
 osgetcwd(char *buf, size_t len)
 {
@@ -154,17 +152,66 @@ osjob_ctx_close(struct osjob_ctx *osctx)
 	free(osctx);
 }
 
+static int
+win_start_read(struct osjob_ctx *osctx, struct osjob *job)
+{
+	DWORD readAmount;
+	BOOL read = ReadFile(job->output, job->buff, sizeof(job->buff), &readAmount, &job->overlapped);
+	if (read && !readAmount) {
+		job->to_read = 0;
+		job->has_data = true;
+	} else if (!read && GetLastError() != ERROR_IO_PENDING) {
+		warn("StartPipeRead:");
+		osjob_close(osctx, job);
+		return -1;
+	}
+	return 0;
+}
+
 int
 osjob_create(struct osjob_ctx *osctx, struct osjob *created, struct string *cmd, bool console)
 {
-	HANDLE stdoutRead, stdoutWrite;
+	// Generate a unique pipe name
+	static volatile long counter = 0;
+	char pipeName[MAX_PATH];
+	snprintf(pipeName, sizeof(pipeName), "\\\\.\\pipe\\ninjabuild-%ld-%lu",
+	         InterlockedIncrement(&counter), GetCurrentProcessId());
+
 	SECURITY_ATTRIBUTES sa = {sizeof(sa), NULL, TRUE};
-	if (!CreatePipe(&stdoutRead, &stdoutWrite, &sa, 0))
+
+	// Create overlapped read handle (server side)
+	HANDLE stdoutRead = CreateNamedPipeA(
+	    pipeName,
+	    PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
+	    PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+	    1,    // Number of instances
+	    4096, // Out buffer size
+	    4096, // In buffer size
+	    0,    // Timeout
+	    &sa);
+	if (stdoutRead == INVALID_HANDLE_VALUE) {
+		warn("CreateNamedPipe:");
 		return -1;
-	SetHandleInformation(stdoutRead, HANDLE_FLAG_INHERIT, 0);
-	
+	}
+
+	// Create overlapped write handle (client side)
+	HANDLE stdoutWrite = CreateFileA(
+	    pipeName,
+	    GENERIC_WRITE,
+	    0, // No sharing
+	    &sa,
+	    OPEN_EXISTING,
+	    FILE_FLAG_OVERLAPPED,
+	    NULL);
+	if (stdoutWrite == INVALID_HANDLE_VALUE) {
+		DWORD err = GetLastError();
+		CloseHandle(stdoutRead);
+		warn("CreateFile(pipe): %lu", err);
+		return -1;
+	}
+
 	HANDLE nul = win_create_nul();
-	
+
 	STARTUPINFOA si = {sizeof(si)};
 	si.dwFlags = STARTF_USESTDHANDLES;
 	si.hStdOutput = stdoutWrite;
@@ -179,6 +226,7 @@ osjob_create(struct osjob_ctx *osctx, struct osjob *created, struct string *cmd,
 		CloseHandle(stdoutRead);
 		CloseHandle(stdoutWrite);
 		CloseHandle(nul);
+		warn("CreateProcess:");
 		return -1;
 	}
 
@@ -190,14 +238,16 @@ osjob_create(struct osjob_ctx *osctx, struct osjob *created, struct string *cmd,
 	created->hProcess = pi.hProcess;
 	created->valid = true;
 	created->has_data = false;
-	created->overlapped = (OVERLAPPED){0};
+	memset(&created->overlapped, 0, sizeof(OVERLAPPED));
 
-	CreateIoCompletionPort(created->output, osctx->iocp, (ULONG_PTR)created, 0);
-
-	if (!ReadFile(created->output, NULL, BUFFER_SIZE,
-	              NULL, &created->overlapped) &&
-	    GetLastError() != ERROR_IO_PENDING) {
+	// Associate with IOCP
+	if (!CreateIoCompletionPort(created->output, osctx->iocp, (ULONG_PTR)created, 0)) {
+		warn("CreateIoCompletionPort:");
 		osjob_close(osctx, created);
+		return -1;
+	}
+
+	if (win_start_read(osctx, created) < 0) {
 		return -1;
 	}
 
@@ -210,8 +260,14 @@ int osjob_wait(struct osjob_ctx* osctx, struct osjob ojobs[], size_t jobs_count,
 	ULONG num_entries = 0;
 	const DWORD timeout_ms = timeout == -1 ? INFINITE : timeout;
 
-	if (!GetQueuedCompletionStatusEx(osctx->iocp, entries, 64, &num_entries,
-	                                 timeout_ms, FALSE)) {
+	for (size_t i = 0; i < jobs_count; ++i) {
+		struct osjob *job = ojobs + i;
+		if (job->valid && job->has_data) {
+			return 0; //some jobs are already buffered
+		}
+	}
+
+	if (!GetQueuedCompletionStatusEx(osctx->iocp, entries, 64, &num_entries, timeout_ms, FALSE)) {
 		return GetLastError() == WAIT_TIMEOUT ? 0 : -1;
 	}
 
@@ -230,11 +286,17 @@ ssize_t osjob_work(struct osjob_ctx* osctx, struct osjob* ojob, void* buf, size_
 	if (ojob->to_read == 0) { // EOF/process exit
 		return 0;
 	} else { // Data available
-		DWORD read;
-		if (!ReadFile(ojob->output, buf, buflen, &read, &ojob->overlapped) &&
-		    GetLastError() != ERROR_IO_PENDING) {
-			ojob->valid = false;
-			return -1;
+		size_t read = buflen < ojob->to_read ? buflen : ojob->to_read;
+		memcpy(buf, ojob->buff, read);
+		ojob->to_read -= read;
+		if (!ojob->to_read) {
+			if (win_start_read(osctx, ojob) < 0) {
+				return -1;
+			}
+			ojob->has_data = false;
+		} else {
+			memmove(ojob->buff, ojob->buff + read, ojob->to_read);
+			// move buffer -> will get polled again as if wait()
 		}
 		return read;
 	}
@@ -242,15 +304,23 @@ ssize_t osjob_work(struct osjob_ctx* osctx, struct osjob* ojob, void* buf, size_
 
 int osjob_done(struct osjob_ctx* osctx, struct osjob* ojob, struct string* cmd)
 {
-	WaitForSingleObject(ojob->hProcess, INFINITE);
+	if (WaitForSingleObject(ojob->hProcess, INFINITE) == WAIT_FAILED) {
+		warn("wait process:");
+		goto err;
+	}
 	int exit_code;
-	GetExitCodeProcess(ojob->hProcess, &exit_code);
+	if (!GetExitCodeProcess(ojob->hProcess, &exit_code)) {
+		warn("WaitForSingleObject:");
+		goto err;
+	}
 	if (exit_code != 0) {
 		warn("job failed with status %d: %s", exit_code, cmd->s);
-		osjob_close(osctx, ojob);
-		return -1;
+		goto err;
 	}
 	return osjob_close(osctx, ojob);
+err:
+	osjob_close(osctx, ojob);
+	return -1;
 }
 
 int osjob_close(struct osjob_ctx* osctx, struct osjob* ojob)

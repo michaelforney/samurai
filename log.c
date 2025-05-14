@@ -137,10 +137,14 @@ rewrite:
 		}
 	}
 	fflush(logfile);
+	fclose(logfile);
 	if (ferror(logfile))
 		fatal("build log write failed");
 	if (rename(logtmppath, logpath) < 0)
 		fatal("build log rename:");
+	logfile = fopen(logpath, "a");
+	if (!logfile)
+		fatal("build log reopen:");
 	if (builddir) {
 		free(logpath);
 		free(logtmppath);

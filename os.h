@@ -28,6 +28,8 @@ struct ostimespec {
 	    HANDLE hProcess;
 
         DWORD to_read;
+
+        char buff[4096];
     };
 
 #else

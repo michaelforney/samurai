@@ -283,10 +283,14 @@ rewrite:
 	}
 	free(oldentries);
 	fflush(depsfile);
+	fclose(depsfile);
 	if (ferror(depsfile))
 		fatal("deps log write failed");
 	if (rename(depstmppath, depspath) < 0)
 		fatal("deps log rename:");
+	depsfile = fopen(depspath, "a");
+	if (!depsfile)
+		fatal("deps log reopen:");
 	if (builddir) {
 		free(depstmppath);
 		free(depspath);
