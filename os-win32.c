@@ -175,7 +175,7 @@ osjob_create(struct osjob_ctx *osctx, struct osjob *created, struct string *cmd,
 	// Generate a unique pipe name
 	static volatile long counter = 0;
 	char pipeName[MAX_PATH];
-	snprintf(pipeName, sizeof(pipeName), "\\\\.\\pipe\\ninjabuild-%ld-%lu",
+	snprintf(pipeName, sizeof(pipeName), "\\\\.\\pipe\\samu-%ld-%lu",
 	         InterlockedIncrement(&counter), GetCurrentProcessId());
 
 	SECURITY_ATTRIBUTES sa = {sizeof(sa), NULL, TRUE};
