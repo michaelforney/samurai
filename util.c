@@ -173,7 +173,8 @@ canonpath(struct string *path)
 			continue;
 		case '.':
 			switch (s[1]) {
-			case '\0': case '/':
+			case '\0':
+			case '/':
 				s += 2;
 				continue;
 			case '.':

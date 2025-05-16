@@ -18,7 +18,7 @@ struct job {
 	struct string *cmd;
 	struct edge *edge;
 	struct buffer buf;
-    size_t next;
+	size_t next;
 	bool failed;
 };
 
@@ -114,7 +114,7 @@ buildadd(struct node *n)
 {
 	struct edge *e;
 	struct node *newest;
-    size_t i;
+	size_t i;
 
 	e = n->gen;
 	if (!e) {
@@ -152,19 +152,19 @@ buildadd(struct node *n)
 			++e->nblock;
 	}
 	/* all outputs are dirty if any are older than the newest input */
-    struct string* generator = edgevar(e, "generator", true);
-    struct string* restat = edgevar(e, "restat", true);
+	struct string *generator = edgevar(e, "generator", true);
+	struct string *restat = edgevar(e, "restat", true);
 	for (i = 0; i < e->nout && !(e->flags & FLAG_DIRTY_OUT); ++i) {
 		n = e->out[i];
-        if (isdirty(n, newest, (bool)generator, (bool)restat)) {
+		if (isdirty(n, newest, (bool)generator, (bool)restat)) {
 			n->dirty = true;
 			e->flags |= FLAG_DIRTY_OUT;
 		}
 	}
-    if (generator)
-        free(generator);
-    if (restat)
-        free(restat);
+	if (generator)
+		free(generator);
+	if (restat)
+		free(restat);
 	if (e->flags & FLAG_DIRTY) {
 		for (i = 0; i < e->nout; ++i) {
 			n = e->out[i];
@@ -241,7 +241,7 @@ formatstatus(char *buf, size_t len)
 			break;
 		default:
 			fatal("unknown placeholder '%%%c' in $NINJA_STATUS", *fmt);
-			continue;  /* unreachable, but avoids warning */
+			continue; /* unreachable, but avoids warning */
 		}
 		if (n < 0)
 			fatal("snprintf:");
@@ -268,7 +268,7 @@ printstatus(struct edge *e, struct string *cmd)
 	formatstatus(status, sizeof(status));
 	fputs(status, stdout);
 	puts(description->s);
-    free(description);
+	free(description);
 }
 
 static int
@@ -293,8 +293,8 @@ jobstart(struct osjob_ctx *osctx, struct osjob *oj, struct job *j, struct edge *
 			goto err0;
 	}
 	j->edge = e;
-    if (j->cmd)
-        free(j->cmd);
+	if (j->cmd)
+		free(j->cmd);
 	j->cmd = edgevar(e, "command", true);
 
 	if (!consoleused)
@@ -308,13 +308,13 @@ jobstart(struct osjob_ctx *osctx, struct osjob *oj, struct job *j, struct edge *
 	j->failed = false;
 	if (e->pool == &consolepool)
 		consoleused = true;
-        oj->valid = true;
-        return 0;
+	oj->valid = true;
+	return 0;
 err1:
 	if (rspfile && !buildopts.keeprsp)
 		remove(rspfile->s);
 err0:
-        return -1;
+	return -1;
 }
 
 static void
@@ -368,19 +368,19 @@ edgedone(struct edge *e)
 {
 	struct node *n;
 	size_t i;
-    struct string *rspfile;
+	struct string *rspfile;
 	int64_t old;
 
-    struct string * restat = edgevar(e, "restat", true);
+	struct string *restat = edgevar(e, "restat", true);
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
 		old = n->mtime;
 		nodestat(n);
 		n->logmtime = n->mtime == MTIME_MISSING ? 0 : n->mtime;
-        nodedone(n, (bool)restat && shouldprune(e, n, old));
+		nodedone(n, (bool)restat && shouldprune(e, n, old));
 	}
-    if (restat)
-        free(restat);
+	if (restat)
+		free(restat);
 	rspfile = edgevar(e, "rspfile", false);
 	if (rspfile && !buildopts.keeprsp)
 		remove(rspfile->s);
@@ -428,7 +428,7 @@ jobdone(struct osjob_ctx *osctx, struct job *j, struct osjob *oj)
 
 /* returns whether a job still has work to do. if not, sets j->failed */
 static bool
-jobwork(struct osjob_ctx* osctx, struct job *j, struct osjob *ojob)
+jobwork(struct osjob_ctx *osctx, struct job *j, struct osjob *ojob)
 {
 	char *newdata;
 	size_t newcap;
@@ -452,7 +452,7 @@ jobwork(struct osjob_ctx* osctx, struct job *j, struct osjob *ojob)
 		goto done;
 	} else {
 		warn("read:");
-kill:
+	kill:
 		osjob_close(osctx, ojob);
 		j->failed = true;
 	}
@@ -484,14 +484,14 @@ void
 build(void)
 {
 	struct job *jobs = NULL;
-    struct osjob* osjobs = NULL;
-	struct osjob_ctx* osctx = osjob_ctx_create();
+	struct osjob *osjobs = NULL;
+	struct osjob_ctx *osctx = osjob_ctx_create();
 	size_t i, next = 0, jobslen = 0, maxjobs = buildopts.maxjobs, numjobs = 0, numfail = 0;
 	struct edge *e;
 
 	if (ntotal == 0) {
 		warn("nothing to do");
-        osjob_ctx_close(osctx);
+		osjob_ctx_close(osctx);
 		return;
 	}
 
@@ -524,11 +524,11 @@ build(void)
 				jobs = xreallocarray(jobs, jobslen, sizeof(jobs[0]));
 				osjobs = xreallocarray(osjobs, jobslen, sizeof(osjobs[0]));
 				for (i = next; i < jobslen; ++i) {
-                    jobs[i] = (struct job){0};
-                    jobs[i].next = i + 1;
-                    osjobs[i] = (struct osjob){0};
+					jobs[i] = (struct job){0};
+					jobs[i].next = i + 1;
+					osjobs[i] = (struct osjob){0};
 				}
-            }
+			}
 			if (jobstart(osctx, &osjobs[next], &jobs[next], e) < 0) {
 				warn("job failed to start");
 				++numfail;
@@ -546,7 +546,7 @@ build(void)
 				continue;
 			--numjobs;
 			jobs[i].next = next;
-            osjobs[i].valid = false;
+			osjobs[i].valid = false;
 			next = i;
 			if (jobs[i].failed)
 				++numfail;
@@ -554,12 +554,12 @@ build(void)
 	}
 	for (i = 0; i < jobslen; ++i) {
 		free(jobs[i].buf.data);
-        free(jobs[i].cmd);
+		free(jobs[i].cmd);
 	}
-    if (jobs)
-        free(jobs);
-    if (osjobs)
-        free(osjobs);
+	if (jobs)
+		free(jobs);
+	if (osjobs)
+		free(osjobs);
 	osjob_ctx_close(osctx);
 	if (numfail > 0) {
 		if (numfail < buildopts.maxfail)
@@ -569,5 +569,5 @@ build(void)
 		else
 			fatal("subcommand failed");
 	}
-	ntotal = 0;  /* reset in case we just rebuilt the manifest */
+	ntotal = 0; /* reset in case we just rebuilt the manifest */
 }

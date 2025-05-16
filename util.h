@@ -24,7 +24,8 @@ __declspec(noreturn)
 #elif defined(__GNUC__)
 __attribute__((noreturn))
 #endif
-void fatal(const char *, ...);
+void
+fatal(const char *, ...);
 
 void *xmalloc(size_t);
 void *xreallocarray(void *, size_t, size_t);

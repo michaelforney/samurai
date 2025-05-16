@@ -56,7 +56,8 @@ osmkdirs(struct string *_path, bool parent)
 }
 
 // taken fron ninja-build
-static int64_t TimeStampFromFileTime(const FILETIME* filetime)
+static int64_t
+TimeStampFromFileTime(const FILETIME *filetime)
 {
 	// FILETIME is in 100-nanosecond increments since the Windows epoch.
 	// We don't much care about epoch correctness but we do want the
@@ -85,7 +86,7 @@ osmtime(const char *name)
 }
 
 int
-osclock_gettime_monotonic(struct ostimespec* ts)
+osclock_gettime_monotonic(struct ostimespec *ts)
 {
 	static LARGE_INTEGER frequency = {0};
 	static BOOL initialized = FALSE;
@@ -116,15 +117,15 @@ osclock_gettime_monotonic(struct ostimespec* ts)
 
 ///////////////////////////// JOBS
 
-static HANDLE 
+static HANDLE
 win_create_nul()
 {
 	SECURITY_ATTRIBUTES sa = {sizeof(sa)};
 	sa.bInheritHandle = TRUE;
 	// Must be inheritable so subprocesses can dup to children.
 	HANDLE nul = CreateFileA("NUL", GENERIC_READ,
-		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-		&sa, OPEN_EXISTING, 0, NULL);
+	                         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+	                         &sa, OPEN_EXISTING, 0, NULL);
 	if (nul == INVALID_HANDLE_VALUE)
 		fatal("couldn't open nul:");
 	return nul;
@@ -134,7 +135,7 @@ struct osjob_ctx {
 	HANDLE iocp;
 };
 
-struct osjob_ctx*
+struct osjob_ctx *
 osjob_ctx_create()
 {
 	struct osjob_ctx *result = xmalloc(sizeof(*result));
@@ -253,7 +254,8 @@ osjob_create(struct osjob_ctx *osctx, struct osjob *created, struct string *cmd,
 	return 0;
 }
 
-int osjob_wait(struct osjob_ctx* osctx, struct osjob ojobs[], size_t jobs_count, int timeout)
+int
+osjob_wait(struct osjob_ctx *osctx, struct osjob ojobs[], size_t jobs_count, int timeout)
 {
 	OVERLAPPED_ENTRY entries[64];
 	ULONG num_entries = 0;
@@ -262,7 +264,7 @@ int osjob_wait(struct osjob_ctx* osctx, struct osjob ojobs[], size_t jobs_count,
 	for (size_t i = 0; i < jobs_count; ++i) {
 		struct osjob *job = ojobs + i;
 		if (job->valid && job->has_data) {
-			return 0; //some jobs are already buffered
+			return 0; // some jobs are already buffered
 		}
 	}
 
@@ -279,7 +281,8 @@ int osjob_wait(struct osjob_ctx* osctx, struct osjob ojobs[], size_t jobs_count,
 	return 0;
 }
 
-ssize_t osjob_work(struct osjob_ctx* osctx, struct osjob* ojob, void* buf, size_t buflen)
+ssize_t
+osjob_work(struct osjob_ctx *osctx, struct osjob *ojob, void *buf, size_t buflen)
 {
 	assert(ojob->has_data);
 	if (ojob->to_read == 0) { // EOF/process exit
@@ -301,7 +304,8 @@ ssize_t osjob_work(struct osjob_ctx* osctx, struct osjob* ojob, void* buf, size_
 	}
 }
 
-int osjob_done(struct osjob_ctx* osctx, struct osjob* ojob, struct string* cmd)
+int
+osjob_done(struct osjob_ctx *osctx, struct osjob *ojob, struct string *cmd)
 {
 	if (WaitForSingleObject(ojob->hProcess, INFINITE) == WAIT_FAILED) {
 		warn("wait process:");
@@ -322,12 +326,11 @@ err:
 	return -1;
 }
 
-int osjob_close(struct osjob_ctx* osctx, struct osjob* ojob)
+int
+osjob_close(struct osjob_ctx *osctx, struct osjob *ojob)
 {
 	CloseHandle(ojob->hProcess);
 	CloseHandle(ojob->output);
 	memset(ojob, 0, sizeof(*ojob));
 	return 0;
 }
-
-

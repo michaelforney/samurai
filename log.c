@@ -75,11 +75,11 @@ loginit(const char *builddir)
 		++nline;
 		p = buf.data;
 		buf.len = 0;
-		if (!nextfield(&p))  /* start time */
+		if (!nextfield(&p)) /* start time */
 			continue;
-		if (!nextfield(&p))  /* end time */
+		if (!nextfield(&p)) /* end time */
 			continue;
-		s = nextfield(&p);  /* mtime (used for restat) */
+		s = nextfield(&p); /* mtime (used for restat) */
 		if (!s)
 			continue;
 		mtime = strtoll(s, &s, 10);
@@ -87,7 +87,7 @@ loginit(const char *builddir)
 			warn("corrupt build log: invalid mtime");
 			continue;
 		}
-		s = nextfield(&p);  /* output path */
+		s = nextfield(&p); /* output path */
 		if (!s)
 			continue;
 		n = nodeget(s, 0);
@@ -96,7 +96,7 @@ loginit(const char *builddir)
 		if (n->logmtime == MTIME_MISSING)
 			++nentry;
 		n->logmtime = mtime;
-		s = nextfield(&p);  /* command hash */
+		s = nextfield(&p); /* command hash */
 		if (!s)
 			continue;
 		n->hash = strtoull(s, &s, 16);

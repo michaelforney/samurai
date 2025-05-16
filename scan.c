@@ -117,7 +117,8 @@ comment(struct scanner *s)
 {
 	if (s->chr != '#')
 		return false;
-	do next(s);
+	do
+		next(s);
 	while (!newline(s));
 	return true;
 }
@@ -144,12 +145,12 @@ scankeyword(struct scanner *s, char **var)
 		const char *name;
 		int value;
 	} keywords[] = {
-		{"build",    BUILD},
-		{"default",  DEFAULT},
-		{"include",  INCLUDE},
-		{"pool",     POOL},
-		{"rule",     RULE},
-		{"subninja", SUBNINJA},
+	    {"build", BUILD},
+	    {"default", DEFAULT},
+	    {"include", INCLUDE},
+	    {"pool", POOL},
+	    {"rule", RULE},
+	    {"subninja", SUBNINJA},
 	};
 	int low = 0, high = LEN(keywords) - 1, mid, cmp;
 

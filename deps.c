@@ -162,7 +162,8 @@ depsinit(const char *builddir)
 			goto rewrite;
 		}
 		if (sz > cap) {
-			do cap *= 2;
+			do
+				cap *= 2;
 			while (sz > cap);
 			free(buf);
 			buf = xmalloc(cap);
@@ -189,14 +190,14 @@ depsinit(const char *builddir)
 			entry = &entries[id];
 			entry->mtime = (int64_t)buf[2] << 32 | buf[1];
 			e = entry->node->gen;
-            bool has_deps;
-            {
-                struct string* deps = edgevar(e, "deps", true);
-                has_deps = (bool)deps;
-                if (deps)
-                    free(deps);
-            }
-            if (!e || !has_deps)
+			bool has_deps;
+			{
+				struct string *deps = edgevar(e, "deps", true);
+				has_deps = (bool)deps;
+				if (deps)
+					free(deps);
+			}
+			if (!e || !has_deps)
 				continue;
 			sz /= 4;
 			free(entry->deps.node);
@@ -344,9 +345,14 @@ depsparse(const char *name, bool allowmissing)
 				for (; n > 2; n -= 2)
 					bufadd(&buf, '\\');
 				switch (c) {
-				case '#':  break;
-				case '\n': c = ' '; continue;
-				default:   bufadd(&buf, '\\'); continue;
+				case '#':
+					break;
+				case '\n':
+					c = ' ';
+					continue;
+				default:
+					bufadd(&buf, '\\');
+					continue;
 				}
 				break;
 			case '$':
@@ -377,7 +383,8 @@ depsparse(const char *name, bool allowmissing)
 			}
 			if (c == '\n') {
 				sawcolon = false;
-				do c = getc(f);
+				do
+					c = getc(f);
 				while (c == '\n');
 			}
 			if (c == EOF)
@@ -418,15 +425,15 @@ depsparse(const char *name, bool allowmissing)
 	if (ferror(f)) {
 		warn("depfile read '%s':", name);
 		goto err;
-    }
-    if (out)
-        free(out);
+	}
+	if (out)
+		free(out);
 	fclose(f);
 	return &deps;
 
 err:
-    if (out)
-        free(out);
+	if (out)
+		free(out);
 	fclose(f);
 	return NULL;
 }
@@ -444,7 +451,7 @@ depsload(struct edge *e)
 	n = e->out[0];
 	deptype = edgevar(e, "deps", true);
 	if (deptype) {
-        free(deptype);
+		free(deptype);
 		if (n->id != -1 && n->mtime <= entries[n->id].mtime)
 			deps = &entries[n->id].deps;
 		else if (buildopts.explain)
@@ -476,34 +483,34 @@ depsrecord(struct edge *e)
 	bool update;
 
 	deptype = edgevar(e, "deps", true);
-    if (!deptype) {
-        return;
-    }
-    if (deptype->n == 0) {
-        free(deptype);
-        return;
-    }
-	if (strcmp(deptype->s, "gcc") != 0) {
-		warn("unsuported deps type: %s", deptype->s);
-        free(deptype);
+	if (!deptype) {
 		return;
 	}
-    free(deptype);
+	if (deptype->n == 0) {
+		free(deptype);
+		return;
+	}
+	if (strcmp(deptype->s, "gcc") != 0) {
+		warn("unsuported deps type: %s", deptype->s);
+		free(deptype);
+		return;
+	}
+	free(deptype);
 	depfile = edgevar(e, "depfile", false);
-    if (!depfile) {
+	if (!depfile) {
 		warn("deps but no depfile");
 		return;
 	}
-    if (depfile->n == 0) {
-        warn("deps but no depfile");
-        free(depfile);
-        return;
-    }
+	if (depfile->n == 0) {
+		warn("deps but no depfile");
+		free(depfile);
+		return;
+	}
 	out = e->out[0];
 	deps = depsparse(depfile->s, true);
 	if (!buildopts.keepdepfile)
 		remove(depfile->s);
-    free(depfile);
+	free(depfile);
 	if (!deps)
 		return;
 	update = false;

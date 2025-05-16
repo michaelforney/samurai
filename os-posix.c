@@ -96,7 +96,7 @@ https://www.illumos.org/issues/13327
 }
 
 int
-osclock_gettime_monotonic(struct ostimespec* time)
+osclock_gettime_monotonic(struct ostimespec *time)
 {
 	struct timespec t;
 	if (clock_gettime(CLOCK_MONOTONIC, &t) < 0) {
@@ -110,38 +110,38 @@ osclock_gettime_monotonic(struct ostimespec* time)
 ////////////// Jobs
 
 struct osjob_ctx {
-    struct pollfd* pfds;
-    size_t pfds_len;
+	struct pollfd *pfds;
+	size_t pfds_len;
 };
 
-
-struct osjob_ctx*
+struct osjob_ctx *
 osjob_ctx_create()
 {
-    struct osjob_ctx* result = xmalloc(sizeof(struct osjob_ctx));
-    memset(result, 0, sizeof(*result));
-    return result;
+	struct osjob_ctx *result = xmalloc(sizeof(struct osjob_ctx));
+	memset(result, 0, sizeof(*result));
+	return result;
 }
 
 void
-osjob_ctx_close(struct osjob_ctx* ctx)
+osjob_ctx_close(struct osjob_ctx *ctx)
 {
-    if (ctx->pfds)
-        free(ctx->pfds);
-    free(ctx);
+	if (ctx->pfds)
+		free(ctx->pfds);
+	free(ctx);
 }
 
-int osjob_close(struct osjob_ctx* ctx, struct osjob* ojob)
+int
+osjob_close(struct osjob_ctx *ctx, struct osjob *ojob)
 {
 
-    close(ojob->fd);
+	close(ojob->fd);
 	kill(ojob->pid, SIGTERM);
 	memset(ojob, 0, sizeof(*ojob));
 	return 0;
 }
 
 int
-osjob_done(struct osjob_ctx* ctx, struct osjob* ojob, struct string* cmd)
+osjob_done(struct osjob_ctx *ctx, struct osjob *ojob, struct string *cmd)
 {
 	int status;
 	if (waitpid(ojob->pid, &status, 0) < 0) {
@@ -161,7 +161,7 @@ err:
 }
 
 int
-osjob_wait(struct osjob_ctx *ctx, struct osjob* ojobs, size_t jobslen, int timeout)
+osjob_wait(struct osjob_ctx *ctx, struct osjob *ojobs, size_t jobslen, int timeout)
 {
 	if (ctx->pfds_len < jobslen) {
 		ctx->pfds = xreallocarray(ctx->pfds, jobslen, sizeof(ctx->pfds[0]));
@@ -169,21 +169,21 @@ osjob_wait(struct osjob_ctx *ctx, struct osjob* ojobs, size_t jobslen, int timeo
 	}
 	nfds_t count = 0;
 	for (size_t i = 0; i < jobslen; ++i) {
-                if (ojobs[i].valid) {
-                        ctx->pfds[i].events = POLLIN;
-                        ctx->pfds[i].fd = ojobs[i].fd;
-                        ctx->pfds[i].revents = 0;
+		if (ojobs[i].valid) {
+			ctx->pfds[i].events = POLLIN;
+			ctx->pfds[i].fd = ojobs[i].fd;
+			ctx->pfds[i].revents = 0;
 			count++;
 		}
 	}
 	if (poll(ctx->pfds, count, timeout) < 0) {
 		fatal("poll:");
 	}
-        struct osjob* curr = ojobs;
-	for(nfds_t i = 0; i < count; ++i) {
-                while(!curr->valid)
-                        curr++;
-                curr->has_data = ctx->pfds[i].revents;
+	struct osjob *curr = ojobs;
+	for (nfds_t i = 0; i < count; ++i) {
+		while (!curr->valid)
+			curr++;
+		curr->has_data = ctx->pfds[i].revents;
 		curr++;
 	}
 	return 0;
@@ -254,4 +254,3 @@ err2:
 	close(fd[1]);
 	return -1;
 }
-
