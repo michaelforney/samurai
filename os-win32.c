@@ -257,9 +257,10 @@ osjob_create(struct osjob_ctx *osctx, struct osjob *created, struct string *cmd,
 int
 osjob_wait(struct osjob_ctx *osctx, struct osjob ojobs[], size_t jobs_count, int timeout)
 {
+	(void)osctx;
 	OVERLAPPED_ENTRY entries[64];
 	ULONG num_entries = 0;
-	const DWORD timeout_ms = timeout == -1 ? INFINITE : timeout;
+	const DWORD timeout_ms = timeout == -1 ? INFINITE : (DWORD)timeout;
 
 	for (size_t i = 0; i < jobs_count; ++i) {
 		struct osjob *job = ojobs + i;
@@ -311,13 +312,13 @@ osjob_done(struct osjob_ctx *osctx, struct osjob *ojob, struct string *cmd)
 		warn("wait process:");
 		goto err;
 	}
-	int exit_code;
+	DWORD exit_code;
 	if (!GetExitCodeProcess(ojob->hProcess, &exit_code)) {
 		warn("WaitForSingleObject:");
 		goto err;
 	}
 	if (exit_code != 0) {
-		warn("job failed with status %d: %s", exit_code, cmd->s);
+		warn("job failed with status %llu: %s", exit_code, cmd->s);
 		goto err;
 	}
 	return osjob_close(osctx, ojob);
@@ -329,6 +330,7 @@ err:
 int
 osjob_close(struct osjob_ctx *osctx, struct osjob *ojob)
 {
+	(void)osctx;
 	CloseHandle(ojob->hProcess);
 	CloseHandle(ojob->output);
 	memset(ojob, 0, sizeof(*ojob));
