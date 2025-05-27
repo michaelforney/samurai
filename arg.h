@@ -14,7 +14,7 @@ extern const char *argv0;
 			switch (*opt_)
 
 #define ARGEND \
-		} \
+	} \
 	}
 
 #define EARGF(x) \

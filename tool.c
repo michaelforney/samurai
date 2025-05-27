@@ -72,7 +72,8 @@ clean(int argc, char *argv[])
 	struct node *n;
 	struct rule *r;
 
-	ARGBEGIN {
+	ARGBEGIN
+	{
 	case 'g':
 		cleangen = true;
 		break;
@@ -82,7 +83,8 @@ clean(int argc, char *argv[])
 	default:
 		fprintf(stderr, "usage: %s ... -t clean [-gr] [targets...]\n", argv0);
 		return 2;
-	} ARGEND
+	}
+	ARGEND
 
 	if (cleanrule) {
 		if (!argc)
@@ -200,14 +202,16 @@ compdb(int argc, char *argv[])
 	int i;
 	size_t off;
 
-	ARGBEGIN {
+	ARGBEGIN
+	{
 	case 'x':
 		expandrsp = true;
 		break;
 	default:
 		fprintf(stderr, "usage: %s ... -t compdb [-x] [rules...]\n", argv0);
 		return 2;
-	} ARGEND
+	}
+	ARGEND
 
 	osgetcwd(dir, sizeof(dir));
 
@@ -436,12 +440,12 @@ targets(int argc, char *argv[])
 }
 
 static const struct tool tools[] = {
-	{"clean", clean},
-	{"commands", commands},
-	{"compdb", compdb},
-	{"graph", graph},
-	{"query", query},
-	{"targets", targets},
+    {"clean", clean},
+    {"commands", commands},
+    {"compdb", compdb},
+    {"graph", graph},
+    {"query", query},
+    {"targets", targets},
 };
 
 const struct tool *

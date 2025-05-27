@@ -1,8 +1,11 @@
+#include <stddef.h>
+#include <stdbool.h>
+
 struct node;
 
 struct buildoptions {
 	size_t maxjobs, maxfail;
-	_Bool verbose, explain, keepdepfile, keeprsp, dryrun;
+	bool verbose, explain, keepdepfile, keeprsp, dryrun;
 	const char *statusfmt;
 	double maxload;
 };

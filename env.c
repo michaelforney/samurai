@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <string.h>
 #include "env.h"
 #include "graph.h"
@@ -211,6 +212,7 @@ ruleaddvar(struct rule *r, char *var, struct evalstring *val)
 struct string *
 edgevar(struct edge *e, char *var, bool escape)
 {
+	assert(e && "Attempt to read variable of null edge");
 	static void *const cycle = (void *)&cycle;
 	struct evalstring *str, *p;
 	struct treenode *n;
@@ -234,6 +236,7 @@ edgevar(struct edge *e, char *var, bool escape)
 	n->value = cycle;
 	len = 0;
 	for (p = str; p; p = p->next) {
+		// leaks memory here. p->str not cleaned up in all cases
 		if (p->var)
 			p->str = edgevar(e, p->var, escape);
 		if (p->str)

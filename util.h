@@ -18,7 +18,14 @@ struct evalstring {
 #define LEN(a) (sizeof(a) / sizeof((a)[0]))
 
 void warn(const char *, ...);
-void fatal(const char *, ...);
+
+#ifdef _MSC_VER
+__declspec(noreturn)
+#elif defined(__GNUC__)
+__attribute__((noreturn))
+#endif
+void
+fatal(const char *, ...);
 
 void *xmalloc(size_t);
 void *xreallocarray(void *, size_t, size_t);

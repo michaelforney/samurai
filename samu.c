@@ -109,7 +109,8 @@ parseenvargs(char *env)
 	}
 	argv[argc] = NULL;
 
-	ARGBEGIN {
+	ARGBEGIN
+	{
 	case 'j':
 		jobsflag(EARGF(usage()));
 		break;
@@ -121,7 +122,8 @@ parseenvargs(char *env)
 		break;
 	default:
 		fatal("invalid option in SAMUFLAGS");
-	} ARGEND
+	}
+	ARGEND
 
 	free(env);
 }
@@ -148,7 +150,8 @@ main(int argc, char *argv[])
 
 	argv0 = progname(argv[0], "samu");
 	parseenvargs(getenv("SAMUFLAGS"));
-	ARGBEGIN {
+	ARGBEGIN
+	{
 	case '-':
 		arg = EARGF(usage());
 		if (strcmp(arg, "version") == 0) {
@@ -197,13 +200,16 @@ main(int argc, char *argv[])
 		break;
 	default:
 		usage();
-	} ARGEND
+	}
+	ARGEND
 argdone:
 	if (!buildopts.maxjobs) {
 #ifdef _SC_NPROCESSORS_ONLN
 		long nproc = sysconf(_SC_NPROCESSORS_ONLN);
 		switch (nproc) {
-		case -1: case 0: case 1:
+		case -1:
+		case 0:
+		case 1:
 			buildopts.maxjobs = 2;
 			break;
 		case 2:
