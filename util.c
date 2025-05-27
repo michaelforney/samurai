@@ -152,7 +152,13 @@ delevalstr(void *ptr)
 void
 canonpath(struct string *path)
 {
-	// TODO: canon for win32
+
+#ifdef _WIN32
+#define _samu_path_sep '\\'
+#else
+#define _samu_path_sep '/'
+#endif
+
 	char *component[60];
 	int n;
 	char *s, *d, *end;
@@ -162,23 +168,23 @@ canonpath(struct string *path)
 	s = d = path->s;
 	end = path->s + path->n;
 	n = 0;
-	if (*s == '/') {
+	if (*s == _samu_path_sep) {
 		++s;
 		++d;
 	}
 	while (s < end) {
 		switch (s[0]) {
-		case '/':
+		case _samu_path_sep:
 			++s;
 			continue;
 		case '.':
 			switch (s[1]) {
 			case '\0':
-			case '/':
+			case _samu_path_sep:
 				s += 2;
 				continue;
 			case '.':
-				if (s[2] != '/' && s[2] != '\0')
+				if (s[2] != _samu_path_sep && s[2] != '\0')
 					break;
 				if (n > 0) {
 					d = component[--n];
@@ -194,7 +200,7 @@ canonpath(struct string *path)
 		if (n == LEN(component))
 			fatal("path has too many components: %s", path->s);
 		component[n++] = d;
-		while (*s != '/' && *s != '\0')
+		while (*s != _samu_path_sep && *s != '\0')
 			*d++ = *s++;
 		*d++ = *s++;
 	}
