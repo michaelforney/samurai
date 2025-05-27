@@ -86,6 +86,12 @@ nodestat(struct node *n)
 	n->mtime = osmtime(n->path->s);
 }
 
+#ifdef _WIN32
+const char _esc = '"';
+#else
+const char _esc = '\'';
+#endif
+
 struct string *
 nodepath(struct node *n, bool escape)
 {
@@ -101,22 +107,22 @@ nodepath(struct node *n, bool escape)
 	for (s = n->path->s; *s; ++s) {
 		if (!isalnum(*(unsigned char *)s) && !strchr("_+-./", *s))
 			escape = true;
-		if (*s == '\'')
+		if (*s == _esc)
 			++nquote;
 	}
 	if (escape) {
 		n->shellpath = mkstr(n->path->n + 2 + 3 * nquote);
 		d = n->shellpath->s;
-		*d++ = '\'';
+		*d++ = _esc;
 		for (s = n->path->s; *s; ++s) {
 			*d++ = *s;
-			if (*s == '\'') {
+			if (*s == _esc) {
 				*d++ = '\\';
-				*d++ = '\'';
-				*d++ = '\'';
+				*d++ = _esc;
+				*d++ = _esc;
 			}
 		}
-		*d++ = '\'';
+		*d++ = _esc;
 	} else {
 		n->shellpath = n->path;
 	}
