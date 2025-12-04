@@ -200,8 +200,7 @@ main(int argc, char *argv[])
 	} ARGEND
 argdone:
 	if (!buildopts.maxjobs) {
-#ifdef _SC_NPROCESSORS_ONLN
-		long nproc = sysconf(_SC_NPROCESSORS_ONLN);
+		long nproc = osnproc();
 		switch (nproc) {
 		case -1: case 0: case 1:
 			buildopts.maxjobs = 2;
@@ -213,9 +212,6 @@ argdone:
 			buildopts.maxjobs = nproc + 2;
 			break;
 		}
-#else
-		buildopts.maxjobs = 2;
-#endif
 	}
 
 	buildopts.statusfmt = getenv("NINJA_STATUS");
