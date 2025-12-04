@@ -83,3 +83,13 @@ https://www.illumos.org/issues/13327
 #endif
 	}
 }
+
+long
+osnproc(void)
+{
+#ifdef _SC_NPROCESSORS_ONLN
+	return sysconf(_SC_NPROCESSORS_ONLN);
+#else
+	return 1;
+#endif
+}

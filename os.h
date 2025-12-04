@@ -7,3 +7,5 @@ void oschdir(const char *);
 int osmkdirs(struct string *, _Bool);
 /* queries the mtime of a file in nanoseconds since the UNIX epoch */
 int64_t osmtime(const char *);
+/* queries the number of online processors */
+long osnproc(void);
