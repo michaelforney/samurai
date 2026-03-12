@@ -7,8 +7,11 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macOS-latest]
+        include:
+        - os: macOS-latest
+          flags: LDLIBS=
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v1
     - name: make
-      run: make
+      run: make ${{ matrix.flags }}
