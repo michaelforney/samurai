@@ -59,11 +59,16 @@ isdirty(struct node *n, struct node *newest, bool generator, bool restat)
 
 	e = n->gen;
 	if (e->rule == &phonyrule) {
-		if (e->nin > 0 || n->mtime != MTIME_MISSING)
-			return false;
-		if (buildopts.explain)
-			warn("explain %s: phony and no inputs", n->path->s);
-		return true;
+		if (n->mtime == MTIME_MISSING) {
+			if (e->nin == 0) {
+				if (buildopts.explain)
+					warn("explain %s: phony and no inputs", n->path->s);
+				return true;
+			}
+			if (newest)
+				n->mtime = newest->mtime;
+		}
+		return false;
 	}
 	if (n->mtime == MTIME_MISSING) {
 		if (buildopts.explain)
