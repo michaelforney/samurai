@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
@@ -34,6 +35,7 @@ static struct edge *work;
 static size_t nstarted, nfinished, ntotal;
 static bool consoleused;
 static struct timespec starttime;
+static int sigfd[2];
 
 void
 buildreset(void)
@@ -544,17 +546,44 @@ queryload(void)
 #endif
 }
 
+static void
+catchsig(int sig)
+{
+	write(sigfd[1], &sig, sizeof(sig));
+}
+
 void
 build(void)
 {
+	static const int sigs[] = {
+		SIGHUP,
+		SIGINT,
+		SIGQUIT,
+		SIGTERM,
+	};
 	struct job *jobs = NULL;
 	struct pollfd *fds = NULL;
 	size_t i, next = 0, jobslen = 0, maxjobs = buildopts.maxjobs, numjobs = 0, numfail = 0;
 	struct edge *e;
+	struct sigaction sa;
+	int sig;
+	ssize_t ret;
 
 	if (ntotal == 0) {
 		warn("nothing to do");
 		return;
+	}
+
+	if (pipe(sigfd) != 0)
+		fatal("pipe:");
+	if (fcntl(sigfd[0], F_SETFD, FD_CLOEXEC) != 0 || fcntl(sigfd[1], F_SETFD, FD_CLOEXEC) != 0)
+		fatal("fcntl CLOEXEC:");
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = catchsig;
+	sa.sa_flags = SA_RESTART;
+	for (i = 0; i < LEN(sigs); ++i) {
+		if (sigaction(sigs[i], &sa, NULL) != 0)
+			warn("sigaction %d:", sigs[i]);
 	}
 
 	clock_gettime(CLOCK_MONOTONIC, &starttime);
@@ -584,7 +613,7 @@ build(void)
 				if (jobslen > buildopts.maxjobs)
 					jobslen = buildopts.maxjobs;
 				jobs = xreallocarray(jobs, jobslen, sizeof(jobs[0]));
-				fds = xreallocarray(fds, jobslen, sizeof(fds[0]));
+				fds = xreallocarray(fds, jobslen + 1, sizeof(fds[0]));
 				for (i = next; i < jobslen; ++i) {
 					jobs[i].buf.data = NULL;
 					jobs[i].buf.len = 0;
@@ -593,6 +622,8 @@ build(void)
 					fds[i].fd = -1;
 					fds[i].events = POLLIN;
 				}
+				fds[i].fd = sigfd[0];
+				fds[i].events = POLLIN;
 			}
 			fds[next].fd = jobstart(&jobs[next], e);
 			if (fds[next].fd < 0) {
@@ -605,8 +636,30 @@ build(void)
 		}
 		if (numjobs == 0)
 			break;
-		if (poll(fds, jobslen, 5000) < 0)
-			fatal("poll:");
+		for (;;) {
+			if (poll(fds, jobslen + 1, 5000) >= 0)
+				break;
+			if (errno != EINTR)
+				fatal("poll:");
+		}
+		if (fds[jobslen].revents & POLLIN) {
+			ret = read(sigfd[0], &sig, sizeof(sig));
+			if (ret == -1)
+				fatal("read signal pipe:");
+			if (ret != sizeof sig)
+				fatal("read signal pipe: unexpected size");
+			warn("received signal: %s", strsignal(sig));
+			for (i = 0; i < jobslen; ++i) {
+				if (fds[i].fd != -1)
+					kill(jobs[i].pid, sig);
+			}
+			memset(&sa, 0, sizeof(sa));
+			sa.sa_handler = SIG_DFL;
+			sa.sa_flags = SA_RESTART;
+			sigaction(sig, &sa, NULL);
+			raise(sig);
+			exit(128 + sig);
+		}
 		for (i = 0; i < jobslen; ++i) {
 			if (!fds[i].revents || jobwork(&jobs[i]))
 				continue;
