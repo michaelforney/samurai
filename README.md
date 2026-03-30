@@ -39,12 +39,6 @@ are several cases where it is slightly different:
   so the first to execute depends on the address returned by `malloc`.
   This may result in build failures due to insufficiently specified
   dependencies in the project's build system.
-- samurai does not post-process the job output in any way, so if it
-  includes escape sequences they will be preserved, while ninja strips
-  escape sequences if standard output is not a terminal. Some build
-  systems, like meson, force color output from gcc by default using
-  `-fdiagnostics-color=always`, so if you plan to save the output to a
-  log, you should pass `-Db_colorout=auto` to meson.
 - samurai follows the [POSIX Utility Syntax Guidelines], in particular
   guideline 9, so it requires that any command-line options precede
   the operands. It does not do GNU-style argument permutation.
