@@ -645,9 +645,9 @@ build(void)
 		if (fds[jobslen].revents & POLLIN) {
 			ret = read(sigfd[0], &sig, sizeof(sig));
 			if (ret == -1)
-				fatal("read signal pipe:");
+				fatal("read signal:");
 			if (ret != sizeof sig)
-				fatal("read signal pipe: unexpected size");
+				fatal("read signal: unexpected size");
 			warn("received signal: %s", strsignal(sig));
 			for (i = 0; i < jobslen; ++i) {
 				if (fds[i].fd != -1)
