@@ -655,7 +655,6 @@ build(void)
 			}
 			memset(&sa, 0, sizeof(sa));
 			sa.sa_handler = SIG_DFL;
-			sa.sa_flags = SA_RESTART;
 			sigaction(sig, &sa, NULL);
 			raise(sig);
 			exit(128 + sig);
