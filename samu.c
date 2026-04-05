@@ -102,7 +102,7 @@ parseenvargs(char *env)
 	argv[0] = NULL;
 	arg = strtok(env, " ");
 	while (arg) {
-		if ((size_t)argc >= LEN(argvbuf) - 1)
+		if ((size_t)argc >= countof(argvbuf) - 1)
 			fatal("too many arguments in SAMUFLAGS");
 		argv[argc++] = arg;
 		arg = strtok(NULL, " ");

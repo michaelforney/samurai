@@ -151,7 +151,7 @@ scankeyword(struct scanner *s, char **var)
 		{"rule",     RULE},
 		{"subninja", SUBNINJA},
 	};
-	int low = 0, high = LEN(keywords) - 1, mid, cmp;
+	int low = 0, high = countof(keywords) - 1, mid, cmp;
 
 	for (;;) {
 		switch (s->chr) {

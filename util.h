@@ -15,7 +15,9 @@ struct evalstring {
 	struct evalstring *next;
 };
 
-#define LEN(a) (sizeof(a) / sizeof((a)[0]))
+#ifndef countof
+#define countof(a) (sizeof(a) / sizeof((a)[0]))
+#endif
 
 void warn(const char *, ...);
 void fatal(const char *, ...);

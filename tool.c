@@ -451,7 +451,7 @@ toolget(const char *name)
 	size_t i;
 
 	t = NULL;
-	for (i = 0; i < LEN(tools); ++i) {
+	for (i = 0; i < countof(tools); ++i) {
 		if (strcmp(name, tools[i].name) == 0) {
 			t = &tools[i];
 			break;

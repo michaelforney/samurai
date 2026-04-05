@@ -581,7 +581,7 @@ build(void)
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = catchsig;
 	sa.sa_flags = SA_RESTART;
-	for (i = 0; i < LEN(sigs); ++i) {
+	for (i = 0; i < countof(sigs); ++i) {
 		if (sigaction(sigs[i], &sa, NULL) != 0)
 			warn("sigaction %d:", sigs[i]);
 	}

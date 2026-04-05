@@ -189,7 +189,7 @@ canonpath(struct string *path)
 				continue;
 			}
 		}
-		if (n == LEN(component))
+		if (n == countof(component))
 			fatal("path has too many components: %s", path->s);
 		component[n++] = d;
 		while (*s != '/' && *s != '\0')
