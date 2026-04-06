@@ -24,6 +24,24 @@ Scheduling jobs based on load average requires the non-standard
 `HAVE_GETLOADAVG` in your `CFLAGS`, along with any other necessary
 definitions for your platform.
 
+## Building
+
+samurai can be built with
+
+```sh
+make
+```
+
+Since samurai uses `clock_gettime`, we use `-l rt` when linking to
+ensure that this interface is made available. While this is a POSIX
+requirement, some operating systems don't support this. If you get
+an error about a missing `rt` library, you can build without it
+using
+
+```sh
+make LDLIBS=
+```
+
 ## Differences from ninja
 
 samurai tries to match ninja behavior as much as possible, but there
