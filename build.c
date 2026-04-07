@@ -311,6 +311,10 @@ jobstart(struct job *j, struct edge *e)
 		warn("pipe:");
 		goto err1;
 	}
+	if (fcntl(fd[0], F_SETFD, FD_CLOEXEC) != 0) {
+		warn("fcntl CLOEXEC:");
+		goto err2;
+	}
 	j->edge = e;
 	j->cmd = edgevar(e, "command", true);
 	j->fd = fd[0];
@@ -323,11 +327,11 @@ jobstart(struct job *j, struct edge *e)
 		warn("posix_spawn_file_actions_init:");
 		goto err2;
 	}
-	if ((errno = posix_spawn_file_actions_addclose(&actions, fd[0]))) {
-		warn("posix_spawn_file_actions_addclose:");
-		goto err3;
-	}
 	if (e->pool != &consolepool) {
+		if (fcntl(fd[1], F_SETFD, FD_CLOEXEC) != 0) {
+			warn("fcntl CLOEXEC:");
+			goto err2;
+		}
 		if ((errno = posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0))) {
 			warn("posix_spawn_file_actions_addopen:");
 			goto err3;
@@ -338,10 +342,6 @@ jobstart(struct job *j, struct edge *e)
 		}
 		if ((errno = posix_spawn_file_actions_adddup2(&actions, fd[1], 2))) {
 			warn("posix_spawn_file_actions_adddup2:");
-			goto err3;
-		}
-		if ((errno = posix_spawn_file_actions_addclose(&actions, fd[1]))) {
-			warn("posix_spawn_file_actions_addclose:");
 			goto err3;
 		}
 	}
