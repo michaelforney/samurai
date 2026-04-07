@@ -4,14 +4,12 @@
 #include <inttypes.h>
 #include <poll.h>
 #include <signal.h>
-#include <spawn.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
 #include <time.h>
-#include <unistd.h>
 #include "build.h"
 #include "deps.h"
 #include "env.h"
@@ -284,12 +282,10 @@ printstatus(struct edge *e, struct string *cmd)
 static int
 jobstart(struct job *j, struct edge *e)
 {
-	extern char **environ;
 	size_t i;
 	struct node *n;
 	struct string *rspfile, *content;
-	int fd[2];
-	posix_spawn_file_actions_t actions;
+	int fd[2], outfd;
 	char *argv[] = {"/bin/sh", "-c", NULL, NULL};
 
 	++nstarted;
@@ -322,43 +318,26 @@ jobstart(struct job *j, struct edge *e)
 
 	if (!consoleused)
 		printstatus(e, j->cmd);
-
-	if ((errno = posix_spawn_file_actions_init(&actions))) {
-		warn("posix_spawn_file_actions_init:");
-		goto err2;
-	}
-	if (e->pool != &consolepool) {
+	if (e->pool == &consolepool) {
+		outfd = -1;
+	} else {
 		if (fcntl(fd[1], F_SETFD, FD_CLOEXEC) != 0) {
 			warn("fcntl CLOEXEC:");
 			goto err2;
 		}
-		if ((errno = posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0))) {
-			warn("posix_spawn_file_actions_addopen:");
-			goto err3;
-		}
-		if ((errno = posix_spawn_file_actions_adddup2(&actions, fd[1], 1))) {
-			warn("posix_spawn_file_actions_adddup2:");
-			goto err3;
-		}
-		if ((errno = posix_spawn_file_actions_adddup2(&actions, fd[1], 2))) {
-			warn("posix_spawn_file_actions_adddup2:");
-			goto err3;
-		}
+		outfd = fd[1];
 	}
-	if ((errno = posix_spawn(&j->pid, argv[0], &actions, NULL, argv, environ))) {
-		warn("posix_spawn %s:", j->cmd->s);
-		goto err3;
-	}
-	posix_spawn_file_actions_destroy(&actions);
+	j->pid = osspawn(argv, outfd);
+	if (j->pid == -1)
+		goto err2;
 	close(fd[1]);
+
 	j->failed = false;
 	if (e->pool == &consolepool)
 		consoleused = true;
 
 	return j->fd;
 
-err3:
-	posix_spawn_file_actions_destroy(&actions);
 err2:
 	close(fd[0]);
 	close(fd[1]);

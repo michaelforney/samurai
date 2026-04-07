@@ -1,7 +1,10 @@
 #define _POSIX_C_SOURCE 200809L
 #include <errno.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <stdint.h>
+#include <fcntl.h>
+#include <spawn.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include "graph.h"
@@ -92,4 +95,42 @@ osnproc(void)
 #else
 	return 1;
 #endif
+}
+
+pid_t
+osspawn(char *const argv[], int outfd)
+{
+	extern char **environ;
+	pid_t pid;
+	posix_spawn_file_actions_t actions;
+
+	if ((errno = posix_spawn_file_actions_init(&actions))) {
+		warn("posix_spawn_file_actions_init:");
+		goto err0;
+	}
+	if (outfd != -1) {
+		if ((errno = posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0))) {
+			warn("posix_spawn_file_actions_adddup2:");
+			goto err1;
+		}
+		if ((errno = posix_spawn_file_actions_adddup2(&actions, outfd, 1))) {
+			warn("posix_spawn_file_actions_adddup2:");
+			goto err1;
+		}
+		if ((errno = posix_spawn_file_actions_adddup2(&actions, outfd, 2))) {
+			warn("posix_spawn_file_actions_adddup2:");
+			goto err1;
+		}
+	}
+	if ((errno = posix_spawn(&pid, argv[0], &actions, NULL, argv, environ))) {
+		warn("posix_spawn %s:", argv[0]);
+		goto err1;
+	}
+	posix_spawn_file_actions_destroy(&actions);
+	return pid;
+
+err1:
+	posix_spawn_file_actions_destroy(&actions);
+err0:
+	return -1;
 }

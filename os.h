@@ -1,3 +1,5 @@
+#include <unistd.h>
+
 struct string;
 
 void osgetcwd(char *, size_t);
@@ -9,3 +11,5 @@ int osmkdirs(struct string *, _Bool);
 int64_t osmtime(const char *);
 /* queries the number of online processors */
 long osnproc(void);
+/* spawn a child process */
+pid_t osspawn(char *const argv[], int fd);
