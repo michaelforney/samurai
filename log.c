@@ -11,7 +11,7 @@ static FILE *logfile;
 static const char *logname = ".ninja_log";
 static const char *logtmpname = ".ninja_log.tmp";
 static const char *logfmt = "# ninja log v%d\n";
-static const int logver = 5;
+static const int logver = 6;
 
 static char *
 nextfield(char **end)
