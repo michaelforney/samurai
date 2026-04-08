@@ -2,11 +2,11 @@
 .PHONY: all install clean
 
 OS=posix
-PREFIX=/usr/local
-BINDIR=$(PREFIX)/bin
-MANDIR=$(PREFIX)/share/man
+PREFIX?=/usr/local
+BINDIR?=$(PREFIX)/bin
+MANDIR?=$(PREFIX)/share/man
 ALL_CFLAGS=$(CFLAGS) -std=c99 -Wall -Wextra -Wshadow -Wmissing-prototypes -Wpedantic -Wno-unused-parameter
-LDLIBS=-lrt
+LDLIBS?=-lrt
 OBJ=\
 	build.o\
 	deps.o\
