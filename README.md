@@ -24,6 +24,10 @@ Scheduling jobs based on load average requires the non-standard
 `HAVE_GETLOADAVG` in your `CFLAGS`, along with any other necessary
 definitions for your platform.
 
+Spawning subprocesses is done using `posix_spawn`. If this interface
+isn't available on your operating system, define `NO_POSIX_SPAWN`
+in your `CFLAGS` to use `fork` and `spawn` instead.
+
 ## Building
 
 samurai can be built with

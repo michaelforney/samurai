@@ -4,9 +4,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <fcntl.h>
-#include <spawn.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#ifndef NO_POSIX_SPAWN
+#include <spawn.h>
+#endif
 #include "graph.h"
 #include "os.h"
 #include "util.h"
@@ -100,6 +102,35 @@ osnproc(void)
 pid_t
 osspawn(char *const argv[], int outfd)
 {
+#ifdef NO_POSIX_SPAWN
+	pid_t pid;
+	int i, fd[3];
+
+	pid = fork();
+	switch (pid) {
+	case 0:
+		if (outfd != -1) {
+			fd[0] = open("/dev/null", O_RDONLY | O_CLOEXEC);
+			if (fd[0] == -1)
+				_exit(1);
+			fd[1] = outfd;
+			fd[2] = outfd;
+			for (i = 0; i <= 2; ++i) {
+				if (dup2(fd[i], i) == -1)
+					_exit(1);
+			}
+		}
+		execvp(argv[0], argv);
+		_exit(1);
+		/* unreachable */
+		return -1;
+	default:
+		return pid;
+	case -1:
+		warn("fork:");
+		return -1;
+	}
+#else
 	extern char **environ;
 	pid_t pid;
 	posix_spawn_file_actions_t actions;
@@ -133,4 +164,5 @@ err1:
 	posix_spawn_file_actions_destroy(&actions);
 err0:
 	return -1;
+#endif
 }
