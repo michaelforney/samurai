@@ -28,23 +28,17 @@ Spawning subprocesses is done using `posix_spawn`. If this interface
 isn't available on your operating system, define `NO_POSIX_SPAWN`
 in your `CFLAGS` to use `fork` and `spawn` instead.
 
+samurai uses `clock_gettime`, which requires `-l rt` when linking
+on some operating systems to ensure that this interface is made
+available. While it is a POSIX requirement to support this flag
+(even if it's a no-op), some operating systems don't. If you get
+an error about a missing `rt` library, you can build without it
+by clearing `LDLIBS`.
+
 ## Building
 
-samurai can be built with
-
-```sh
-make
-```
-
-Since samurai uses `clock_gettime`, we use `-l rt` when linking to
-ensure that this interface is made available. While this is a POSIX
-requirement, some operating systems don't support this. If you get
-an error about a missing `rt` library, you can build without it
-using
-
-```sh
-make LDLIBS=
-```
+samurai can be built with `make`. `CFLAGS` and `LDLIBS` can be set
+in the environment, or straight on the command-line.
 
 ## Differences from ninja
 
