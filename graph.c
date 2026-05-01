@@ -169,10 +169,10 @@ edgehash(struct edge *e)
 		memcpy(s->s + cmd->n, sep, sizeof(sep) - 1);
 		memcpy(s->s + cmd->n + sizeof(sep) - 1, rsp->s, rsp->n);
 		s->s[s->n] = '\0';
-		e->hash = murmurhash64a(s->s, s->n);
+		e->hash = rapidhashv1(s->s, s->n);
 		free(s);
 	} else {
-		e->hash = murmurhash64a(cmd->s, cmd->n);
+		e->hash = rapidhashv1(cmd->s, cmd->n);
 	}
 }
 

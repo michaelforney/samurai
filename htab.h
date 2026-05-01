@@ -13,4 +13,4 @@ void delhtab(struct hashtable *, void(void *));
 void **htabput(struct hashtable *, struct hashtablekey *);
 void *htabget(struct hashtable *, struct hashtablekey *);
 
-uint64_t murmurhash64a(const void *, size_t);
+uint64_t rapidhashv1(const void *, size_t);
