@@ -2,7 +2,7 @@ struct node;
 
 struct buildoptions {
 	size_t maxjobs, maxfail;
-	_Bool verbose, explain, keepdepfile, keeprsp, dryrun;
+	_Bool verbose, explain, keepdepfile, keeprsp, dryrun, color;
 	const char *statusfmt;
 	double maxload;
 };

@@ -42,3 +42,6 @@ void delevalstr(void *);
 void canonpath(struct string *);
 /* write a new file with the given name and contents */
 int writefile(const char *, struct string *);
+
+/* strip ANSI escape codes from buffer in-place */
+void stripansi(struct buffer *buf);
