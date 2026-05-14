@@ -449,8 +449,11 @@ jobdone(struct job *j)
 		j->failed = true;
 	}
 	close(j->fd);
-	if (j->buf.len && (!consoleused || j->failed))
+	if (j->buf.len && (!consoleused || j->failed)) {
+		if (!buildopts.color)
+			stripansi(&j->buf);
 		fwrite(j->buf.data, 1, j->buf.len, stdout);
+	}
 	j->buf.len = 0;
 	e = j->edge;
 	if (e->pool) {
