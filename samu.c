@@ -140,7 +140,7 @@ progname(const char *arg, const char *def)
 int
 main(int argc, char *argv[])
 {
-	char *builddir, *manifest = "build.ninja", *end, *arg;
+	char *builddir, *manifest = "build.ninja", *end, *arg, *workdir = NULL;
 	const struct tool *tool = NULL;
 	struct node *n;
 	long num;
@@ -151,7 +151,9 @@ main(int argc, char *argv[])
 	ARGBEGIN {
 	case '-':
 		arg = EARGF(usage());
-		if (strcmp(arg, "version") == 0) {
+		if (strcmp(arg, "quiet") == 0) {
+			buildopts.quiet = true;
+		} else if (strcmp(arg, "version") == 0) {
 			printf("%d.%d.0\n", ninjamajor, ninjaminor);
 			return 0;
 		} else if (strcmp(arg, "verbose") == 0) {
@@ -161,9 +163,7 @@ main(int argc, char *argv[])
 		}
 		break;
 	case 'C':
-		arg = EARGF(usage());
-		warn("entering directory '%s'", arg);
-		oschdir(arg);
+		workdir = EARGF(usage());
 		break;
 	case 'd':
 		debugflag(EARGF(usage()));
@@ -199,6 +199,12 @@ main(int argc, char *argv[])
 		usage();
 	} ARGEND
 argdone:
+	if (workdir) {
+		if (!buildopts.quiet)
+			warn("entering directory '%s'", workdir);
+		oschdir(workdir);
+	}
+
 	if (!buildopts.maxjobs) {
 		long nproc = osnproc();
 		switch (nproc) {
