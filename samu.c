@@ -224,10 +224,10 @@ argdone:
 	tries = 0;
 retry:
 	/* (re-)initialize global graph, environment, and parse structures */
+	dyndepinit();
 	graphinit();
 	envinit();
 	parseinit();
-	dyndepinit();
 
 	/* parse the manifest */
 	parse(manifest, rootenv);
