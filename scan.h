@@ -1,3 +1,6 @@
+#include <setjmp.h>
+#include <stdio.h>
+
 enum token {
 	BUILD,
 	DEFAULT,
@@ -12,6 +15,8 @@ struct scanner {
 	FILE *f;
 	const char *path;
 	int chr, line, col;
+	jmp_buf *errorjmp;
+	char error[512];
 };
 
 extern struct evalstring **paths;
