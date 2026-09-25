@@ -1,4 +1,5 @@
 struct node;
+struct edge;
 
 struct buildoptions {
 	size_t maxjobs, maxfail;

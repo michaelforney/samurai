@@ -68,6 +68,11 @@ struct edge {
 		FLAG_DEPS      = 1 << 6,  /* dependencies loaded */
 		FLAG_DYNDEP    = 1 << 7,  /* dyndep loaded */
 		FLAG_QUEUED    = 1 << 8,  /* edge is queued */
+		FLAG_RUNNING   = 1 << 9,  /* command is running */
+		FLAG_DONE      = 1 << 10, /* command completed */
+		FLAG_COUNTED   = 1 << 11, /* included in ntotal */
+		FLAG_POOLSLOT  = 1 << 12, /* queued edge owns a pool slot */
+		FLAG_UPDATING  = 1 << 13, /* edge state is being recomputed */
 	} flags;
 
 	/* used to coordinate ready work in build() */
