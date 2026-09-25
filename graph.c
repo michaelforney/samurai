@@ -143,8 +143,12 @@ mkedge(struct environment *parent)
 	e->pool = NULL;
 	e->out = NULL;
 	e->nout = 0;
+	e->outimpidx = e->outdynidx = 0;
 	e->in = NULL;
 	e->nin = 0;
+	e->inimpidx = e->indynidx = e->inorderidx = 0;
+	e->hash = 0;
+	e->nblock = e->nprune = 0;
 	e->flags = 0;
 	e->allnext = alledges;
 	alledges = e;
@@ -185,9 +189,8 @@ mkphony(struct node *n)
 
 	e = mkedge(rootenv);
 	e->rule = &phonyrule;
-	e->inimpidx = 0;
-	e->inorderidx = 0;
-	e->outimpidx = 1;
+	e->inimpidx = e->indynidx = e->inorderidx = 0;
+	e->outimpidx = e->outdynidx = 1;
 	e->nout = 1;
 	e->out = xmalloc(sizeof(n));
 	e->out[0] = n;
@@ -219,15 +222,12 @@ edgeadddeps(struct edge *e, struct node **deps, size_t ndeps)
 void
 edgeadddyndeps(struct edge *e, struct node **deps, size_t ndeps)
 {
-	struct node **order, *n;
+	struct node **order;
 	size_t norder, i;
 
-	for (i = 0; i < ndeps; ++i) {
-		n = deps[i];
-		if (!n->gen)
-			n->gen = mkphony(n);
-		nodeuse(n, e);
-	}
+	for (i = 0; i < ndeps; ++i)
+		nodeuse(deps[i], e);
+
 	e->indynidx = e->inorderidx;
 	e->in = xreallocarray(e->in, e->nin + ndeps, sizeof(e->in[0]));
 	order = e->in + e->inorderidx;
@@ -246,7 +246,7 @@ edgeadddynouts(struct edge *e, struct node **outs, size_t nouts)
 
 	for (i = 0; i < nouts; ++i) {
 		n = outs[i];
-		if (n->gen && n->gen->rule != &phonyrule)
+		if (n->gen)
 			fatal("multiple rules generate '%s'", n->path->s);
 		n->gen = e;
 	}
