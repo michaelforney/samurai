@@ -8,10 +8,6 @@ struct dyndep {
 	struct edge **use;
 	size_t nuse;
 
-	/* nodes this dyndep updated */
-	struct node **update;
-	size_t nupdate;
-
 	/* is this dyndep file already loaded */
 	_Bool done;
 

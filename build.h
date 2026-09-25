@@ -14,7 +14,7 @@ extern struct buildoptions buildopts;
 void buildreset(void);
 /* schedule a particular target to be built */
 void buildadd(struct node *);
-/* reschedule a particular target to be built */
-void buildupdate(struct node *);
+/* refresh an edge after dyndep information changes */
+void buildupdate(struct edge *);
 /* execute rules to build the scheduled targets */
 void build(void);

@@ -26,6 +26,7 @@ HDR=\
 	arg.h\
 	build.h\
 	deps.h\
+	dyndep.h\
 	env.h\
 	graph.h\
 	htab.h\

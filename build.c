@@ -258,18 +258,16 @@ buildrefreshusers(struct node *n)
 	for (i = 0; i < n->nuse; ++i) {
 		e = n->use[i];
 		if ((e->flags & FLAG_WORK) && !(e->flags & (FLAG_RUNNING | FLAG_DONE)))
-			buildupdate(e->out[0]);
+			buildupdate(e);
 	}
 }
 
 void
-buildupdate(struct node *n)
+buildupdate(struct edge *e)
 {
-	struct edge *e = n->gen;
 	size_t i;
 
-	if (!e || !(e->flags & FLAG_WORK) ||
-	    (e->flags & (FLAG_UPDATING | FLAG_RUNNING | FLAG_DONE)))
+	if (!(e->flags & FLAG_WORK) || (e->flags & (FLAG_UPDATING | FLAG_RUNNING | FLAG_DONE)))
 		return;
 	e->flags |= FLAG_UPDATING;
 	if (e->dyndep && !e->dyndep->done && !dyndepload(e->dyndep, false)) {
