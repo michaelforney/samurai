@@ -1,4 +1,5 @@
 struct node;
+struct edge;
 
 struct buildoptions {
 	size_t maxjobs, maxfail;
@@ -13,5 +14,7 @@ extern struct buildoptions buildopts;
 void buildreset(void);
 /* schedule a particular target to be built */
 void buildadd(struct node *);
+/* refresh an edge after dyndep information changes */
+void buildupdate(struct edge *);
 /* execute rules to build the scheduled targets */
 void build(void);

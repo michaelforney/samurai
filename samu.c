@@ -6,6 +6,7 @@
 #include "arg.h"
 #include "build.h"
 #include "deps.h"
+#include "dyndep.h"
 #include "env.h"
 #include "graph.h"
 #include "log.h"
@@ -223,6 +224,7 @@ argdone:
 	tries = 0;
 retry:
 	/* (re-)initialize global graph, environment, and parse structures */
+	dyndepinit();
 	graphinit();
 	envinit();
 	parseinit();

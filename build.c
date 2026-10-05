@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include "build.h"
 #include "deps.h"
+#include "dyndep.h"
 #include "env.h"
 #include "graph.h"
 #include "log.h"
@@ -40,9 +41,20 @@ void
 buildreset(void)
 {
 	struct edge *e;
+	struct node *n;
+	size_t i;
 
-	for (e = alledges; e; e = e->allnext)
-		e->flags &= ~FLAG_WORK;
+	for (e = alledges; e; e = e->allnext) {
+		e->flags &= ~(FLAG_WORK | FLAG_QUEUED | FLAG_RUNNING | FLAG_DONE |
+			FLAG_COUNTED | FLAG_UPDATING | FLAG_DIRTY_IN | FLAG_DIRTY_OUT);
+		e->nblock = e->nprune = 0;
+		for (i = 0; i < e->nout; ++i) {
+			n = e->out[i];
+			n->dirty = false;
+		}
+	}
+	work = NULL;
+	ntotal = 0;
 }
 
 /* returns whether n1 is newer than n2, or false if n1 is NULL */
@@ -112,23 +124,173 @@ queue(struct edge *e)
 {
 	struct edge **front = &work;
 
+	if (e->flags & (FLAG_QUEUED | FLAG_RUNNING | FLAG_DONE))
+		return;
+	e->flags |= FLAG_QUEUED;
 	if (e->pool && e->rule != &phonyrule) {
-		if (e->pool->numjobs == e->pool->maxjobs)
+		if (e->pool->numjobs == e->pool->maxjobs) {
+			/* no job slot available: wait for one to be handed over */
 			front = &e->pool->work;
-		else
+			e->flags &= ~FLAG_POOLSLOT;
+		} else {
 			++e->pool->numjobs;
+			e->flags |= FLAG_POOLSLOT;
+		}
 	}
 	e->worknext = *front;
 	*front = e;
+}
+
+/* release the job slot held by an edge and hand it to the next edge
+ * waiting for the same pool */
+static void
+poolrelease(struct edge *e)
+{
+	struct pool *p = e->pool;
+	struct edge *next;
+
+	if (e->flags & FLAG_POOLSLOT) {
+		e->flags &= ~FLAG_POOLSLOT;
+		if (p->numjobs > 0)
+			--p->numjobs;
+	}
+	if (p->work) {
+		next = p->work;
+		p->work = next->worknext;
+		next->worknext = work;
+		work = next;
+		next->flags |= FLAG_POOLSLOT;
+	}
+}
+
+static void
+edgecount(struct edge *e, bool count)
+{
+	if (e->rule == &phonyrule)
+		return;
+	if (count) {
+		if (!(e->flags & FLAG_COUNTED)) {
+			e->flags |= FLAG_COUNTED;
+			++ntotal;
+		}
+	} else if (e->flags & FLAG_COUNTED) {
+		e->flags &= ~FLAG_COUNTED;
+		if (ntotal > 0)
+			--ntotal;
+	}
+}
+
+static void
+computedirty(struct edge *e, struct node *newest)
+{
+	struct node *n;
+	size_t i;
+	bool generator, restat;
+
+	/* all outputs are dirty if any are older than the newest input */
+	generator = edgevarbool(e, "generator");
+	restat = edgevarbool(e, "restat");
+	for (i = 0; i < e->nout && !(e->flags & FLAG_DIRTY_OUT); ++i) {
+		n = e->out[i];
+		if (isdirty(n, newest, generator, restat)) {
+			n->dirty = true;
+			e->flags |= FLAG_DIRTY_OUT;
+		}
+	}
+	if (e->flags & FLAG_DIRTY) {
+		for (i = 0; i < e->nout; ++i) {
+			n = e->out[i];
+			if (buildopts.explain && !n->dirty) {
+				if (e->flags & FLAG_DIRTY_IN)
+					warn("explain %s: input is dirty", n->path->s);
+				else if (e->flags & FLAG_DIRTY_OUT)
+					warn("explain %s: output of generating action is dirty", n->path->s);
+			}
+			n->dirty = true;
+		}
+	}
+}
+
+static void
+buildrecompute(struct edge *e)
+{
+	struct node *n, *newest;
+	size_t i;
+
+	e->flags &= ~FLAG_DIRTY;
+	e->nblock = e->nprune = 0;
+	for (i = 0; i < e->nout; ++i) {
+		n = e->out[i];
+		n->dirty = false;
+		if (n->mtime == MTIME_UNKNOWN)
+			nodestat(n);
+	}
+	newest = NULL;
+	for (i = 0; i < e->nin; ++i) {
+		n = e->in[i];
+		buildadd(n);
+		if (i < e->inorderidx) {
+			if (n->dirty)
+				e->flags |= FLAG_DIRTY_IN;
+			if (n->mtime != MTIME_MISSING && !isnewer(newest, n))
+				newest = n;
+		}
+		if (n->dirty || (n->gen && n->gen->nblock > 0))
+			++e->nblock;
+	}
+	computedirty(e, newest);
+	e->nprune = (e->flags & FLAG_DIRTY_OUT) ? 0 : e->nblock;
+	if (e->flags & FLAG_DIRTY) {
+		edgecount(e, true);
+		if (e->nblock == 0)
+			queue(e);
+	} else {
+		edgecount(e, false);
+	}
+}
+
+static void
+buildrefreshusers(struct node *n)
+{
+	struct edge *e;
+	size_t i;
+
+	for (i = 0; i < n->nuse; ++i) {
+		e = n->use[i];
+		if ((e->flags & FLAG_WORK) && !(e->flags & (FLAG_RUNNING | FLAG_DONE)))
+			buildupdate(e);
+	}
+}
+
+void
+buildupdate(struct edge *e)
+{
+	size_t i;
+
+	if (!(e->flags & FLAG_WORK) || (e->flags & (FLAG_UPDATING | FLAG_RUNNING | FLAG_DONE)))
+		return;
+	e->flags |= FLAG_UPDATING;
+	if (e->dyndep && !e->dyndep->done && !dyndepload(e->dyndep, false)) {
+		e->flags &= ~FLAG_UPDATING;
+		return;
+	}
+	/* the walk may reach this edge again through a dyndep-discovered
+	 * input, which would be a dependency cycle */
+	e->flags |= FLAG_CYCLE;
+	buildrecompute(e);
+	e->flags &= ~FLAG_CYCLE;
+	/* A late dyndep update can make a previously planned edge reachable
+	 * through a new implicit input; recompute its users as well. */
+	for (i = 0; i < e->nout; ++i)
+		buildrefreshusers(e->out[i]);
+	e->flags &= ~FLAG_UPDATING;
 }
 
 void
 buildadd(struct node *n)
 {
 	struct edge *e;
-	struct node *newest;
 	size_t i;
-	bool generator, restat;
 
 	e = n->gen;
 	if (!e) {
@@ -151,50 +313,22 @@ buildadd(struct node *n)
 			nodestat(n);
 	}
 	depsload(e);
-	e->nblock = 0;
-	newest = NULL;
-	for (i = 0; i < e->nin; ++i) {
-		n = e->in[i];
-		buildadd(n);
-		if (i < e->inorderidx) {
-			if (n->dirty)
-				e->flags |= FLAG_DIRTY_IN;
-			if (n->mtime != MTIME_MISSING && !isnewer(newest, n))
-				newest = n;
-		}
-		if (n->dirty || (n->gen && n->gen->nblock > 0))
-			++e->nblock;
+	/* If the dyndep file is already available, load it before walking the
+	 * inputs so that discovered inputs and outputs are part of the walk. */
+	if (e->dyndep && !e->dyndep->done) {
+		if (e->dyndep->node->gen)
+			buildadd(e->dyndep->node);
+		dyndepload(e->dyndep, false);
 	}
-	/* all outputs are dirty if any are older than the newest input */
-	generator = edgevar(e, "generator", true);
-	restat = edgevar(e, "restat", true);
-	for (i = 0; i < e->nout && !(e->flags & FLAG_DIRTY_OUT); ++i) {
-		n = e->out[i];
-		if (isdirty(n, newest, generator, restat)) {
-			n->dirty = true;
-			e->flags |= FLAG_DIRTY_OUT;
-		}
+	/* The dyndep file may be generated by one of the inputs, in which
+	 * case it becomes loadable while walking them. */
+	for (;;) {
+		for (i = 0; i < e->nin; ++i)
+			buildadd(e->in[i]);
+		if (!e->dyndep || e->dyndep->done || !dyndepload(e->dyndep, false))
+			break;
 	}
-	if (e->flags & FLAG_DIRTY) {
-		for (i = 0; i < e->nout; ++i) {
-			n = e->out[i];
-			if (buildopts.explain && !n->dirty) {
-				if (e->flags & FLAG_DIRTY_IN)
-					warn("explain %s: input is dirty", n->path->s);
-				else if (e->flags & FLAG_DIRTY_OUT)
-					warn("explain %s: output of generating action is dirty", n->path->s);
-			}
-			n->dirty = true;
-		}
-	}
-	if (!(e->flags & FLAG_DIRTY_OUT))
-		e->nprune = e->nblock;
-	if (e->flags & FLAG_DIRTY) {
-		if (e->nblock == 0)
-			queue(e);
-		if (e->rule != &phonyrule)
-			++ntotal;
-	}
+	buildrecompute(e);
 	e->flags &= ~FLAG_CYCLE;
 }
 
@@ -361,23 +495,34 @@ static void
 nodedone(struct node *n, bool prune)
 {
 	struct edge *e;
+	struct dyndep *d;
 	size_t i, j;
 
+	/* mark node clean for computedirty of edges with dyndeps */
+	n->dirty = false;
+	/* A dyndep file is a graph update boundary.  Loading it recomputes
+	 * the edges that name it, so they are skipped below. */
+	d = n->dyndep;
+	if (d && !dyndepload(d, false))
+		d = NULL;
 	for (i = 0; i < n->nuse; ++i) {
 		e = n->use[i];
-		/* skip edges not used in this build */
-		if (!(e->flags & FLAG_WORK))
+		if (d && e->dyndep == d)
 			continue;
-		if (!(e->flags & (prune ? FLAG_DIRTY_OUT : FLAG_DIRTY)) && --e->nprune == 0) {
-			/* either edge was clean (possible with order-only
-			 * inputs), or all its blocking inputs were pruned, so
-			 * its outputs can be pruned as well */
+		if (!(e->flags & FLAG_WORK) || (e->flags & (FLAG_RUNNING | FLAG_DONE)))
+			continue;
+		/* A clean edge, or a restat-pruned edge, propagates its clean
+		 * state once all of its potentially blocking inputs finish. */
+		if (!(e->flags & (prune ? FLAG_DIRTY_OUT : FLAG_DIRTY)) &&
+		    e->nprune > 0 && --e->nprune == 0) {
+			e->flags |= FLAG_DONE;
+			edgecount(e, false);
 			for (j = 0; j < e->nout; ++j)
 				nodedone(e->out[j], true);
-			if (e->flags & FLAG_DIRTY && e->rule != &phonyrule)
-				--ntotal;
-		} else if (--e->nblock == 0) {
-			queue(e);
+		} else if ((e->flags & FLAG_DIRTY) && e->nblock > 0) {
+			--e->nblock;
+			if (e->nblock == 0)
+				queue(e);
 		}
 	}
 }
@@ -410,16 +555,25 @@ edgedone(struct edge *e)
 	size_t i;
 	struct string *rspfile;
 	bool restat;
+	bool *prunes;
 	int64_t old;
 
-	restat = edgevar(e, "restat", true);
+	restat = edgevarbool(e, "restat");
+	prunes = xmalloc(e->nout * sizeof(prunes[0]));
 	for (i = 0; i < e->nout; ++i) {
 		n = e->out[i];
 		old = n->mtime;
 		nodestat(n);
 		n->logmtime = n->mtime == MTIME_MISSING ? 0 : n->mtime;
-		nodedone(n, restat && shouldprune(e, n, old));
+		prunes[i] = restat && shouldprune(e, n, old);
 	}
+	e->flags &= ~FLAG_RUNNING;
+	e->flags |= FLAG_DONE;
+	for (i = 0; i < e->nout; ++i) {
+		n = e->out[i];
+		nodedone(n, prunes[i]);
+	}
+	free(prunes);
 	rspfile = edgevar(e, "rspfile", false);
 	if (rspfile && !buildopts.keeprsp)
 		remove(rspfile->s);
@@ -436,8 +590,7 @@ static void
 jobdone(struct job *j)
 {
 	int status;
-	struct edge *e, *new;
-	struct pool *p;
+	struct edge *e;
 
 	++nfinished;
 	if (waitpid(j->pid, &status, 0) < 0) {
@@ -462,19 +615,9 @@ jobdone(struct job *j)
 	j->buf.len = 0;
 	e = j->edge;
 	if (e->pool) {
-		p = e->pool;
-
-		if (p == &consolepool)
+		if (e->pool == &consolepool)
 			consoleused = false;
-		/* move edge from pool queue to main work queue */
-		if (p->work) {
-			new = p->work;
-			p->work = p->work->worknext;
-			new->worknext = work;
-			work = new;
-		} else {
-			--p->numjobs;
-		}
+		poolrelease(e);
 	}
 	if (!j->failed)
 		edgedone(e);
@@ -585,13 +728,28 @@ build(void)
 		/* start ready edges */
 		while (work && numjobs < maxjobs && numfail < buildopts.maxfail) {
 			e = work;
-			work = work->worknext;
+			work = e->worknext;
+			e->flags &= ~FLAG_QUEUED;
+			/* an edge queued before a dyndep update may no longer be
+			 * needed; drop it and hand its job slot to the pool queue */
+			if (!(e->flags & (FLAG_RUNNING | FLAG_DONE)) &&
+			    (e->flags & FLAG_DIRTY) && e->nblock == 0) {
+				e->flags |= FLAG_RUNNING;
+			} else {
+				if (e->pool)
+					poolrelease(e);
+				continue;
+			}
 			if (e->rule != &phonyrule && buildopts.dryrun) {
 				++nstarted;
 				printstatus(e, edgevar(e, "command", true));
 				++nfinished;
 			}
 			if (e->rule == &phonyrule || buildopts.dryrun) {
+				if (e->pool)
+					poolrelease(e);
+				e->flags &= ~FLAG_RUNNING;
+				e->flags |= FLAG_DONE;
 				for (i = 0; i < e->nout; ++i)
 					nodedone(e->out[i], false);
 				continue;
@@ -622,8 +780,12 @@ build(void)
 				++numjobs;
 			}
 		}
-		if (numjobs == 0)
+		if (numjobs == 0) {
+			if (numfail == 0 && nstarted < ntotal)
+				fatal("build is stuck: %zu of %zu edges could not be scheduled",
+					ntotal - nstarted, ntotal);
 			break;
+		}
 		for (;;) {
 			if (poll(fds, jobslen + 1, 5000) >= 0)
 				break;

@@ -10,6 +10,7 @@ LDLIBS?=-lrt
 OBJ=\
 	build.o\
 	deps.o\
+	dyndep.o\
 	env.o\
 	graph.o\
 	htab.o\
@@ -25,6 +26,7 @@ HDR=\
 	arg.h\
 	build.h\
 	deps.h\
+	dyndep.h\
 	env.h\
 	graph.h\
 	htab.h\

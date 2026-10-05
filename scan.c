@@ -20,6 +20,8 @@ scaninit(struct scanner *s, const char *path)
 	s->f = fopen(path, "r");
 	if (!s->f)
 		fatal("open %s:", path);
+	s->errorjmp = NULL;
+	s->error[0] = '\0';
 	s->chr = getc(s->f);
 }
 
@@ -35,11 +37,12 @@ scanerror(struct scanner *s, const char *fmt, ...)
 	extern const char *argv0;
 	va_list ap;
 
-	fprintf(stderr, "%s: %s:%d:%d: ", argv0, s->path, s->line, s->col);
 	va_start(ap, fmt);
-	vfprintf(stderr, fmt, ap);
+	vsnprintf(s->error, sizeof(s->error), fmt, ap);
 	va_end(ap);
-	putc('\n', stderr);
+	if (s->errorjmp)
+		longjmp(*s->errorjmp, 1);
+	fprintf(stderr, "%s: %s:%d:%d: %s\n", argv0, s->path, s->line, s->col, s->error);
 	exit(1);
 }
 
