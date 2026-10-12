@@ -245,6 +245,10 @@ Elapsed time in seconds (to 3 decimal places).
 .It Cm %%
 The '%' character.
 .El
+.It Ev CLICOLOR_FORCE
+If set to a value other than "0", force ANSI color escape codes to be printed even if standard output is not a terminal.
+.It Ev TERM
+If set to "dumb", disable ANSI color escape codes.
 .El
 .Sh SEE ALSO
 .Xr make 1

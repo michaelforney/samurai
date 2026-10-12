@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "arg.h"
 #include "build.h"
 #include "deps.h"
@@ -145,6 +146,8 @@ main(int argc, char *argv[])
 	struct node *n;
 	long num;
 	int tries;
+	const char *term, *clicolor_force;
+
 
 	argv0 = progname(argv[0], "samu");
 	parseenvargs(getenv("SAMUFLAGS"));
@@ -217,6 +220,13 @@ argdone:
 	buildopts.statusfmt = getenv("NINJA_STATUS");
 	if (!buildopts.statusfmt)
 		buildopts.statusfmt = "[%s/%t] ";
+
+	term = getenv("TERM");
+	clicolor_force = getenv("CLICOLOR_FORCE");
+
+	buildopts.color = isatty(1) && term && strcmp(term, "dumb") != 0;
+	if (!buildopts.color)
+		buildopts.color = clicolor_force && strcmp(clicolor_force, "0") != 0;
 
 	setvbuf(stdout, NULL, _IOLBF, 0);
 

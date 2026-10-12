@@ -223,3 +223,39 @@ writefile(const char *name, struct string *s)
 
 	return ret;
 }
+
+static int
+islatinalpha(int c)
+{
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
+void
+stripansi(struct buffer *buf)
+{
+	char *read = buf->data;
+	char *write = buf->data;
+	char *end = buf->data + buf->len;
+
+	if (!buf->data)
+		return;
+
+	while (read < end) {
+		if (*read != '\033') {
+			*write++ = *read++;
+			continue;
+		}
+		if (read + 1 >= end)
+			break;
+		if (*(read + 1) != '[') {
+			read++;
+			continue;
+		}
+		read += 2;
+		while (read < end && !islatinalpha(*read))
+			read++;
+		if (read < end)
+			read++;
+	}
+	buf->len = write - buf->data;
+}
