@@ -73,7 +73,7 @@ parseedge(struct scanner *s, struct environment *env)
 
 	scanpaths(s);
 	e->outimpidx = npaths;
-	if (scanpipe(s, 1))
+	if (scanpipe(s, PIPE1))
 		scanpaths(s);
 	e->nout = npaths;
 	if (e->nout == 0)
@@ -86,15 +86,20 @@ parseedge(struct scanner *s, struct environment *env)
 	free(name);
 	scanpaths(s);
 	e->inimpidx = npaths - e->nout;
-	p = scanpipe(s, 1 | 2);
-	if (p == 1) {
+	p = scanpipe(s, PIPE1 | PIPE2 | PIPEAT);
+	if (p == PIPE1) {
 		scanpaths(s);
-		p = scanpipe(s, 2);
+		p = scanpipe(s, PIPE2 | PIPEAT);
 	}
 	e->inorderidx = npaths - e->nout;
-	if (p == 2)
+	if (p == PIPE2) {
 		scanpaths(s);
+		p = scanpipe(s, PIPEAT);
+	}
 	e->nin = npaths - e->nout;
+	if (p == PIPEAT) {
+		scanpaths(s);
+	}
 	scannewline(s);
 	while (scanindent(s)) {
 		name = scanname(s);

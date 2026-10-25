@@ -20,6 +20,12 @@ extern size_t npaths;
 void scaninit(struct scanner *, const char *);
 void scanclose(struct scanner *);
 
+enum pipe {
+    PIPE1 = 1 << 0,
+    PIPE2 = 1 << 1,
+    PIPEAT = 1 << 2,
+};
+
 void scanerror(struct scanner *, const char *, ...);
 int scankeyword(struct scanner *, char **);
 char *scanname(struct scanner *);
