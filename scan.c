@@ -20,6 +20,7 @@ scaninit(struct scanner *s, const char *path)
 	s->f = fopen(path, "r");
 	if (!s->f)
 		fatal("open %s:", path);
+	s->error[0] = '\0';
 	s->chr = getc(s->f);
 }
 
@@ -32,15 +33,17 @@ scanclose(struct scanner *s)
 void
 scanerror(struct scanner *s, const char *fmt, ...)
 {
-	extern const char *argv0;
 	va_list ap;
 
-	fprintf(stderr, "%s: %s:%d:%d: ", argv0, s->path, s->line, s->col);
 	va_start(ap, fmt);
-	vfprintf(stderr, fmt, ap);
+	vsnprintf(s->error, sizeof(s->error), fmt, ap);
 	va_end(ap);
-	putc('\n', stderr);
-	exit(1);
+}
+
+void
+scanfatal(struct scanner *s)
+{
+	fatal("%s:%d:%d: %s", s->path, s->line, s->col, s->error);
 }
 
 static int
@@ -69,60 +72,73 @@ isvar(int c)
 	return issimplevar(c) || c == '.';
 }
 
-static bool
+/* The helpers below return 1 if they matched, 0 if they did not, and -1
+ * on error, with the message stored in s->error. */
+
+static int
 newline(struct scanner *s)
 {
 	switch (s->chr) {
 	case '\r':
-		if (next(s) != '\n')
+		if (next(s) != '\n') {
 			scanerror(s, "expected '\\n' after '\\r'");
+			return -1;
+		}
 		/* fallthrough */
 	case '\n':
 		next(s);
-		return true;
+		return 1;
 	}
-	return false;
+	return 0;
 }
 
-static bool
+static int
 singlespace(struct scanner *s)
 {
+	int r;
+
 	switch (s->chr) {
 	case '$':
 		next(s);
-		if (newline(s))
-			return true;
+		r = newline(s);
+		if (r)
+			return r;
 		ungetc(s->chr, s->f);
 		s->chr = '$';
-		return false;
+		return 0;
 	case ' ':
 		next(s);
-		return true;
+		return 1;
 	}
-	return false;
+	return 0;
 }
 
-static bool
+static int
 space(struct scanner *s)
 {
-	if (!singlespace(s))
-		return false;
-	while (singlespace(s))
+	int r;
+
+	r = singlespace(s);
+	if (r <= 0)
+		return r;
+	while ((r = singlespace(s)) > 0)
 		;
-	return true;
+	return r < 0 ? -1 : 1;
+}
+
+static int
+comment(struct scanner *s)
+{
+	int r;
+
+	if (s->chr != '#')
+		return 0;
+	do next(s);
+	while (!(r = newline(s)));
+	return r < 0 ? -1 : 1;
 }
 
 static bool
-comment(struct scanner *s)
-{
-	if (s->chr != '#')
-		return false;
-	do next(s);
-	while (!newline(s));
-	return true;
-}
-
-static void
 name(struct scanner *s)
 {
 	buf.len = 0;
@@ -130,15 +146,19 @@ name(struct scanner *s)
 		bufadd(&buf, s->chr);
 		next(s);
 	}
-	if (!buf.len)
+	if (!buf.len) {
 		scanerror(s, "expected name");
+		return false;
+	}
 	bufadd(&buf, '\0');
-	space(s);
+	return space(s) >= 0;
 }
 
 int
 scankeyword(struct scanner *s, char **var)
 {
+	int r;
+
 	/* must stay in sorted order */
 	static const struct {
 		const char *name;
@@ -156,21 +176,32 @@ scankeyword(struct scanner *s, char **var)
 	for (;;) {
 		switch (s->chr) {
 		case ' ':
-			space(s);
-			if (!comment(s) && !newline(s))
+			if (space(s) < 0)
+				return ERROR;
+			r = comment(s);
+			if (r == 0)
+				r = newline(s);
+			if (r < 0)
+				return ERROR;
+			if (r == 0) {
 				scanerror(s, "unexpected indent");
+				return ERROR;
+			}
 			break;
 		case '#':
-			comment(s);
+			if (comment(s) < 0)
+				return ERROR;
 			break;
 		case '\r':
 		case '\n':
-			newline(s);
+			if (newline(s) < 0)
+				return ERROR;
 			break;
 		case EOF:
 			return EOF;
 		default:
-			name(s);
+			if (!name(s))
+				return ERROR;
 			while (low <= high) {
 				mid = (low + high) / 2;
 				cmp = strcmp(buf.data, keywords[mid].name);
@@ -190,7 +221,8 @@ scankeyword(struct scanner *s, char **var)
 char *
 scanname(struct scanner *s)
 {
-	name(s);
+	if (!name(s))
+		return NULL;
 	return xmemdup(buf.data, buf.len);
 }
 
@@ -215,7 +247,7 @@ addstringpart(struct evalstring ***end, bool var)
 	buf.len = 0;
 }
 
-static void
+static bool
 escape(struct scanner *s, struct evalstring ***end)
 {
 	switch (s->chr) {
@@ -230,15 +262,17 @@ escape(struct scanner *s, struct evalstring ***end)
 			addstringpart(end, false);
 		while (isvar(next(s)))
 			bufadd(&buf, s->chr);
-		if (s->chr != '}')
+		if (s->chr != '}') {
 			scanerror(s, "invalid variable name");
+			return false;
+		}
 		next(s);
 		addstringpart(end, true);
 		break;
 	case '\r':
 	case '\n':
-		newline(s);
-		space(s);
+		if (newline(s) < 0 || space(s) < 0)
+			return false;
 		break;
 	default:
 		if (buf.len > 0)
@@ -247,23 +281,28 @@ escape(struct scanner *s, struct evalstring ***end)
 			bufadd(&buf, s->chr);
 			next(s);
 		}
-		if (!buf.len)
+		if (!buf.len) {
 			scanerror(s, "invalid $ escape");
+			return false;
+		}
 		addstringpart(end, true);
 	}
+	return true;
 }
 
-struct evalstring *
-scanstring(struct scanner *s, bool path)
+bool
+scanstring(struct scanner *s, bool path, struct evalstring **str)
 {
-	struct evalstring *str = NULL, **end = &str;
+	struct evalstring **end = str;
 
+	*str = NULL;
 	buf.len = 0;
 	for (;;) {
 		switch (s->chr) {
 		case '$':
 			next(s);
-			escape(s, &end);
+			if (!escape(s, &end))
+				return false;
 			break;
 		case ':':
 		case '|':
@@ -284,18 +323,22 @@ scanstring(struct scanner *s, bool path)
 out:
 	if (buf.len > 0)
 		addstringpart(&end, 0);
-	if (path)
-		space(s);
-	return str;
+	if (path && space(s) < 0)
+		return false;
+	return true;
 }
 
-void
+bool
 scanpaths(struct scanner *s)
 {
 	static size_t max;
 	struct evalstring *str;
 
-	while ((str = scanstring(s, true))) {
+	for (;;) {
+		if (!scanstring(s, true, &str))
+			return false;
+		if (!str)
+			return true;
 		if (npaths == max) {
 			max = max ? max * 2 : 32;
 			paths = xreallocarray(paths, max, sizeof(paths[0]));
@@ -304,13 +347,15 @@ scanpaths(struct scanner *s)
 	}
 }
 
-void
+bool
 scanchar(struct scanner *s, int c)
 {
-	if (s->chr != c)
+	if (s->chr != c) {
 		scanerror(s, "expected '%c'", c);
+		return false;
+	}
 	next(s);
-	space(s);
+	return space(s) >= 0;
 }
 
 int
@@ -320,33 +365,49 @@ scanpipe(struct scanner *s, int n)
 		return 0;
 	next(s);
 	if (s->chr != '|') {
-		if (!(n & 1))
+		if (!(n & 1)) {
 			scanerror(s, "expected '||'");
-		space(s);
-		return 1;
+			return -1;
+		}
+		return space(s) < 0 ? -1 : 1;
 	}
-	if (!(n & 2))
+	if (!(n & 2)) {
 		scanerror(s, "unexpected '||'");
+		return -1;
+	}
 	next(s);
-	space(s);
-	return 2;
+	return space(s) < 0 ? -1 : 2;
 }
 
-bool
+int
 scanindent(struct scanner *s)
 {
-	bool indent;
+	int indent, r;
 
 	for (;;) {
 		indent = space(s);
-		if (!comment(s))
-			return indent && !newline(s);
+		if (indent < 0)
+			return -1;
+		r = comment(s);
+		if (r < 0)
+			return -1;
+		if (!r)
+			break;
 	}
+	if (!indent)
+		return 0;
+	r = newline(s);
+	if (r < 0)
+		return -1;
+	return !r;
 }
 
-void
+bool
 scannewline(struct scanner *s)
 {
-	if (!newline(s))
+	int r = newline(s);
+
+	if (!r)
 		scanerror(s, "expected newline");
+	return r > 0;
 }

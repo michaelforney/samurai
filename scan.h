@@ -6,12 +6,14 @@ enum token {
 	RULE,
 	SUBNINJA,
 	VARIABLE,
+	ERROR,
 };
 
 struct scanner {
 	FILE *f;
 	const char *path;
 	int chr, line, col;
+	char error[512];
 };
 
 extern struct evalstring **paths;
@@ -21,11 +23,12 @@ void scaninit(struct scanner *, const char *);
 void scanclose(struct scanner *);
 
 void scanerror(struct scanner *, const char *, ...);
+void scanfatal(struct scanner *);
 int scankeyword(struct scanner *, char **);
 char *scanname(struct scanner *);
-struct evalstring *scanstring(struct scanner *, _Bool);
-void scanpaths(struct scanner *);
-void scanchar(struct scanner *, int);
+_Bool scanstring(struct scanner *, _Bool, struct evalstring **);
+_Bool scanpaths(struct scanner *);
+_Bool scanchar(struct scanner *, int);
 int scanpipe(struct scanner *, int);
-_Bool scanindent(struct scanner *);
-void scannewline(struct scanner *);
+int scanindent(struct scanner *);
+_Bool scannewline(struct scanner *);

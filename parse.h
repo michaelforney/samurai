@@ -13,7 +13,7 @@ extern struct parseoptions parseopts;
 /* supported ninja version */
 enum {
 	ninjamajor = 1,
-	ninjaminor = 9,
+	ninjaminor = 10,
 };
 
 /* execute a function with all default nodes */

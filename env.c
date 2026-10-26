@@ -243,6 +243,13 @@ edgevar(struct edge *e, char *var, bool escape)
 	return merge(str, len);
 }
 
+bool
+edgevarbool(struct edge *e, char *var)
+{
+	struct string *val = edgevar(e, var, false);
+	return val && val->n != 0;
+}
+
 static void
 addpool(struct pool *p)
 {
